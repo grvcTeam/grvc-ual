@@ -1,0 +1,11 @@
+plugin_blacklist:
+# common
+- safety_area
+# extras
+- image_pub
+- vibration
+#- distance_sensor
+
+plugin_whitelist:
+- distance_sensor
+#- 'sys_*'
