@@ -1,0 +1,446 @@
+<?xml version="1.0"?>
+
+<robot name="aeroarms" xmlns:xacro="http://ros.org/wiki/xacro">
+  <!-- Properties -->
+  <xacro:property name="model_name" value="aeroarms" />
+  <xacro:property name="namespace" value="" />
+  <xacro:property name="rotor_velocity_slowdown_sim" value="10" />
+  <xacro:property name="mesh_file" value="multirotor.dae" />
+  <xacro:property name="mesh_scale" value=".001 .001 .001"/>
+  <xacro:property name="mesh_scale_prop" value=".001 .001 .001"/>
+  <xacro:property name="mass" value="5.850" /> <!-- [kg] -->
+  <xacro:property name="body_width" value="0.8" /> <!-- [m] -->
+  <xacro:property name="body_height" value="0.6" /> <!-- [m] -->
+  <xacro:property name="mass_rotor" value="0.005" /> <!-- [kg] -->
+  <xacro:property name="rotor_offset_top" value="0.0" /> <!-- [m] -->
+  <xacro:property name="radius_rotor" value="0.19" /> <!-- [m] -->
+  <xacro:property name="motor_constant" value="20.0e-06" /> <!-- [kg.m/s^2] -->
+  <xacro:property name="moment_constant" value="0.12" /> <!-- [m] -->
+  <xacro:property name="time_constant_up" value="0.0125" /> <!-- [s] -->
+  <xacro:property name="time_constant_down" value="0.025" /> <!-- [s] -->
+  <xacro:property name="max_rot_velocity" value="1100" /> <!-- [rad/s] -->
+  <xacro:property name="sin30" value="0.5" />
+  <xacro:property name="cos30" value="0.866025403784" />
+  <xacro:property name="sqrt2" value="1.4142135623730951" />
+  <xacro:property name="rotor_drag_coefficient" value="8.06428e-04" />
+  <xacro:property name="rolling_moment_coefficient" value="0.000001" />
+  <xacro:property name="color" value="$(arg visual_material)" />
+
+  <!-- Property Blocks -->
+  <xacro:property name="body_inertia">
+    <inertia ixx="0.287" ixy="0.0" ixz="0.0" iyy="0.287" iyz="0.0" izz="0.468" /> <!-- [kg.m^2] [kg.m^2] [kg.m^2] [kg.m^2] [kg.m^2] [kg.m^2] -->
+  </xacro:property>
+
+  <!-- inertia of a single rotor, assuming it is a cuboid. Height=3mm, width=15mm -->
+  <xacro:property name="rotor_inertia">
+    <inertia
+    ixx="${1/12 * mass_rotor * (0.015 * 0.015 + 0.003 * 0.003) * rotor_velocity_slowdown_sim}"
+    iyy="${1/12 * mass_rotor * (4 * radius_rotor * radius_rotor + 0.003 * 0.003) * rotor_velocity_slowdown_sim}"
+    izz="${1/12 * mass_rotor * (4 * radius_rotor * radius_rotor + 0.015 * 0.015) * rotor_velocity_slowdown_sim}"
+    ixy="0.0" ixz="0.0"  iyz="0.0" /> <!-- [kg.m^2] [kg.m^2] [kg.m^2] [kg.m^2] [kg.m^2] [kg.m^2] -->
+  </xacro:property>
+
+  <!--Property cylinder_camera-->
+  <xacro:property name="camera_cylinder">
+    <cylinder length="0.001" radius="0.01" />
+  </xacro:property>
+
+  <!-- Included URDF Files -->
+  <xacro:include filename="$(find robots_description)/urdf/multirotor_base.xacro" />
+  <xacro:include filename="$(find robots_description)/urdf/component_snippets.xacro" />
+  <xacro:include filename="$(find robots_description)/models/aeroarms/arm.transmission.xacro" />
+  <xacro:include filename="$(find robots_description)/models/aeroarms/model.gazebo" />
+
+  <!-- Instantiate multirotor_base_macro once -->
+  <xacro:multirotor_base_macro
+    model_name="${model_name}"
+    robot_namespace="${namespace}"
+    mass="${mass}"
+    body_width="${body_width}"
+    body_height="${body_height}"
+    mesh_file="${mesh_file}"
+    mesh_scale="${mesh_scale}"
+    color="DarkGrey"
+    >
+    <xacro:insert_block name="body_inertia" />
+  </xacro:multirotor_base_macro>
+
+  <xacro:camera_macro
+    namespace="${namespace}"
+    parent_link="base_link"
+    camera_suffix="0"
+    frame_rate="10"
+    horizontal_fov="1.07079633"
+    image_width="800"
+    image_height="600"
+    image_format="R8G8B8"
+    min_distance="0.01"
+    max_distance="100"
+    noise_mean="0"
+    noise_stddev="0"
+    enable_visual="true"
+    >
+    <xacro:insert_block name="camera_cylinder"/>
+    <origin xyz="0 0 -0.10" rpy="0 1.57 0" />
+  </xacro:camera_macro>
+
+  <!-- Left arm -->
+  <!-- Inertias are not symmetrical, can't use xacro -->
+  <link name="left_shoulder">
+    <inertial>
+      <origin xyz="-13.805e-3 0.401e-3 27.789e-3"/>
+      <!--mass value="0.238"/>
+      <inertia ixx="7.86e-05" ixy="-1.83e-06" ixz="-6.87e-06" iyy="9.69e-05" iyz="2.11e-07" izz="9.99e-05"/-->
+      <mass value="0.1"/>
+      <inertia ixx="8.5833e-04" ixy="0" ixz="0" iyy="8.5833e-04" iyz="0" izz="5e-04"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://robots_description/models/aeroarms/meshes/visual/left/shoulder.dae" scale=".001 .001 .001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="package://robots_description/models/aeroarms/meshes/collision/left/shoulder.dae" scale=".001 .001 .001"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="left_multi_to_shoulder" type="revolute">
+    <!--origin xyz="200.781e-3 125.235e-3 -123.775e-3"/-->
+    <origin xyz="50e-3 120e-3 10e-3"/>
+    <parent link="base_link"/>
+    <child link="left_shoulder"/>
+    <axis xyz="0 0 1"/>
+    <dynamics damping="0.7" friction="0.0"/>
+    <limit effort="5000.0" lower="${-0.5*pi}" upper="${0.5*pi}" velocity="1"/>
+  </joint>
+
+  <link name="left_upperarm">
+    <inertial>
+      <origin xyz="-10.426e-3 -26.142e-3 -82.655e-3"/>
+      <!--mass value="0.245"/>
+      <inertia ixx="4.61e-04" ixy="7.12e-07" ixz="1.96e-05" iyy="4.81e-04" iyz="7.44e-07" izz="9.37e-05"/-->
+      <mass value="0.1"/>
+      <inertia ixx="8.5833e-04" ixy="0" ixz="0" iyy="8.5833e-04" iyz="0" izz="5e-04"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://robots_description/models/aeroarms/meshes/visual/left/upperarm.dae" scale=".001 .001 .001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="package://robots_description/models/aeroarms/meshes/collision/left/upperarm.dae" scale=".001 .001 .001"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="left_shoulder_to_upperarm" type="revolute">
+    <origin xyz="0 25.9e-3 -30e-3"/>
+    <parent link="left_shoulder"/>
+    <child link="left_upperarm"/>
+    <axis xyz="0 1 0"/>
+    <dynamics damping="0.7" friction="0.0"/>
+    <limit effort="5000.0" lower="${-0.5*pi}" upper="${0.5*pi}" velocity="1"/>
+  </joint>
+
+  <link name="left_elbow">
+    <inertial>
+      <origin xyz="45.132e-3 -25.144e-3 -4.463e-3"/>
+      <!--mass value="0.096"/>
+      <inertia ixx="3.06e-05" ixy="2.52e-05" ixz="4.16e-07" iyy="1.39e-04" iyz="-4.01e-06" izz="1.46e-04"/-->
+      <mass value="0.1"/>
+      <inertia ixx="8.5833e-04" ixy="0" ixz="0" iyy="8.5833e-04" iyz="0" izz="5e-04"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://robots_description/models/aeroarms/meshes/visual/left/elbow.dae" scale=".001 .001 .001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="package://robots_description/models/aeroarms/meshes/collision/left/elbow.dae" scale=".001 .001 .001"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="left_upperarm_to_elbow" type="revolute">
+    <origin xyz="0 13e-3 -250e-3"/>
+    <parent link="left_upperarm"/>
+    <child link="left_elbow"/>
+    <axis xyz="0 1 0"/>
+    <dynamics damping="0.7" friction="0.0"/>
+    <limit effort="5000.0" lower="${-0.5*pi}" upper="${0.5*pi}" velocity="1"/>
+  </joint>
+
+  <link name="left_forearm">
+    <inertial>
+      <origin xyz="149.994e-3 -1.858e-3 0.041e-3"/>
+      <!--mass value="0.049"/>
+      <inertia ixx="6.72e-06" ixy="2.80e-06" ixz="-5.10e-08" iyy="9.24e-05" iyz="-1.64e-08" izz="9.39e-05"/-->
+      <mass value="0.1"/>
+      <inertia ixx="8.5833e-04" ixy="0" ixz="0" iyy="8.5833e-04" iyz="0" izz="5e-04"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://robots_description/models/aeroarms/meshes/visual/left/forearm.dae" scale=".001 .001 .001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="package://robots_description/models/aeroarms/meshes/collision/left/forearm.dae" scale=".001 .001 .001"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="left_elbow_to_forearm" type="revolute">
+    <origin xyz="80.9e-3 -34.502e-3 0"/>
+    <parent link="left_elbow"/>
+    <child link="left_forearm"/>
+    <axis xyz="1 0 0"/>
+    <dynamics damping="0.7" friction="0.0"/>
+    <limit effort="5000.0" lower="${-0.5*pi}" upper="${0.5*pi}" velocity="1"/>
+  </joint>
+
+  <!-- Right arm -->
+  <!-- Inertias are not symmetrical, can't use xacro -->
+  <link name="right_shoulder">
+    <inertial>
+      <origin xyz="-14.08e-3 -0.409e-3 -28.745e-3"/>
+      <!--mass value="0.233"/>
+      <inertia ixx="6.70e-05" ixy="1.86e-06" ixz="-3.73e-06" iyy="8.45e-05" iyz="-1.19e-07" izz="9.90e-05"/-->
+      <mass value="0.1"/>
+      <inertia ixx="8.5833e-04" ixy="0" ixz="0" iyy="8.5833e-04" iyz="0" izz="5e-04"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://robots_description/models/aeroarms/meshes/visual/right/shoulder.dae" scale=".001 .001 .001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="package://robots_description/models/aeroarms/meshes/collision/right/shoulder.dae" scale=".001 .001 .001"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="right_multi_to_shoulder" type="revolute">
+    <!--origin xyz="200.781e-3 -124.765e-3 -123.775e-3"/-->
+    <origin xyz="50e-3 -120e-3 10e-3"/>
+    <parent link="base_link"/>
+    <child link="right_shoulder"/>
+    <axis xyz="0 0 1"/>
+    <dynamics damping="0.7" friction="0.0"/>
+    <limit effort="5000.0" lower="${-0.5*pi}" upper="${0.5*pi}" velocity="1"/>
+  </joint>
+
+  <link name="right_upperarm">
+    <inertial>
+      <origin xyz="-11.465e-3 -26.235e-3 -82.913e-3"/>
+      <!--mass value="0.244"/>
+      <inertia ixx="4.55e-04" ixy="2.46e-06" ixz="2.22e-05" iyy="4.76e-04" iyz="-2.48e-06" izz="9.24e-05"/-->
+      <mass value="0.1"/>
+      <inertia ixx="8.5833e-04" ixy="0" ixz="0" iyy="8.5833e-04" iyz="0" izz="5e-04"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://robots_description/models/aeroarms/meshes/visual/right/upperarm.dae" scale=".001 .001 .001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="package://robots_description/models/aeroarms/meshes/collision/right/upperarm.dae" scale=".001 .001 .001"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="right_shoulder_to_upperarm" type="revolute">
+    <origin xyz="0 -25.9e-3 -30e-3"/>
+    <parent link="right_shoulder"/>
+    <child link="right_upperarm"/>
+    <axis xyz="0 1 0"/>
+    <dynamics damping="0.7" friction="0.0"/>
+    <limit effort="5000.0" lower="${-0.5*pi}" upper="${0.5*pi}" velocity="1"/>
+  </joint>
+
+  <link name="right_elbow">
+    <inertial>
+      <origin xyz="45.132e-3 25.144e-3 -4.463e-3"/>
+      <!--mass value="0.096"/>
+      <inertia ixx="3.06e-05" ixy="-2.52e-05" ixz="4.16e-07" iyy="1.39e-04" iyz="4.01e-06" izz="1.46e-04"/-->
+      <mass value="0.1"/>
+      <inertia ixx="8.5833e-04" ixy="0" ixz="0" iyy="8.5833e-04" iyz="0" izz="5e-04"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://robots_description/models/aeroarms/meshes/visual/right/elbow.dae" scale=".001 .001 .001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="package://robots_description/models/aeroarms/meshes/collision/right/elbow.dae" scale=".001 .001 .001"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="right_upperarm_to_elbow" type="revolute">
+    <origin xyz="0 -13e-3 -250e-3"/>
+    <parent link="right_upperarm"/>
+    <child link="right_elbow"/>
+    <axis xyz="0 1 0"/>
+    <dynamics damping="0.7" friction="0.0"/>
+    <limit effort="5000.0" lower="${-0.5*pi}" upper="${0.5*pi}" velocity="1"/>
+  </joint>
+
+  <link name="right_forearm">
+    <inertial>
+      <origin xyz="149.597e-3 1.858e-3 0.041e-3"/>
+      <!--mass value="0.049"/>
+      <inertia ixx="6.73e-06" ixy="-2.83e-06" ixz="-5.16e-08" iyy="9.42e-05" iyz="1.62e-08" izz="9.58e-05"/-->
+      <mass value="0.1"/>
+      <inertia ixx="8.5833e-04" ixy="0" ixz="0" iyy="8.5833e-04" iyz="0" izz="5e-04"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://robots_description/models/aeroarms/meshes/visual/right/forearm.dae" scale=".001 .001 .001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="package://robots_description/models/aeroarms/meshes/collision/right/forearm.dae" scale=".001 .001 .001"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="right_elbow_to_forearm" type="revolute">
+    <origin xyz="80.9e-3 34.502e-3 0"/>
+    <parent link="right_elbow"/>
+    <child link="right_forearm"/>
+    <axis xyz="1 0 0"/>
+    <dynamics damping="0.7" friction="0.0"/>
+    <limit effort="5000.0" lower="${-0.5*pi}" upper="${0.5*pi}" velocity="1"/>
+  </joint>
+
+  <!-- Instantiate rotors -->
+  <xacro:vertical_rotor
+    robot_namespace="${namespace}"
+    suffix="right"
+    direction="cw"
+    motor_constant="${motor_constant}"
+    moment_constant="${moment_constant}"
+    parent="base_link"
+    mass_rotor="${mass_rotor}"
+    radius_rotor="${radius_rotor}"
+    time_constant_up="${time_constant_up}"
+    time_constant_down="${time_constant_down}"
+    max_rot_velocity="${max_rot_velocity}"
+    motor_number="0"
+    rotor_drag_coefficient="${rotor_drag_coefficient}"
+    rolling_moment_coefficient="${rolling_moment_coefficient}"
+    mesh="prop"
+    mesh_scale="${mesh_scale_prop}"
+    color="DarkGrey">
+    <origin xyz="0 -0.390 0" rpy="0 0 0" />
+    <xacro:insert_block name="rotor_inertia" />
+  </xacro:vertical_rotor>
+
+  <xacro:vertical_rotor
+    robot_namespace="${namespace}"
+    suffix="left"
+    direction="ccw"
+    motor_constant="${motor_constant}"
+    moment_constant="${moment_constant}"
+    parent="base_link"
+    mass_rotor="${mass_rotor}"
+    radius_rotor="${radius_rotor}"
+    time_constant_up="${time_constant_up}"
+    time_constant_down="${time_constant_down}"
+    max_rot_velocity="${max_rot_velocity}"
+    motor_number="1"
+    rotor_drag_coefficient="${rotor_drag_coefficient}"
+    rolling_moment_coefficient="${rolling_moment_coefficient}"
+    mesh="prop"
+    mesh_scale="${mesh_scale_prop}"
+    color="DarkGrey">
+    <origin xyz="0 0.390 0" rpy="0 0 0" />
+    <xacro:insert_block name="rotor_inertia" />
+  </xacro:vertical_rotor>
+
+  <xacro:vertical_rotor robot_namespace="${namespace}"
+    suffix="front_left"
+    direction="cw"
+    motor_constant="${motor_constant}"
+    moment_constant="${moment_constant}"
+    parent="base_link"
+    mass_rotor="${mass_rotor}"
+    radius_rotor="${radius_rotor}"
+    time_constant_up="${time_constant_up}"
+    time_constant_down="${time_constant_down}"
+    max_rot_velocity="${max_rot_velocity}"
+    motor_number="2"
+    rotor_drag_coefficient="${rotor_drag_coefficient}"
+    rolling_moment_coefficient="${rolling_moment_coefficient}"
+    mesh="prop"
+    mesh_scale="${mesh_scale_prop}"
+    color="${color}">
+    <origin xyz="0.33775 0.195 0" rpy="0 0 0" />
+    <xacro:insert_block name="rotor_inertia" />
+  </xacro:vertical_rotor>
+
+  <xacro:vertical_rotor robot_namespace="${namespace}"
+    suffix="back_right"
+    direction="ccw"
+    motor_constant="${motor_constant}"
+    moment_constant="${moment_constant}"
+    parent="base_link"
+    mass_rotor="${mass_rotor}"
+    radius_rotor="${radius_rotor}"
+    time_constant_up="${time_constant_up}"
+    time_constant_down="${time_constant_down}"
+    max_rot_velocity="${max_rot_velocity}"
+    motor_number="3"
+    rotor_drag_coefficient="${rotor_drag_coefficient}"
+    rolling_moment_coefficient="${rolling_moment_coefficient}"
+    mesh="prop"
+    mesh_scale="${mesh_scale_prop}"
+    color="DarkGrey">
+    <origin xyz="-0.33775 -0.195 0" rpy="0 0 0" />
+    <xacro:insert_block name="rotor_inertia" />
+  </xacro:vertical_rotor>
+
+  <xacro:vertical_rotor robot_namespace="${namespace}"
+    suffix="front_right"
+    direction="ccw"
+    motor_constant="${motor_constant}"
+    moment_constant="${moment_constant}"
+    parent="base_link"
+    mass_rotor="${mass_rotor}"
+    radius_rotor="${radius_rotor}"
+    time_constant_up="${time_constant_up}"
+    time_constant_down="${time_constant_down}"
+    max_rot_velocity="${max_rot_velocity}"
+    motor_number="4"
+    rotor_drag_coefficient="${rotor_drag_coefficient}"
+    rolling_moment_coefficient="${rolling_moment_coefficient}"
+    mesh="prop"
+    mesh_scale="${mesh_scale_prop}"
+    color="${color}">
+    <origin xyz="0.33775 -0.195 0" rpy="0 0 0" />
+    <xacro:insert_block name="rotor_inertia" />
+  </xacro:vertical_rotor>
+
+  <xacro:vertical_rotor robot_namespace="${namespace}"
+    suffix="back_left"
+    direction="cw"
+    motor_constant="${motor_constant}"
+    moment_constant="${moment_constant}"
+    parent="base_link"
+    mass_rotor="${mass_rotor}"
+    radius_rotor="${radius_rotor}"
+    time_constant_up="${time_constant_up}"
+    time_constant_down="${time_constant_down}"
+    max_rot_velocity="${max_rot_velocity}"
+    motor_number="5"
+    rotor_drag_coefficient="${rotor_drag_coefficient}"
+    rolling_moment_coefficient="${rolling_moment_coefficient}"
+    mesh="prop"
+    mesh_scale="${mesh_scale_prop}"
+    color="DarkGrey">
+    <origin xyz="-0.33775 0.195 0" rpy="0 0 0" />
+    <xacro:insert_block name="rotor_inertia" />
+  </xacro:vertical_rotor>
+
+</robot>

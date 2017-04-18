@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<robot xmlns:sensor="http://playerstage.sourceforge.net/gazebo/xmlschema/#sensor"
+xmlns:controller="http://playerstage.sourceforge.net/gazebo/xmlschema/#controller"
+xmlns:interface="http://playerstage.sourceforge.net/gazebo/xmlschema/#interface"
+xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <!-- ros_control plugin (arms) -->
+  <gazebo>
+    <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
+      <robotNamespace>/aeroarms</robotNamespace>
+      <robotSimType>gazebo_ros_control/DefaultRobotHWSim</robotSimType>
+    </plugin>
+  </gazebo>
+
+  <!-- Gravity at left arm -->
+  <gazebo reference="left_shoulder">
+    <turnGravityOff>true</turnGravityOff>
+  </gazebo>
+  <gazebo reference="left_upperarm">
+    <turnGravityOff>true</turnGravityOff>
+  </gazebo>
+  <gazebo reference="left_elbow">
+    <turnGravityOff>true</turnGravityOff>
+  </gazebo>
+  <gazebo reference="left_forearm">
+    <turnGravityOff>true</turnGravityOff>
+  </gazebo>
+
+  <!-- Gravity at right arm -->
+  <gazebo reference="right_shoulder">
+    <turnGravityOff>true</turnGravityOff>
+  </gazebo>
+  <gazebo reference="right_upperarm">
+    <turnGravityOff>true</turnGravityOff>
+  </gazebo>
+  <gazebo reference="right_elbow">
+    <turnGravityOff>true</turnGravityOff>
+  </gazebo>
+  <gazebo reference="right_forearm">
+    <turnGravityOff>true</turnGravityOff>
+  </gazebo>
+
+</robot>

@@ -1,0 +1,49 @@
+aeroarms:
+
+  # Joint State Controller
+  joint_state_controller:
+    type: joint_state_controller/JointStateController
+    publish_rate: 20
+
+  # Position Controllers
+  # Left arm
+  left_multi_to_shoulder_position_controller:
+    type: effort_controllers/JointPositionController
+    joint: left_multi_to_shoulder
+    pid: {p: 0.5, i: 0.1, d: 0.0, i_clamp: 1.0}
+
+  left_shoulder_to_upperarm_position_controller:
+    type: effort_controllers/JointPositionController
+    joint: left_shoulder_to_upperarm
+    pid: {p: 1.0, i: 0.1, d: 0.0, i_clamp: 1.0}
+
+  left_upperarm_to_elbow_position_controller:
+    type: effort_controllers/JointPositionController
+    joint: left_upperarm_to_elbow
+    pid: {p: 0.5, i: 0.1, d: 0.0, i_clamp: 1.0}
+
+  left_elbow_to_forearm_position_controller:
+    type: effort_controllers/JointPositionController
+    joint: left_elbow_to_forearm
+    pid: {p: 0.25, i: 0.1, d: 0.0, i_clamp: 1.0}
+
+  # Right arm
+  right_multi_to_shoulder_position_controller:
+    type: effort_controllers/JointPositionController
+    joint: right_multi_to_shoulder
+    pid: {p: 0.5, i: 0.1, d: 0.0, i_clamp: 1.0}
+
+  right_shoulder_to_upperarm_position_controller:
+    type: effort_controllers/JointPositionController
+    joint: right_shoulder_to_upperarm
+    pid: {p: 1.0, i: 0.1, d: 0.0, i_clamp: 1.0}
+
+  right_upperarm_to_elbow_position_controller:
+    type: effort_controllers/JointPositionController
+    joint: right_upperarm_to_elbow
+    pid: {p: 0.5, i: 0.1, d: 0.0, i_clamp: 1.0}
+
+  right_elbow_to_forearm_position_controller:
+    type: effort_controllers/JointPositionController
+    joint: right_elbow_to_forearm
+    pid: {p: 0.25, i: 0.1, d: 0.0, i_clamp: 1.0}
