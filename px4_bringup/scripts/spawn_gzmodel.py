@@ -21,7 +21,7 @@ def main():
                         help='robot Gazebo/material; \
                         see materials/scripts/gazebo.material (at your gazebo version)')
     args, unknown = parser.parse_known_args()
-    del unknown
+    utils.check_unknown_args(unknown)
 
     # Get an instance of RosPack with the default search paths
     rospack = rospkg.RosPack()

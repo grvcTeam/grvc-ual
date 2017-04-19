@@ -14,7 +14,7 @@ def main():
     parser.add_argument('-mode', type=str, default="sitl",
                         help='robot mode, used to set proper fcu_url')
     args, unknown = parser.parse_known_args()
-    del unknown
+    utils.check_unknown_args(unknown)
 
     # Get an instance of RosPack with the default search paths
     rospack = rospkg.RosPack()

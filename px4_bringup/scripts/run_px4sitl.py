@@ -14,7 +14,7 @@ def main():
     parser.add_argument('-id', type=int, default=1,
                         help='robot id, used to compute udp ports')
     args, unknown = parser.parse_known_args()
-    del unknown
+    utils.check_unknown_args(unknown)
 
     # Get an instance of RosPack with the default search paths
     rospack = rospkg.RosPack()

@@ -21,12 +21,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     <group if="$(eval mode == 'sitl')">
         <!-- Spawn model in Gazebo -->
         <node pkg="px4_bringup" type="spawn_gzmodel.py" name="spawn_gzmodel_$(arg id)" output="screen"
-        args="-name=$(arg robot_model) -id=$(arg id) -frames=$(arg frames) -material=$(arg material)"/>
+        args="-model=$(arg robot_model) -id=$(arg id) -frames=$(arg frames) -material=$(arg material)"/>
 
         <!-- Run px4 controller -->
         <!-- Important parameter cwd="node", px4 link generation may cause errors otherwise -->
         <node pkg="px4_bringup" type="run_px4sitl.py" cwd="node" name="run_px4sitl_$(arg id)" output="screen"
-        args="-name=$(arg robot_model) -id=$(arg id) -mode=$(arg mode)"/>
+        args="-model=$(arg robot_model) -id=$(arg id)"/>
     </group>
     
     <!-- Run mavros node -->

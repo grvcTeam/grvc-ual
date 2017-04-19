@@ -17,6 +17,11 @@ def udp_config(id):
     "@127.0.0.1:" + str(init_port+6)
     return config
 
+def check_unknown_args(unknown):
+    for arg in unknown:
+        if arg[0] == '-':
+            raise SyntaxWarning("Unexpected argument " + arg)
+
 # def fcu_url(id, mode)
 
 

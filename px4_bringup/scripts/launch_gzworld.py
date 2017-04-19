@@ -17,7 +17,7 @@ def main():
     parser.add_argument('-frames', type=str, default="/config/map_simulation.xml",
                         help='path to frames xml file')
     args, unknown = parser.parse_known_args()
-    del unknown
+    utils.check_unknown_args(unknown)
 
     # Get an instance of RosPack with the default search paths
     rospack = rospkg.RosPack()
