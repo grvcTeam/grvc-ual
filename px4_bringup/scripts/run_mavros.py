@@ -53,9 +53,13 @@ def main():
     rosrun_args = "rosrun mavros mavros_node __name:=" + node_name
     rosrun_out = open(temp_dir+"/mavros.out", 'w')
     rosrun_err = open(temp_dir+"/mavros.err", 'w')
-    subprocess.call(rosrun_args, shell=True, stdout=rosrun_out, stderr=rosrun_err)
-    rosrun_out.close()
-    rosrun_err.close()
+    try:
+        subprocess.call(rosrun_args, shell=True, stdout=rosrun_out, stderr=rosrun_err)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        rosrun_out.close()
+        rosrun_err.close()
 
 
 if __name__ == "__main__":

@@ -46,9 +46,15 @@ def main():
     px4_out = open(temp_dir+"/px4.out", 'w')
     px4_err = open(temp_dir+"/px4.err", 'w')
     px4 = subprocess.Popen(px4_args, shell=True, stdout=px4_out, stderr=px4_err, cwd=temp_dir)
-    px4.wait()
-    px4_out.close()
-    px4_err.close()
+
+    # Wait for it!
+    try:
+        px4.wait()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        px4_out.close()
+        px4_err.close()
 
 
 if __name__ == "__main__":

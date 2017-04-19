@@ -3,8 +3,11 @@ import xml.etree.ElementTree as xml
 import subprocess
 import argparse
 import os
+import time
+import signal
 import utils
 import rospkg
+
 
 def main():
 
@@ -56,26 +59,35 @@ def main():
     subprocess.call("mkdir -p " + temp_dir, shell=True)
 
     # Start gazebo server
-    server_args = "rosrun gazebo_ros gzserver -e " + args.physics + ' ' + args.world
+    server_args = "gzserver -e " + args.physics + ' ' + args.world
     server_out = open(temp_dir + '/gzserver.out', 'w')
     server_err = open(temp_dir + '/gzserver.err', 'w')
     server = subprocess.Popen(server_args, stdout=server_out, stderr=server_err, cwd=temp_dir, \
-                                           env=gz_env, shell=True)
+                                           env=gz_env, shell=True, preexec_fn=os.setsid)
 
     # Start gazebo client
-    client_args = "rosrun gazebo_ros gzclient"
+    client_args = "gzclient"
     client_out = open(temp_dir + '/gzclient.out', 'w')
     client_err = open(temp_dir + '/gzclient.err', 'w')
     client = subprocess.Popen(client_args, stdout=client_out, stderr=client_err, cwd=temp_dir, \
-                                           env=gz_env, shell=True)
+                                           env=gz_env, shell=True, preexec_fn=os.setsid)
 
-    # Wait for server and client (TODO properly?)
-    client.wait()
-    client_out.close()
-    client_err.close()
-    server.wait()
-    server_out.close()
-    server_err.close()
+    # Wait for server and client
+    try:
+        client.wait()
+        server.wait()
+    except KeyboardInterrupt:
+        time.sleep(1)
+        if server.poll() is None:
+            os.killpg(os.getpgid(server.pid), signal.SIGTERM)
+        if client.poll() is None:
+            os.killpg(os.getpgid(client.pid), signal.SIGTERM)
+    finally:
+        # Clean up
+        client_out.close()
+        client_err.close()
+        server_out.close()
+        server_err.close()
 
 
 if __name__ == '__main__':
