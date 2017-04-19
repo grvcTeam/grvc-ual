@@ -20,19 +20,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     <group if="$(eval mode == 'sitl')">
         <!-- Spawn model in Gazebo -->
-        <node pkg="px4_bringup" type="gazebo_spawn.py" name="gazebo_spawn_$(arg id)" output="screen"
-        args="-name=$(arg robot_model) -id=$(arg id)
-        -frames=$(arg frames)
-        -material=$(arg material)"/>
+        <node pkg="px4_bringup" type="spawn_gzmodel.py" name="spawn_gzmodel_$(arg id)" output="screen"
+        args="-name=$(arg robot_model) -id=$(arg id) -frames=$(arg frames) -material=$(arg material)"/>
 
-        <!-- Spawn px controller -->
+        <!-- Run px4 controller -->
         <!-- Important parameter cwd="node", px4 link generation may cause errors otherwise -->
-        <node pkg="px4_bringup" type="px4_spawn.py" cwd="node" name="px4_spawn_$(arg id)" output="screen"
+        <node pkg="px4_bringup" type="run_px4sitl.py" cwd="node" name="run_px4sitl_$(arg id)" output="screen"
         args="-name=$(arg robot_model) -id=$(arg id) -mode=$(arg mode)"/>
     </group>
     
-    <!-- Spawn mavros node -->
-    <node pkg="px4_bringup" type="mavros_spawn.py" name="mavros_spawn_$(arg id)" output="screen"
+    <!-- Run mavros node -->
+    <node pkg="px4_bringup" type="run_mavros.py" name="run_mavros_$(arg id)" output="screen"
     args="-id=$(arg id) -mode=$(arg mode)"/>
 
 </launch>

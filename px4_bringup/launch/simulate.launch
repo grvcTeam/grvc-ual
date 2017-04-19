@@ -13,7 +13,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     <arg name="multi" default="false"/>
 
     <!-- Launch Gazebo simulation TODO: world as arg? -->
-    <node pkg="px4_bringup" type="spawn_gzworld.py" name="gazebo_world" output="screen"/>
+    <node pkg="px4_bringup" type="launch_gzworld.py" name="gazebo_world" output="screen"/>
 
     <!-- Launch robot id=1 -->
     <include file="$(find px4_bringup)/launch/spawn_robot.launch">
