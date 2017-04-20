@@ -59,14 +59,14 @@ def main():
     subprocess.call("mkdir -p " + temp_dir, shell=True)
 
     # Start gazebo server
-    server_args = "gzserver -e " + args.physics + ' ' + args.world
+    server_args = "rosrun gazebo_ros gzserver -e " + args.physics + ' ' + args.world
     server_out = open(temp_dir + '/gzserver.out', 'w')
     server_err = open(temp_dir + '/gzserver.err', 'w')
     server = subprocess.Popen(server_args, stdout=server_out, stderr=server_err, cwd=temp_dir, \
                                            env=gz_env, shell=True, preexec_fn=os.setsid)
 
     # Start gazebo client
-    client_args = "gzclient"
+    client_args = "rosrun gazebo_ros gzclient"
     client_out = open(temp_dir + '/gzclient.out', 'w')
     client_err = open(temp_dir + '/gzclient.err', 'w')
     client = subprocess.Popen(client_args, stdout=client_out, stderr=client_err, cwd=temp_dir, \
