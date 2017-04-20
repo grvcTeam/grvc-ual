@@ -8,13 +8,12 @@ def temp_dir(id):
     return path
 
 def udp_config(id):
-    init_port = 14560 + 10*(id-1)
+    init_port = 14550 + 10*(id-1)
     config = {}
-    config["sim_port"] = init_port
-    config["u_port"] = [init_port+1, init_port+2]
-    config["o_port"] = [init_port+3, init_port+4]
-    config["gcs_url"] = "udp://:" + str(init_port+5) + \
-    "@127.0.0.1:" + str(init_port+6)
+    config["gcs_url"] = "udp://:" + str(init_port+1) + "@127.0.0.1:" + str(init_port)
+    config["sim_port"] = init_port+2
+    config["u_port"] = [init_port+3, init_port+4]
+    config["o_port"] = [init_port+6, init_port+7]
     return config
 
 def check_unknown_args(unknown):
