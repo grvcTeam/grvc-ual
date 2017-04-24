@@ -11,30 +11,21 @@ namespace grvc { namespace ual {
 
 class TaskManager {
 public:
-    TaskManager() {
-        update_thread_ = std::thread([&]() {
-            alive_ = true;
-            while (alive_) {
-                updateTasks();
-                std::this_thread::sleep_for(std::chrono::milliseconds(500));    
-            }
-        });
-    }
-
-    ~TaskManager() {
-        alive_ = false;
-        update_thread_.join();
-    }
 
     unsigned int registerTask() {
         Task task;
         task.id_ = getNewId();
         task.state_ = Task::State::WAITING;
         pushTask(task);
-        // Wait until manager decides something
-        while (task.state_ == Task::State::WAITING) {
+        // Wait until task fate is decided
+        while (true) {
+            updateTasks();
             task = getTask(task.id_);
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            if (task.state_ == Task::State::WAITING) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            } else {
+                break;
+            }
         }
         return task.id_;
     }
@@ -120,7 +111,6 @@ protected:
         std::cout << std::endl << "Updating tasks:" << std::endl;  // debug!
         bool found_waiting_task = false;
         tasks_mutex_.lock();
-        if (!tasks_.empty()) { tasks_.sort(); }
         // Last task has more priority
         for (auto rit = tasks_.rbegin(); rit != tasks_.rend(); ++rit) {
             std::cout << *rit;  // debug!
@@ -167,9 +157,6 @@ protected:
     // Tasks list and mutex
     std::list<Task> tasks_;
     std::mutex tasks_mutex_;
-    // Tasks update thread
-    std::thread update_thread_;
-    bool alive_;
 };
 
 }}  // namespace grvc::ual
