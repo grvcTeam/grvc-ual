@@ -13,21 +13,23 @@ class TaskBoard {
 public:
 
     unsigned int registerTask() {
-        Task task;
-        task.id_ = getNewId();
-        task.state_ = Task::State::WAITING;
+        Task task(getNewId(), Task::State::WAITING);
         pushTask(task);
-        // Wait until task fate is decided
+        updateTasks();
+        return task.id_;
+    }
+
+    // Wait while task is waiting
+    void wait(unsigned int _id) {
         while (true) {
-            updateTasks();
-            task = getTask(task.id_);
-            if (task.state_ == Task::State::WAITING) {
+            if (getState(_id) == Task::State::WAITING) {
+                // TODO: How long should we wait?
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                updateTasks();
             } else {
-                break;
+                return;
             }
         }
-        return task.id_;
     }
 
     Task::State getState(unsigned int _id) {
@@ -72,39 +74,27 @@ protected:
     }
 
     Task getTask(unsigned int _id) {
-        Task task;
-        bool task_found = false;
         // Look for task
-        tasks_mutex_.lock();
+        std::lock_guard<std::mutex> lock_guard(tasks_mutex_);
         for (auto t : tasks_) {
             if (t.id_ == _id) {
-                task_found = true;
-                task = t;
-                break;
+                return t;
             }
         }
-        tasks_mutex_.unlock();
         // In case task not found
-        if (!task_found) {
-            task.id_ = _id;
-            task.state_ = Task::State::NONE;
-        }
-        return task;
+        return Task(_id, Task::State::NONE);
     }
 
     bool setTask(const Task& _task) {
-        bool task_found = false;
         // Look for task
-        tasks_mutex_.lock();
+        std::lock_guard<std::mutex> lock_guard(tasks_mutex_);
         for (auto &t : tasks_) {
             if (t.id_ == _task.id_) {
-                task_found = true;
                 t = _task;
-                break;
+                return true;
             }
         }
-        tasks_mutex_.unlock();
-        return task_found;
+        return false;
     }
 
     void updateTasks() {

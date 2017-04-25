@@ -12,7 +12,7 @@ class Task {
 public:
     enum State { WAITING, RUNNING, ABORTING, ABORTED, FINISHED, NONE };
 
-    Task() : id_(0), state_(State::NONE) {}
+    Task(unsigned int _id, State _state) : id_(_id), state_(_state) {}
     unsigned int id_;
     State state_;
 
