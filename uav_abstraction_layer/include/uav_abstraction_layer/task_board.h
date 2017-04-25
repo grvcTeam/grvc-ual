@@ -1,5 +1,5 @@
-#ifndef UAV_ABSTRACTION_LAYER_TASK_MANAGER_H
-#define UAV_ABSTRACTION_LAYER_TASK_MANAGER_H
+#ifndef UAV_ABSTRACTION_LAYER_TASK_BOARD_H
+#define UAV_ABSTRACTION_LAYER_TASK_BOARD_H
 
 #include <thread>
 #include <list>
@@ -9,7 +9,7 @@
 
 namespace grvc { namespace ual {
 
-class TaskManager {
+class TaskBoard {
 public:
 
     unsigned int registerTask() {
@@ -161,4 +161,4 @@ protected:
 
 }}  // namespace grvc::ual
 
-#endif  // UAV_ABSTRACTION_LAYER_TASK_MANAGER_H
+#endif  // UAV_ABSTRACTION_LAYER_TASK_BOARD_H

@@ -1,16 +1,17 @@
-#include <uav_abstraction_layer/task_manager.h>
 #include <stdlib.h>
 #include <time.h>
+#include <thread>
+#include <mutex>
+#include <chrono>
+#include <iostream>
 
-using namespace std;
-using namespace grvc::ual;
 
 class BackendTest {
 public:
 
     bool countToTen(const std::string& _who, int _index) {
         // TODO: Wrap it!
-        if (!canRun()) { return false; }
+        if (!idle()) { return false; }
 
         int count = 0;
         // Check that task is not aborted every control loop
@@ -18,7 +19,7 @@ public:
             count++;
             std::cout << std::endl << "-------------------------------------------------- " << \
                 "[" << _index << "] " << _who << ": " << count << std::endl;
-            this_thread::sleep_for(chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::seconds(1));
             if (count >= 10) { break; }
         }
 
@@ -30,12 +31,12 @@ public:
 
     bool criticalCountToTen(const std::string& _who, int _index) {
         // TODO: Wrap it!
-        if (!canRun()) { return false; }
+        if (!idle()) { return false; }
 
         for (int count = 1; count <= 10; count++) {
             std::cout << std::endl << "-------------------------------------------------- " << \
                 "[" << _index << "] " << _who << " (critically): " << count << std::endl;
-            this_thread::sleep_for(chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::seconds(1));
         }
 
         // TODO: Wrap it!
@@ -55,7 +56,7 @@ protected:
 
     bool abort_ = false;
 
-    bool canRun() {
+    bool idle() {
         std::lock_guard<std::mutex> lock_guard(running_mutex_);
         if (!running_task_) {
             running_task_ = true;
@@ -98,7 +99,7 @@ int main(int, char**) {
     srand(time(NULL));
 
     for (int i = 0; i < 25; i++) {
-        this_thread::sleep_for(chrono::seconds(rand()%5 + 1));
+        std::this_thread::sleep_for(std::chrono::seconds(rand()%5 + 1));
         std::string who = people[i%5];
         int odds = rand()%100 + 1;
         std::thread count_thread;
