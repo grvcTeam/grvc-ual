@@ -70,9 +70,7 @@ private:
     void arm();
     void initLocalCoordMatrix();
     bool referencePoseReached() const;
-    // void setLandMode();
-    // void setOffBoardMode();
-    void setFlightMode(const std::string& _flight_mode, bool _stubborn = false);
+    void setFlightMode(const std::string& _flight_mode);
 
     utils::ArgumentParser args_;
     //WaypointList path_;
