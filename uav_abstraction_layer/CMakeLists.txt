@@ -130,6 +130,9 @@ include_directories(
 add_library(${PROJECT_NAME}
   src/backend.cpp src/backend_mavros.cpp
 )
+add_library(tinyxml
+  src/tinyxml2.cpp
+)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -140,7 +143,8 @@ add_library(${PROJECT_NAME}
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/uav_abstraction_layer_node.cpp)
-add_executable(task_management_test src/test_task_management.cpp)
+add_executable(test_task_management src/test_task_management.cpp)
+add_executable(test_ual_object src/test_ual_object.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -156,8 +160,13 @@ add_executable(task_management_test src/test_task_management.cpp)
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
-target_link_libraries(task_management_test
+target_link_libraries(test_task_management
   ${catkin_LIBRARIES}
+)
+target_link_libraries(test_ual_object
+  ${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+  tinyxml
 )
 
 #############

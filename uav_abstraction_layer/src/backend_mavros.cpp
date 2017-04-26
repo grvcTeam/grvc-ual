@@ -39,13 +39,12 @@ BackendMavros::BackendMavros(int _argc, char** _argv)
 
     // Parse arguments
     robot_id_ = args_.getArgument("uav_id", 1);
-    // TODO: Auto mavros_ns = mavros_(id)?
-    std::string mavros_ns = args_.getArgument("mavros_ns", std::string("mavros_1"));
 
     // Init ros communications
     std::string node_name = "backend_" + std::to_string(robot_id_);
     ros::init(_argc, _argv, node_name);
 
+    std::string mavros_ns = "mavros_" + std::to_string(robot_id_);
     std::string set_mode_srv = mavros_ns + "/set_mode";
     std::string arming_srv = mavros_ns + "/cmd/arming";
     std::string set_pose_topic = mavros_ns + "/setpoint_position/local";
