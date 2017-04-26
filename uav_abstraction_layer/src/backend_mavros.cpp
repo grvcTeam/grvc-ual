@@ -159,10 +159,9 @@ void BackendMavros::land() {
     ref_pose_ = cur_pose_;
     ref_pose_.pose.position.z = 0;
     // Landing is unabortable!
-    while (!referencePoseReached() && ros::ok()) {
+    while (mavros_state_.armed && ros::ok()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-    // TODO: better land condition checking
     ROS_INFO("Landed!");
 }
 
