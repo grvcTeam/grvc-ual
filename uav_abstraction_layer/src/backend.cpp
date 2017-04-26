@@ -21,14 +21,33 @@
 #include <uav_abstraction_layer/backend.h>
 #include <uav_abstraction_layer/backend_mavros.h>
 
-
 namespace grvc { namespace ual {
-	
-BackEnd* Backend::createBackend(const char* _node_name, int _argc, char** _argv, StateCallBack _scb) {
-	Backend* be = nullptr;
 
-	be = new BackendMavros (_node_name,_argc, _argv, _scb);
-	return be;
+Backend* Backend::createBackend(int _argc, char** _argv) {
+    Backend* be = nullptr;
+    be = new BackendMavros(_argc, _argv);
+    return be;
 }
-	
+
+void Backend::abortCurrentTask() {
+    std::lock_guard<std::mutex> lock_guard(running_mutex_);
+    if (running_task_) { abort_ = true; }
+}
+
+bool Backend::goToRunningState() {
+    std::lock_guard<std::mutex> lock_guard(running_mutex_);
+    if (!running_task_) {
+        running_task_ = true;
+        return true;
+    } else {
+        return false;
+    }
+}
+
+void Backend::goToIdleState() {
+    std::lock_guard<std::mutex> lock_guard(running_mutex_);
+    running_task_ = false;
+    abort_ = false;
+}
+
 }}	// namespace grvc::ual

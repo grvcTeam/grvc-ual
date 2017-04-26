@@ -127,6 +127,9 @@ include_directories(
 # add_library(${PROJECT_NAME}
 #   src/${PROJECT_NAME}/uav_abstraction_layer.cpp
 # )
+add_library(${PROJECT_NAME}
+  src/backend.cpp src/backend_mavros.cpp
+)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries

@@ -21,64 +21,83 @@
 #ifndef UAV_ABSTRACTION_LAYER_BACKEND_H
 #define UAV_ABSTRACTION_LAYER_BACKEND_H
 
-//#include <grvc_quadrotor_hal/types.h>
-//#include <functional>
+#include <mutex>
+#include <std_msgs/Float32.h>
+#include <geometry_msgs/Vector3Stamped.h>
+#include <geometry_msgs/TwistStamped.h>
+#include <geometry_msgs/PoseStamped.h>
+// #include <nav_msgs/Path.h>
 
 namespace grvc { namespace ual {
-	
-	/// Common interface for back end implementations of hal
-	class Backend {
-	public:
-		typedef std::function<void(TaskState)>	StateCallBack;
-	public:
-		BackEnd(StateCallBack _scb) : state_cb_(_scb) {}
-		virtual bool		ready() const { return true; }
-		/// Go to the specified waypoint, following a straight line.
-		/// \param _wp goal waypoint.
-		virtual void		goToWP			(const Waypoint& _wp) = 0;
-		/// Follow a list of waypoints, one after another
-		virtual void		trackPath		(const WaypointList& _path) = 0;
-		/// Perform a take off maneuver
-		/// \param _height target height that must be reached to consider the take off complete.
-		virtual void		takeOff			(double _height) = 0;
-		/// Land on the current position.
-		virtual void		land			() = 0;
-		/// Set velocities
-		/// \param _vel target velocity in world coordinates
-		virtual void		setVelocity		(const Velocity& _vel) = 0;
-		/// Set position error control
-		/// \param _pos_error position error in world coordinates
-		virtual void		setPositionError(const Vec3& _pos_error) = 0;
 
-		/// Cancel execution of the current task
-		virtual void		abortTask		() = 0;
-		/// Latest pose estimation of the robot
-		virtual Pose		pose			() const = 0;
+typedef geometry_msgs::PoseStamped Pose;
+typedef geometry_msgs::PoseStamped Waypoint;
+typedef geometry_msgs::TwistStamped Velocity;
+typedef geometry_msgs::Vector3Stamped PositionError;
+//typedef std_msgs::Float32 TakeOffHeight;
 
-		virtual ~Backend() = default; // Ensure proper destructor calling for derived classes
+/// Common interface for back-end implementations of ual
+class Backend {
+public:
 
-		/// \brief Create an adequate BackEnd depending on current platform and command arguments.
-		/// \param _node_name unique identifier of the hal executable
-		/// \param _argc number of arguments in _argv
-		/// \param _argv command line arguments passed to the program. This arguments will be parsed
-		/// and used to select the best fitting implementation of BackEnd from those available in the
-		/// current platform.
-		/// \return the newly created BackEnd. Whoever calls this method, is responsible for eventually
-		/// destroying the BackEnd.
-		static Backend* createBackend(const char* _node_name, int _argc, char** _argv, StateCallBack _scb);
+    template <typename Callable, typename ... Args>
+    bool threadSafeCall(Callable&& _fn, Args&& ... _args) {
+        if (!goToRunningState()) { return false; }
+        std::bind(_fn, this, std::forward<Args>(_args)...)();
+        goToIdleState();
+        return true;
+    }
 
-	protected:
-		StateCallBack state_cb_;
+    /// Backend is initialized and ready to run tasks?
+    virtual bool	isReady() const = 0;
+    /// TODO?: bool isIdle() const { return !running_task_; }
+    /// Latest pose estimation of the robot
+    virtual Pose	pose() const = 0;
 
-		TaskManager task_manager_;
+    /// Go to the specified waypoint, following a straight line
+    /// \param _wp goal waypoint
+    virtual void	goToWaypoint(const Waypoint& _wp) = 0;
+    /// Follow a list of waypoints, one after another
+    // virtual void	trackPath(const Path& _path) = 0;
+    /// Perform a take off maneuver
+    /// \param _height target height that must be reached to consider the take off complete
+    virtual void    takeOff(double _height) = 0;
+    /// Land on the current position.
+    virtual void	land() = 0;
+    /// Set velocities
+    /// \param _vel target velocity in world coordinates
+    virtual void    setVelocity(const Velocity& _vel) = 0;
+    /// Set position error control
+    /// \param _pos_error position error in world coordinates
+    virtual void	setPositionError(const PositionError& _pos_error) = 0;
 
+    /// Cancel execution of the current task
+    virtual void	abortCurrentTask();
 
+    virtual ~Backend() = default; // Ensure proper destructor calling for derived classes
 
+    /// \brief Create an adequate Backend depending on current platform and command arguments
+    /// \param _argc number of arguments in _argv
+    /// \param _argv command line arguments passed to the program. This arguments will be parsed
+    /// and used to select the best fitting implementation of Backend from those available in the
+    /// current platform.
+    /// \return the newly created Backend. Whoever calls this method, is responsible for eventually
+    /// destroying the Backend.
+    static Backend* createBackend(int _argc, char** _argv);
 
+protected:
+    /// Abort flag
+    /// If you want your task to be abortable, check its value periodically
+    bool abort_ = false;
 
+    /// Simplest state-machine model: idle/running
+    /// With mechanisms to be thread-safe included
+    bool goToRunningState();
+    void goToIdleState();
+    bool running_task_ = false;
+    std::mutex running_mutex_;
+};
 
-	};
-	
 }}	// namespace grvc::ual
 
 #endif // UAV_ABSTRACTION_LAYER_BACKEND_H
