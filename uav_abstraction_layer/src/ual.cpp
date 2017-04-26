@@ -28,11 +28,15 @@ UAL::UAL(int _argc, char** _argv) {
 
 void UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {
     if (_blocking) {
-        backend_->threadSafeCall(&Backend::goToWaypoint, _wp);
+        if (!backend_->threadSafeCall(&Backend::goToWaypoint, _wp)) {
+            std::cout << "Task rejected!" << std::endl;
+        }
     } else {
         // Call function on a thread!
-        std::thread ([&]() {
-            goToWaypoint(_wp, true);  // Kind of recursive!
+        std::thread ([this, _wp]() {
+            if (!this->backend_->threadSafeCall(&Backend::goToWaypoint, _wp)) {
+                std::cout << "Task rejected in thread!" << std::endl;
+            }
         }).detach();
     }
 }

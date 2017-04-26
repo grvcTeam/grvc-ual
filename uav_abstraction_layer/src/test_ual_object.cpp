@@ -24,17 +24,54 @@
 int main(int _argc, char** _argv) {
 
     grvc::ual::UAL ual(_argc, _argv);
-
     while (!ual.isReady() && ros::ok()) {
         std::cout << "UAL not ready!" << std::endl;
         sleep(1);
     }
-    ual.takeOff(3.0);
+
+    // Define flight level and take off
+	double flight_level = 10.0;
+    ual.takeOff(flight_level);
+
+    // Define path (ugly due to lack of constructor)
+    double square_lenght = 10.0;
+    std::list<grvc::ual::Waypoint> path;
     grvc::ual::Waypoint waypoint;
-    waypoint.pose.position.x = 0;
-    waypoint.pose.position.y = 0;
-    waypoint.pose.position.z = 3.0;
-    ual.goToWaypoint(waypoint);
+    waypoint.pose.position.x = +0.5*square_lenght;
+    waypoint.pose.position.y = +0.5*square_lenght;
+    waypoint.pose.position.z = flight_level;
+    path.push_back(waypoint);
+    waypoint.pose.position.x = -0.5*square_lenght;
+    waypoint.pose.position.y = +0.5*square_lenght;
+    path.push_back(waypoint);
+    waypoint.pose.position.x = -0.5*square_lenght;
+    waypoint.pose.position.y = -0.5*square_lenght;
+    path.push_back(waypoint);
+    waypoint.pose.position.x = +0.5*square_lenght;
+    waypoint.pose.position.y = -0.5*square_lenght;
+    path.push_back(waypoint);
+
+    std::cout << "Blocking version of goToWaypoint" << std::endl;
+    for (auto p : path) {
+        std::cout << "Waypoint: " << p.pose.position.x << ", " << \
+            p.pose.position.y << ", " << p.pose.position.z << std::endl;
+        ual.goToWaypoint(p);
+        std::cout << "Arrived!" << std::endl;
+    }
+
+    // std::cout << "Non-blocking version of goToWaypoint" << std::endl;
+    // for (auto p : path) {
+    //     std::cout << "Waypoint: " << p.pose.position.x << ", " << \
+    //         p.pose.position.y << ", " << p.pose.position.z << std::endl;
+    //     ual.goToWaypoint(p, false);
+    //     while (!ual.isIdle()) {
+    //         std::cout << "Waiting" << std::endl;
+    //         sleep(1);
+    //     }
+    //     std::cout << "Arrived!" << std::endl;
+    // }
+
+    // Land
     ual.land();
 
     return 0;

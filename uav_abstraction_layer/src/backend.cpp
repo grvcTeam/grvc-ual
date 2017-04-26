@@ -29,6 +29,11 @@ Backend* Backend::createBackend(int _argc, char** _argv) {
     return be;
 }
 
+bool Backend::isIdle() {
+    std::lock_guard<std::mutex> lock_guard(running_mutex_);
+    return !running_task_;
+}
+
 void Backend::abortCurrentTask() {
     std::lock_guard<std::mutex> lock_guard(running_mutex_);
     if (running_task_) { abort_ = true; }

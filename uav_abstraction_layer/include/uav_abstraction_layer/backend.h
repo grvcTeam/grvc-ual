@@ -51,7 +51,7 @@ public:
     /// Backend is initialized and ready to run tasks?
     virtual bool	isReady() const = 0;
     /// Is it idle?
-    virtual bool    isIdle() const { return !running_task_; }
+    virtual bool    isIdle();
     /// Latest pose estimation of the robot
     virtual Pose	pose() const = 0;
 
@@ -89,13 +89,13 @@ public:
 protected:
     /// Abort flag
     /// If you want your task to be abortable, check its value periodically
-    bool abort_ = false;
+    volatile bool abort_ = false;
 
     /// Simplest state-machine model: idle/running
     /// With mechanisms to be thread-safe included
     bool goToRunningState();
     void goToIdleState();
-    bool running_task_ = false;
+    volatile bool running_task_ = false;
     std::mutex running_mutex_;
 };
 
