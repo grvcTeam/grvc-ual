@@ -19,23 +19,54 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //----------------------------------------------------------------------------------------------------------------------
 #include <uav_abstraction_layer/ual.h>
-#include <ros/ros.h>
 
-int main(int _argc, char** _argv) {
+namespace grvc { namespace ual {
 
-    grvc::ual::UAL ual(_argc, _argv);
-
-    while (!ual.isReady() && ros::ok()) {
-        std::cout << "UAL not ready!" << std::endl;
-        sleep(1);
-    }
-    ual.takeOff(3.0);
-    grvc::ual::Waypoint waypoint;
-    waypoint.pose.position.x = 0;
-    waypoint.pose.position.y = 0;
-    waypoint.pose.position.z = 3.0;
-    ual.goToWaypoint(waypoint);
-    ual.land();
-
-    return 0;
+UAL::UAL(int _argc, char** _argv) {
+    backend_ = Backend::createBackend(_argc, _argv);
 }
+
+void UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {
+    if (_blocking) {
+        backend_->threadSafeCall(&Backend::goToWaypoint, _wp);
+    } else {
+        // Call function on a thread!
+        std::thread ([&]() {
+            goToWaypoint(_wp, true);  // Kind of recursive!
+        }).detach();
+    }
+}
+
+void UAL::takeOff(double _height, bool _blocking) {
+    if (_blocking) {
+        backend_->threadSafeCall(&Backend::takeOff, _height);
+    } else {
+        // Call function on a thread!
+        std::thread ([&]() {
+            takeOff(_height, true);  // Kind of recursive!
+        }).detach();
+    }
+}
+
+void UAL::land(bool _blocking) {
+    if (_blocking) {
+        backend_->threadSafeCall(&Backend::land);
+    } else {
+        // Call function on a thread!
+        std::thread ([&]() {
+            land(true);  // Kind of recursive!
+        }).detach();
+    }
+}
+
+void UAL::setVelocity(const Velocity& _vel) {
+    // Function is non-blocking in backend
+    backend_->threadSafeCall(&Backend::setVelocity, _vel);
+}
+
+void UAL::setPositionError(const PositionError& _pos_error) {
+    // Function is non-blocking in backend
+    backend_->threadSafeCall(&Backend::setPositionError, _pos_error);
+}
+
+}}	// namespace grvc::ual

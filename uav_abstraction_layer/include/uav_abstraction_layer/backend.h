@@ -50,7 +50,8 @@ public:
 
     /// Backend is initialized and ready to run tasks?
     virtual bool	isReady() const = 0;
-    /// TODO?: bool isIdle() const { return !running_task_; }
+    /// Is it idle?
+    virtual bool    isIdle() const { return !running_task_; }
     /// Latest pose estimation of the robot
     virtual Pose	pose() const = 0;
 

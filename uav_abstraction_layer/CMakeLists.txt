@@ -128,7 +128,7 @@ include_directories(
 #   src/${PROJECT_NAME}/uav_abstraction_layer.cpp
 # )
 add_library(${PROJECT_NAME}
-  src/backend.cpp src/backend_mavros.cpp
+  src/backend.cpp src/backend_mavros.cpp src/ual.cpp
 )
 add_library(tinyxml
   src/tinyxml2.cpp
