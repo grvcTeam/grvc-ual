@@ -19,10 +19,17 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //----------------------------------------------------------------------------------------------------------------------
 #include <uav_abstraction_layer/ual.h>
+#include <ros/ros.h>
 
 int main(int _argc, char** _argv) {
 
-    grvc::ual::UAL(_argc, _argv);
+    grvc::ual::UAL ual(_argc, _argv);
+
+    while (!ual.isReady() && ros::ok()) {
+        std::cout << "UAL not ready!" << std::endl;
+        sleep(1);
+    }
+    ual.takeOff(3.0);
  
     return 0;
 }

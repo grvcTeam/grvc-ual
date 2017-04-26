@@ -43,6 +43,7 @@ BackendMavros::BackendMavros(int _argc, char** _argv)
     // Init ros communications
     std::string node_name = "backend_" + std::to_string(robot_id_);
     ros::init(_argc, _argv, node_name);
+    nh_ = new ros::NodeHandle();
 
     std::string mavros_ns = "mavros_" + std::to_string(robot_id_);
     std::string set_mode_srv = mavros_ns + "/set_mode";
@@ -52,27 +53,33 @@ BackendMavros::BackendMavros(int _argc, char** _argv)
     std::string pose_topic = mavros_ns + "/local_position/pose";
     std::string state_topic = mavros_ns + "/state";
 
-    flight_mode_client_ = nh_.serviceClient<mavros_msgs::SetMode>(set_mode_srv.c_str());
-    arming_client_ = nh_.serviceClient<mavros_msgs::CommandBool>(arming_srv.c_str());
+    flight_mode_client_ = nh_->serviceClient<mavros_msgs::SetMode>(set_mode_srv.c_str());
+    arming_client_ = nh_->serviceClient<mavros_msgs::CommandBool>(arming_srv.c_str());
 
-    mavros_ref_pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>(set_pose_topic.c_str(), 10);
-    mavros_ref_vel_pub_ = nh_.advertise<geometry_msgs::TwistStamped>(set_vel_topic.c_str(), 10);
+    mavros_ref_pose_pub_ = nh_->advertise<geometry_msgs::PoseStamped>(set_pose_topic.c_str(), 10);
+    mavros_ref_vel_pub_ = nh_->advertise<geometry_msgs::TwistStamped>(set_vel_topic.c_str(), 10);
 
-    mavros_cur_pose_sub_  = nh_.subscribe<geometry_msgs::PoseStamped>(pose_topic.c_str(), 10, \
+    mavros_cur_pose_sub_  = nh_->subscribe<geometry_msgs::PoseStamped>(pose_topic.c_str(), 10, \
         [this](const geometry_msgs::PoseStamped::ConstPtr& _msg) {
             this->cur_pose_ = *_msg;
             this->mavros_has_pose_ = true;
     });
-    mavros_cur_state_sub_ = nh_.subscribe<mavros_msgs::State>(state_topic.c_str(), 10, \
+    mavros_cur_state_sub_ = nh_->subscribe<mavros_msgs::State>(state_topic.c_str(), 10, \
         [this](const mavros_msgs::State::ConstPtr& _msg) {
             this->mavros_state_ = *_msg;
     });
 
+    // Make communications spin!
+    spin_thread_ = std::thread([this](){
+        ros::spin();
+    });
+
     // TODO: Check this and solve frames issue
     // Wait until we have pose
-    while (!mavros_has_pose_) {
+    while (!mavros_has_pose_ && ros::ok()) {
         //ROS_INFO("Waiting for pose");
-        usleep(1000);
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        //usleep(1000);
     }
     initLocalCoordMatrix();
 
@@ -101,7 +108,7 @@ void BackendMavros::arm() {
     mavros_msgs::CommandBool arming_service;
     arming_service.request.value = true;
     arming_service.response.success = false;  // Init value to force first while loop
-    while (!arming_service.response.success && !abort_) {
+    while (!arming_service.response.success && !abort_ && ros::ok()) {
         if (!arming_client_.call(arming_service)) {
             ROS_ERROR("Error in arming service calling!");
         }
@@ -148,7 +155,7 @@ void BackendMavros::setFlightMode(const std::string& _flight_mode, bool _stubbor
     mavros_msgs::SetMode flight_mode_service;
     flight_mode_service.request.base_mode = 0;
     flight_mode_service.request.custom_mode = _flight_mode;
-    while (_stubborn && !abort_) {
+    while (_stubborn && !abort_ && ros::ok()) {
         if (!flight_mode_client_.call(flight_mode_service)) {
             ROS_ERROR("Error in set flight mode [%s] service calling!", _flight_mode.c_str());
         }
@@ -163,27 +170,27 @@ void BackendMavros::takeOff(double _height) {
     control_in_vel_ = false;  // Take off control is performed in position (not velocity)
 
     // Arm: abortable
-    while (!mavros_state_.armed && !abort_) {
+    while (!mavros_state_.armed && !abort_ && ros::ok()) {
         arm();
         ROS_INFO("Trying to arm... mavros_state_.armed = %s", mavros_state_.armed ? "true" : "false");
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
     // Set offboard mode: abortable
-    while (mavros_state_.mode != "OFFBOARD" && !abort_) {
+    while (mavros_state_.mode != "OFFBOARD" && !abort_ && ros::ok()) {
         home_pose_ = cur_pose_;
         // TODO: solve frames issue!
         local_start_pos_ -= Eigen::Vector3d(home_pose_.pose.position.x, \
             home_pose_.pose.position.y, home_pose_.pose.position.z);
         ref_pose_ = home_pose_;
         ref_pose_.pose.position.z += _height;
-        setFlightMode("OFFBOARD");
+        setFlightMode("OFFBOARD", true);
         ROS_INFO("Trying to set offboard mode; mavros_state_.mode = %s", mavros_state_.mode.c_str());
         std::this_thread::sleep_for(std::chrono::milliseconds(500)); 
     }
 
     // Wait until take off: unabortable!
-    while (!referencePoseReached()) {
+    while (!referencePoseReached() && ros::ok()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     ROS_INFO("Flying!");
@@ -197,7 +204,7 @@ void BackendMavros::land() {
     ref_pose_ = cur_pose_;
     ref_pose_.pose.position.z = 0;
     // Landing is unabortable!
-    while (!referencePoseReached()) {
+    while (!referencePoseReached() && ros::ok()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     // TODO: better land condition checking
@@ -254,7 +261,7 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
     ref_pose_.pose.orientation = cur_pose_.pose.orientation;        
 
     // Wait until we arrive: abortable
-    while(!referencePoseReached() && !abort_) {
+    while(!referencePoseReached() && !abort_ && ros::ok()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 }
