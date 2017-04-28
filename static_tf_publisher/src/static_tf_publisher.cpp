@@ -1,0 +1,122 @@
+//----------------------------------------------------------------------------------------------------------------------
+// GRVC UAL
+//----------------------------------------------------------------------------------------------------------------------
+// The MIT License (MIT)
+// 
+// Copyright (c) 2016 GRVC University of Seville
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+// documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+// permit persons to whom the Software is furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+// Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+// WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS
+// OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+//----------------------------------------------------------------------------------------------------------------------
+
+#include <ros/ros.h>
+#include <ros/package.h>
+#include <geometry_msgs/TransformStamped.h>
+#include <tf2_ros/static_transform_broadcaster.h>
+#include <tf2/LinearMath/Quaternion.h>
+#include <vector>
+
+//namespace grvc { namespace ual {
+
+geometry_msgs::TransformStamped getTransform(const char * parent, const char * child, double x, double y, double z, double R, double P, double Y);
+
+int main(int argc, char **argv)
+{
+    ros::init(argc,argv, "static_tf_publisher");
+    //ros::NodeHandle nh;
+
+    int number_of_uavs = 0;
+
+    std::string frame_id;
+    std::string parent_frame;
+    std::string units;
+    std::vector<double> translation;
+    std::vector<double> rotation;
+
+    // Check params
+    if (ros::param::has("/map_frame"))
+    {
+        static tf2_ros::StaticTransformBroadcaster map_static_broadcaster;
+        geometry_msgs::TransformStamped map_static_transformStamped;
+
+        ros::param::get("/map_frame/frame_id",frame_id);
+        ros::param::get("/map_frame/parent_frame",parent_frame);
+        ros::param::get("/map_frame/units",units);
+        ros::param::get("/map_frame/translation",translation);
+        ros::param::get("/map_frame/rotation",rotation);
+
+        map_static_transformStamped = getTransform(parent_frame.c_str(),frame_id.c_str(),translation[0],translation[1],translation[2],rotation[0],rotation[1],rotation[2]);
+        
+        map_static_broadcaster.sendTransform(map_static_transformStamped);
+    }
+
+    if (ros::param::has("/number_of_uavs"))
+    {
+        if (ros::param::get("/number_of_uavs", number_of_uavs))
+        ros::param::param<int>("/number_of_uavs", number_of_uavs, 1);
+    }
+
+    static std::vector<tf2_ros::StaticTransformBroadcaster> uavs_static_broadcaster (number_of_uavs);
+    std::string uav_home_text;
+    std::string param_to_get;
+
+    for(int i=0;i<number_of_uavs;i++) {
+        uav_home_text.clear();
+        uav_home_text = "/uav" + std::to_string(i+1) + "_home_frame";
+        param_to_get = uav_home_text + "/frame_id";
+        ros::param::get(uav_home_text, frame_id);
+        param_to_get = uav_home_text + "/parent_frame";
+        ros::param::get(uav_home_text, parent_frame);
+        param_to_get = uav_home_text + "/units";
+        ros::param::get(uav_home_text, units);
+        param_to_get = uav_home_text + "/translation";
+        ros::param::get(param_to_get,translation);
+        param_to_get = uav_home_text + "/rotation";
+        ros::param::get(param_to_get,rotation);
+
+        geometry_msgs::TransformStamped static_transformStamped;
+        static_transformStamped = getTransform(parent_frame.c_str(),frame_id.c_str(),translation[0],translation[1],translation[2],rotation[0],rotation[1],rotation[2]);
+        uavs_static_broadcaster[i].sendTransform(static_transformStamped);
+    }
+
+    static tf2_ros::StaticTransformBroadcaster static_broadcaster;
+    geometry_msgs::TransformStamped static_transformStamped;
+
+    
+    static_broadcaster.sendTransform(static_transformStamped);
+    ROS_INFO("Spinning until killed publishing map to world");
+    ros::spin();
+    return 0;
+}
+
+geometry_msgs::TransformStamped getTransform(const char * parent, const char * child, double x, double y, double z, double R, double P, double Y)
+{
+    geometry_msgs::TransformStamped static_transformStamped;
+
+    static_transformStamped.header.stamp = ros::Time::now();
+    static_transformStamped.header.frame_id = parent;
+    static_transformStamped.child_frame_id = child;
+    static_transformStamped.transform.translation.x = x;
+    static_transformStamped.transform.translation.y = y;
+    static_transformStamped.transform.translation.z = z;
+    tf2::Quaternion quat;
+    quat.setRPY(R,P,Y);
+    static_transformStamped.transform.rotation.x = quat.x();
+    static_transformStamped.transform.rotation.y = quat.y();
+    static_transformStamped.transform.rotation.z = quat.z();
+    static_transformStamped.transform.rotation.w = quat.w();
+
+    return static_transformStamped;
+}
+
+//}} // namespace grvc::ual

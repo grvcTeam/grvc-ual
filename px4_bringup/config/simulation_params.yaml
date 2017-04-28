@@ -1,0 +1,18 @@
+# Number of UAVs
+number_of_uavs: 1
+
+# map frame
+map_frame:
+  frame_id: "map"
+  parent_frame: "world"
+  units: "GPS"
+  translation: [37.558542, -5.931074, 7.89]
+  rotation: [0.0, 0.0, 0.0] # RPY
+
+# UAV1_home frame
+uav1_home_frame:
+  frame_id: "uav1_home"
+  parent_frame: "map"
+  units: "m"
+  translation: [-28, 34, 0.5]
+  rotation: [0.0, 0.0, 0.0] # RPY

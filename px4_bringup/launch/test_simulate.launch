@@ -12,6 +12,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     <arg name="multi" default="false"/>
 
+    <!-- Load frame transforms for map and UAVs -->
+    <rosparam file="$(find px4_bringup)/config/simulation_params.yaml" command="load" />
+
     <!-- Launch Gazebo simulation TODO: world and frame location? -->
     <node pkg="px4_bringup" type="launch_gzworld.py" name="gazebo_world" output="screen"
     args="-physics=ode -world=$(find px4_bringup)/config/empty_light.world -frames=/config/map_simulation.xml"/>
