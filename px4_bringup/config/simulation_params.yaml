@@ -9,9 +9,9 @@ map_frame:
   translation: [37.558542, -5.931074, 7.89]
   rotation: [0.0, 0.0, 0.0] # RPY
 
-# UAV1_home frame
-uav1_home_frame:
-  frame_id: "uav1_home"
+# uav_1_home frame
+uav_1_home_frame:
+  frame_id: "uav_1_home"
   parent_frame: "map"
   units: "m"
   translation: [-28, 34, 0.5]

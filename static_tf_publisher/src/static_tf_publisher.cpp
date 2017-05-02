@@ -25,6 +25,7 @@
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <vector>
+#include <iostream>
 
 //namespace grvc { namespace ual {
 
@@ -72,13 +73,13 @@ int main(int argc, char **argv)
 
     for(int i=0;i<number_of_uavs;i++) {
         uav_home_text.clear();
-        uav_home_text = "/uav" + std::to_string(i+1) + "_home_frame";
+        uav_home_text = "/uav_" + std::to_string(i+1) + "_home_frame";
         param_to_get = uav_home_text + "/frame_id";
-        ros::param::get(uav_home_text, frame_id);
+        ros::param::get(param_to_get, frame_id);
         param_to_get = uav_home_text + "/parent_frame";
-        ros::param::get(uav_home_text, parent_frame);
+        ros::param::get(param_to_get, parent_frame);
         param_to_get = uav_home_text + "/units";
-        ros::param::get(uav_home_text, units);
+        ros::param::get(param_to_get, units);
         param_to_get = uav_home_text + "/translation";
         ros::param::get(param_to_get,translation);
         param_to_get = uav_home_text + "/rotation";
@@ -88,12 +89,13 @@ int main(int argc, char **argv)
         static_transformStamped = getTransform(parent_frame.c_str(),frame_id.c_str(),translation[0],translation[1],translation[2],rotation[0],rotation[1],rotation[2]);
         uavs_static_broadcaster[i].sendTransform(static_transformStamped);
     }
-
+/*
     static tf2_ros::StaticTransformBroadcaster static_broadcaster;
     geometry_msgs::TransformStamped static_transformStamped;
 
     
     static_broadcaster.sendTransform(static_transformStamped);
+*/    
     ROS_INFO("Spinning until killed publishing map to world");
     ros::spin();
     return 0;
@@ -115,6 +117,8 @@ geometry_msgs::TransformStamped getTransform(const char * parent, const char * c
     static_transformStamped.transform.rotation.y = quat.y();
     static_transformStamped.transform.rotation.z = quat.z();
     static_transformStamped.transform.rotation.w = quat.w();
+
+    std::cout << "New transform:\n" << static_transformStamped << std::endl;
 
     return static_transformStamped;
 }
