@@ -107,8 +107,8 @@ find_package(catkin REQUIRED COMPONENTS
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
   INCLUDE_DIRS include
-#  LIBRARIES uav_abstraction_layer
-#  CATKIN_DEPENDS argument_parser geometry_msgs mavros mavros_msgs roscpp std_msgs
+  LIBRARIES uav_abstraction_layer tinyxml
+  CATKIN_DEPENDS argument_parser geometry_msgs mavros mavros_msgs roscpp std_msgs
 #  DEPENDS system_lib
 )
 
