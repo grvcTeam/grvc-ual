@@ -1,5 +1,5 @@
 # Number of UAVs
-number_of_uavs: 1
+number_of_uavs: 2
 
 # map frame
 map_frame:
@@ -14,5 +14,13 @@ uav_1_home_frame:
   frame_id: "uav_1_home"
   parent_frame: "map"
   units: "m"
-  translation: [-28, 34, 0.5]
+  translation: [-28.0, 34.0, 0.5]
+  rotation: [0.0, 0.0, 0.0] # RPY
+
+# uav_2_home frame
+uav_2_home_frame:
+  frame_id: "uav_2_home"
+  parent_frame: "map"
+  units: "m"
+  translation: [-28.0, 26.0, 0.5]
   rotation: [0.0, 0.0, 0.0] # RPY

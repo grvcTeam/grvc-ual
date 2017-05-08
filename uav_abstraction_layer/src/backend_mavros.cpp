@@ -27,6 +27,10 @@
 #include <Eigen/Eigen>
 #include <ros/ros.h>
 #include <ros/package.h>
+#include <tf2_ros/transform_listener.h>
+#include <geometry_msgs/TransformStamped.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 using namespace tinyxml2;
 
@@ -80,7 +84,9 @@ BackendMavros::BackendMavros(int _argc, char** _argv)
         //ROS_INFO("Waiting for pose");
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
-    initLocalCoordMatrix();
+    //initLocalCoordMatrix();
+    uav_home_frame_id_ = "uav_" + std::to_string(robot_id_) + "_home";
+    local_start_pos_ << 0.0, 0.0, 0.0;
 
     // Thread publishing target pose at 10Hz for offboard mode
     offboard_thread_ = std::thread([this]() {
@@ -197,6 +203,9 @@ bool BackendMavros::isReady() const {
 void BackendMavros::goToWaypoint(const Waypoint& _world) {
     control_in_vel_ = false;  // Control in position
 
+    //--------------------------------------------------------//
+    // OLD
+/*
     // TODO: check waypoint reference system!
     // TODO: Solve frames issue!
     auto homogen_world_pos = Eigen::Vector3d(_world.pose.position.x, \
@@ -213,6 +222,38 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
     //ref_pose_.pose.orientation.w = cos(0.5*local_yaw);
     // TODO: yaw in waypoint as an opition (yaw_lock = true)
     ref_pose_.pose.orientation = cur_pose_.pose.orientation;        
+*/
+    //--------------------------------------------------------//
+    // Now with tf2
+
+    geometry_msgs::PoseStamped homogen_world_pos;
+    tf2_ros::Buffer tfBuffer;
+    tf2_ros::TransformListener tfListener(tfBuffer);
+    std::string waypoint_frame_id = tf2::getFrameId(_world);
+
+    if ( waypoint_frame_id == "" || waypoint_frame_id == uav_home_frame_id_ ) {
+        // No transform is needed
+        homogen_world_pos = _world;
+    }
+    else {
+        // We need to transform
+        geometry_msgs::TransformStamped transformStamped;
+        transformStamped = tfBuffer.lookupTransform(uav_home_frame_id_,waypoint_frame_id,ros::Time(0),ros::Duration(0.2));
+        tf2::doTransform(_world,homogen_world_pos,transformStamped);
+        
+    }
+
+    std::cout << "Going to waypoint: " << homogen_world_pos.pose.position << std::endl;
+
+    // Do we still need local_start_pos_?
+    homogen_world_pos.pose.position.x -= local_start_pos_[0];
+    homogen_world_pos.pose.position.y -= local_start_pos_[1];
+    homogen_world_pos.pose.position.z -= local_start_pos_[2];
+
+    ref_pose_.pose.position = homogen_world_pos.pose.position;
+    ref_pose_.pose.orientation = cur_pose_.pose.orientation;
+
+    //--------------------------------------------------------//
 
     // Wait until we arrive: abortable
     while(!referencePoseReached() && !abort_ && ros::ok()) {
@@ -265,85 +306,85 @@ bool BackendMavros::referencePoseReached() const {
         return true;
 }
 
-void BackendMavros::initLocalCoordMatrix() {
-    XMLDocument doc;
-    std::string xml_file;
-    ros::param::get("frames_file", xml_file);
-    std::string path = ros::package::getPath("px4_bringup") + xml_file;
+// void BackendMavros::initLocalCoordMatrix() {
+//     XMLDocument doc;
+//     std::string xml_file;
+//     ros::param::get("frames_file", xml_file);
+//     std::string path = ros::package::getPath("px4_bringup") + xml_file;
     
-    doc.LoadFile(path.c_str());
+//     doc.LoadFile(path.c_str());
     
-    XMLNode* root = doc.RootElement();
-    if(!root) {
-        ROS_ERROR("Error loading xml file %s\n", xml_file.c_str());
-        return;
-    }
+//     XMLNode* root = doc.RootElement();
+//     if(!root) {
+//         ROS_ERROR("Error loading xml file %s\n", xml_file.c_str());
+//         return;
+//     }
 
-    /*
-    // Get origin utm coordinates
-    XMLElement* origin_element = root->FirstChildElement("origin");
-    XMLElement* utm_x_element = origin_element->FirstChildElement("utmx");
-    double utm_x;
-    utm_x_element->QueryDoubleText(&utm_x);
-    XMLElement* utm_y_element = origin_element->FirstChildElement("utmy");
-    double utm_y;
-    utm_y_element->QueryDoubleText(&utm_y);
-    Cartesian3d origin_utm = Cartesian3d({utm_x,utm_y,0.0});
+//     /*
+//     // Get origin utm coordinates
+//     XMLElement* origin_element = root->FirstChildElement("origin");
+//     XMLElement* utm_x_element = origin_element->FirstChildElement("utmx");
+//     double utm_x;
+//     utm_x_element->QueryDoubleText(&utm_x);
+//     XMLElement* utm_y_element = origin_element->FirstChildElement("utmy");
+//     double utm_y;
+//     utm_y_element->QueryDoubleText(&utm_y);
+//     Cartesian3d origin_utm = Cartesian3d({utm_x,utm_y,0.0});
 
-    cout << "Origin: " << origin_utm.raw << endl;
-    */
+//     cout << "Origin: " << origin_utm.raw << endl;
+//     */
 
-    // Get Game Transform
-    XMLElement* game_element = root->FirstChildElement("game");
-    XMLElement* rxx_element = game_element->FirstChildElement("rxx");
-    double rxx;
-    rxx_element->QueryDoubleText(&rxx);
-    XMLElement* rxy_element = game_element->FirstChildElement("rxy");
-    double rxy;
-    rxy_element->QueryDoubleText(&rxy);
-    XMLElement* ryx_element = game_element->FirstChildElement("ryx");
-    double ryx;
-    ryx_element->QueryDoubleText(&ryx);
-    XMLElement* ryy_element = game_element->FirstChildElement("ryy");
-    double ryy;
-    ryy_element->QueryDoubleText(&ryy);
-    Eigen::MatrixXd Rgame(2,2);
-    Rgame << rxx, rxy, ryx, ryy;
+//     // Get Game Transform
+//     XMLElement* game_element = root->FirstChildElement("game");
+//     XMLElement* rxx_element = game_element->FirstChildElement("rxx");
+//     double rxx;
+//     rxx_element->QueryDoubleText(&rxx);
+//     XMLElement* rxy_element = game_element->FirstChildElement("rxy");
+//     double rxy;
+//     rxy_element->QueryDoubleText(&rxy);
+//     XMLElement* ryx_element = game_element->FirstChildElement("ryx");
+//     double ryx;
+//     ryx_element->QueryDoubleText(&ryx);
+//     XMLElement* ryy_element = game_element->FirstChildElement("ryy");
+//     double ryy;
+//     ryy_element->QueryDoubleText(&ryy);
+//     Eigen::MatrixXd Rgame(2,2);
+//     Rgame << rxx, rxy, ryx, ryy;
 
-    std::cout << "Game: " << Rgame << std::endl;
+//     std::cout << "Game: " << Rgame << std::endl;
 
-    // Get robot position
-    std::cout << "Parsing uavs\n";
+//     // Get robot position
+//     std::cout << "Parsing uavs\n";
 
-    // Get list of robots
-    XMLElement* robot = root->FirstChildElement("robothome");
-    bool found = false;
-    double x, y;
-    while (robot && !found) {
-        //cout << "Found one robot\n";
-        unsigned id = robot->IntAttribute("id");
-        if (id == robot_id_) {
-            found = true;
-            XMLElement* x_element = robot->FirstChildElement("x");
-            x_element->QueryDoubleText(&x);
-            XMLElement* y_element = robot->FirstChildElement("y");
-            y_element->QueryDoubleText(&y);
-        }
-        robot = robot->NextSiblingElement("robothome");
-    }
+//     // Get list of robots
+//     XMLElement* robot = root->FirstChildElement("robothome");
+//     bool found = false;
+//     double x, y;
+//     while (robot && !found) {
+//         //cout << "Found one robot\n";
+//         unsigned id = robot->IntAttribute("id");
+//         if (id == robot_id_) {
+//             found = true;
+//             XMLElement* x_element = robot->FirstChildElement("x");
+//             x_element->QueryDoubleText(&x);
+//             XMLElement* y_element = robot->FirstChildElement("y");
+//             y_element->QueryDoubleText(&y);
+//         }
+//         robot = robot->NextSiblingElement("robothome");
+//     }
 
-    std::cout << "Robot: "<< x << " " << y << std::endl;
+//     std::cout << "Robot: "<< x << " " << y << std::endl;
 
-    local_start_pos_ << x, y, 0.0;
-    local_transform_ = Eigen::Matrix4d::Identity();
-    local_transform_.block(0,0,2,2) << Rgame;
-    local_transform_.block(0,3,3,1) = local_start_pos_;
-    //localTransform = localTransform.inverse();
+//     local_start_pos_ << x, y, 0.0;
+//     local_transform_ = Eigen::Matrix4d::Identity();
+//     local_transform_.block(0,0,2,2) << Rgame;
+//     local_transform_.block(0,3,3,1) = local_start_pos_;
+//     //localTransform = localTransform.inverse();
 
-    Eigen::Vector2d game_start_pos;
-    game_start_pos << x,y;
-    Eigen::Vector2d map_start_pos = Rgame * game_start_pos;
-    local_start_pos_ << map_start_pos(0), map_start_pos(1), 0.0;
-}
+    // Eigen::Vector2d game_start_pos;
+    // game_start_pos << x,y;
+//     Eigen::Vector2d map_start_pos = Rgame * game_start_pos;
+//     local_start_pos_ << map_start_pos(0), map_start_pos(1), 0.0;
+// }
 
 }}	// namespace grvc::ual

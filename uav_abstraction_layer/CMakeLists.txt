@@ -14,6 +14,8 @@ find_package(catkin REQUIRED COMPONENTS
   mavros_msgs
   roscpp
   std_msgs
+  tf2_ros
+  tf2
 )
 
 ## System dependencies are found with CMake's conventions
@@ -108,7 +110,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES uav_abstraction_layer tinyxml
-  CATKIN_DEPENDS argument_parser geometry_msgs mavros mavros_msgs roscpp std_msgs
+  CATKIN_DEPENDS argument_parser geometry_msgs mavros mavros_msgs roscpp std_msgs tf2_ros
 #  DEPENDS system_lib
 )
 

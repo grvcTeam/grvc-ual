@@ -44,21 +44,19 @@ int main(int argc, char **argv)
     std::vector<double> translation;
     std::vector<double> rotation;
 
+    static tf2_ros::StaticTransformBroadcaster static_broadcaster;
+    std::vector<geometry_msgs::TransformStamped> static_transforms_to_publish;
+
     // Check params
     if (ros::param::has("/map_frame"))
     {
-        static tf2_ros::StaticTransformBroadcaster map_static_broadcaster;
-        geometry_msgs::TransformStamped map_static_transformStamped;
-
         ros::param::get("/map_frame/frame_id",frame_id);
         ros::param::get("/map_frame/parent_frame",parent_frame);
         ros::param::get("/map_frame/units",units);
         ros::param::get("/map_frame/translation",translation);
         ros::param::get("/map_frame/rotation",rotation);
 
-        map_static_transformStamped = getTransform(parent_frame.c_str(),frame_id.c_str(),translation[0],translation[1],translation[2],rotation[0],rotation[1],rotation[2]);
-        
-        map_static_broadcaster.sendTransform(map_static_transformStamped);
+        static_transforms_to_publish.push_back( getTransform(parent_frame.c_str(),frame_id.c_str(),translation[0],translation[1],translation[2],rotation[0],rotation[1],rotation[2]) );
     }
 
     if (ros::param::has("/number_of_uavs"))
@@ -85,17 +83,11 @@ int main(int argc, char **argv)
         param_to_get = uav_home_text + "/rotation";
         ros::param::get(param_to_get,rotation);
 
-        geometry_msgs::TransformStamped static_transformStamped;
-        static_transformStamped = getTransform(parent_frame.c_str(),frame_id.c_str(),translation[0],translation[1],translation[2],rotation[0],rotation[1],rotation[2]);
-        uavs_static_broadcaster[i].sendTransform(static_transformStamped);
+        static_transforms_to_publish.push_back( getTransform(parent_frame.c_str(),frame_id.c_str(),translation[0],translation[1],translation[2],rotation[0],rotation[1],rotation[2]) );
     }
-/*
-    static tf2_ros::StaticTransformBroadcaster static_broadcaster;
-    geometry_msgs::TransformStamped static_transformStamped;
-
     
-    static_broadcaster.sendTransform(static_transformStamped);
-*/    
+    static_broadcaster.sendTransform(static_transforms_to_publish);
+
     ROS_INFO("Spinning until killed publishing map to world");
     ros::spin();
     return 0;

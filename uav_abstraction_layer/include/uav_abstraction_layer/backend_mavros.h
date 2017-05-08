@@ -36,6 +36,7 @@
 #include <mavros_msgs/State.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
+#include <geometry_msgs/TransformStamped.h>
 
 namespace grvc { namespace ual {
 
@@ -103,8 +104,9 @@ private:
     ros::Subscriber mavros_cur_state_sub_;
 
     unsigned int robot_id_;
+    std::string uav_home_frame_id_;
 
-    Eigen::Matrix4d local_transform_;
+    geometry_msgs::TransformStamped local_transform_;
     Eigen::Vector3d local_start_pos_;
 
     std::thread offboard_thread_;

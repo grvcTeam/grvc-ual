@@ -13,15 +13,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     <arg name="robot_model" default="mbzirc"/>
     <arg name="id" default="1"/>
     <arg name="mode" default="sitl"/>
-    <arg name="frames" default="/config/map_simulation.xml"/>
     <arg name="material" default="Orange"/>
-
-    <param name="frames_file" type="str" value="$(arg frames)" />
 
     <group if="$(eval mode == 'sitl')">
         <!-- Spawn model in Gazebo -->
         <node pkg="px4_bringup" type="spawn_gzmodel.py" name="spawn_gzmodel_$(arg id)" output="screen"
-        args="-model=$(arg robot_model) -id=$(arg id) -frames=$(arg frames) -material=$(arg material)"/>
+        args="-model=$(arg robot_model) -id=$(arg id) -material=$(arg material)"/>
 
         <!-- Run px4 controller -->
         <!-- Important parameter cwd="node", px4 link generation may cause errors otherwise -->
