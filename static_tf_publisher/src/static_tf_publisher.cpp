@@ -58,33 +58,6 @@ int main(int argc, char **argv)
 
         static_transforms_to_publish.push_back( getTransform(parent_frame.c_str(),frame_id.c_str(),translation[0],translation[1],translation[2],rotation[0],rotation[1],rotation[2]) );
     }
-
-    if (ros::param::has("/number_of_uavs"))
-    {
-        if (ros::param::get("/number_of_uavs", number_of_uavs))
-        ros::param::param<int>("/number_of_uavs", number_of_uavs, 1);
-    }
-
-    static std::vector<tf2_ros::StaticTransformBroadcaster> uavs_static_broadcaster (number_of_uavs);
-    std::string uav_home_text;
-    std::string param_to_get;
-
-    for(int i=0;i<number_of_uavs;i++) {
-        uav_home_text.clear();
-        uav_home_text = "/uav_" + std::to_string(i+1) + "_home_frame";
-        param_to_get = uav_home_text + "/frame_id";
-        ros::param::get(param_to_get, frame_id);
-        param_to_get = uav_home_text + "/parent_frame";
-        ros::param::get(param_to_get, parent_frame);
-        param_to_get = uav_home_text + "/units";
-        ros::param::get(param_to_get, units);
-        param_to_get = uav_home_text + "/translation";
-        ros::param::get(param_to_get,translation);
-        param_to_get = uav_home_text + "/rotation";
-        ros::param::get(param_to_get,rotation);
-
-        static_transforms_to_publish.push_back( getTransform(parent_frame.c_str(),frame_id.c_str(),translation[0],translation[1],translation[2],rotation[0],rotation[1],rotation[2]) );
-    }
     
     static_broadcaster.sendTransform(static_transforms_to_publish);
 
