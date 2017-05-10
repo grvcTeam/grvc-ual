@@ -25,33 +25,23 @@ namespace grvc { namespace ual {
 
 Backend* Backend::createBackend(int _argc, char** _argv) {
     Backend* be = nullptr;
+    // Decide backend from arguments:
+    // BackendMavros only available
     be = new BackendMavros(_argc, _argv);
     return be;
 }
 
 bool Backend::isIdle() {
-    std::lock_guard<std::mutex> lock_guard(running_mutex_);
     return !running_task_;
 }
 
-void Backend::abortCurrentTask() {
-    std::lock_guard<std::mutex> lock_guard(running_mutex_);
-    if (running_task_) { abort_ = true; }
-}
-
-bool Backend::goToRunningState() {
-    std::lock_guard<std::mutex> lock_guard(running_mutex_);
-    if (!running_task_) {
-        running_task_ = true;
-        return true;
-    } else {
-        return false;
-    }
-}
-
-void Backend::goToIdleState() {
-    std::lock_guard<std::mutex> lock_guard(running_mutex_);
-    running_task_ = false;
+void Backend::abort() {
+    // Block until end of task
+    while (running_task_) {
+        abort_ = true;
+        std::this_thread::yield();
+     }
+    // Reset flag
     abort_ = false;
 }
 

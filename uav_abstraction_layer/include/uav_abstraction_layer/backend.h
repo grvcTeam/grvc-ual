@@ -21,6 +21,7 @@
 #ifndef UAV_ABSTRACTION_LAYER_BACKEND_H
 #define UAV_ABSTRACTION_LAYER_BACKEND_H
 
+#include <atomic>
 #include <mutex>
 #include <std_msgs/Float32.h>
 #include <geometry_msgs/Vector3Stamped.h>
@@ -34,26 +35,33 @@ typedef geometry_msgs::PoseStamped Pose;
 typedef geometry_msgs::PoseStamped Waypoint;
 typedef geometry_msgs::TwistStamped Velocity;
 typedef geometry_msgs::Vector3Stamped PositionError;
-//typedef std_msgs::Float32 TakeOffHeight;
 
 /// Common interface for back-end implementations of ual
 class Backend {
 public:
 
+    /// Wrap a Backend function to make it thread-safe
     template <typename Callable, typename ... Args>
-    bool threadSafeCall(Callable&& _fn, Args&& ... _args) {
-        if (!goToRunningState()) { return false; }
-        std::bind(_fn, this, std::forward<Args>(_args)...)();
-        goToIdleState();
-        return true;
+    inline bool threadSafeCall(Callable&& _fn, Args&& ... _args) {
+        if (running_mutex_.try_lock()) {
+            running_task_ = true;
+            std::bind(_fn, this, std::forward<Args>(_args)...)();
+            running_task_ = false;
+            running_mutex_.unlock();
+            return true;
+        } else {
+            return false;
+        }
     }
 
     /// Backend is initialized and ready to run tasks?
-    virtual bool	isReady() const = 0;
+    virtual bool     isReady() const = 0;
     /// Is it idle?
-    virtual bool    isIdle();
+    bool             isIdle();
     /// Latest pose estimation of the robot
-    virtual Pose	pose() const = 0;
+    virtual Pose     pose() const = 0;
+    /// Latest velocity estimation of the robot
+    //virtual Velocity velocity() const = 0;  // TODO!
 
     /// Go to the specified waypoint, following a straight line
     /// \param _wp goal waypoint
@@ -73,7 +81,7 @@ public:
     virtual void	setPositionError(const PositionError& _pos_error) = 0;
 
     /// Cancel execution of the current task
-    virtual void	abortCurrentTask();
+    void	        abort();
 
     virtual ~Backend() = default; // Ensure proper destructor calling for derived classes
 
@@ -89,14 +97,12 @@ public:
 protected:
     /// Abort flag
     /// If you want your task to be abortable, check its value periodically
-    volatile bool abort_ = false;
+    std::atomic<bool> abort_ = {false};
 
     /// Simplest state-machine model: idle/running
-    /// With mechanisms to be thread-safe included
-    bool goToRunningState();
-    void goToIdleState();
-    volatile bool running_task_ = false;
+    /// Implemented via mutex-locking
     std::mutex running_mutex_;
+    std::atomic<bool> running_task_ = {false};
 };
 
 }}	// namespace grvc::ual
