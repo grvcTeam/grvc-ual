@@ -19,6 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //----------------------------------------------------------------------------------------------------------------------
 #include <uav_abstraction_layer/ual.h>
+#include <ros/ros.h>
 
 namespace grvc { namespace ual {
 
@@ -26,51 +27,103 @@ UAL::UAL(int _argc, char** _argv) {
     backend_ = Backend::createBackend(_argc, _argv);
 }
 
-void UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {
+bool UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {
+    // Check required state
+    if (state_ != FLYING) {
+        return false;
+    }
+    // Override any prevoius FLYING function
+    if (!backend_->isIdle()) { backend_->abort(); }
+
     if (_blocking) {
         if (!backend_->threadSafeCall(&Backend::goToWaypoint, _wp)) {
-            std::cout << "Task rejected!" << std::endl;
+            ROS_INFO("Blocking goToWaypoint rejected!");
+            return false;
         }
     } else {
-        // Call function on a thread!
-        std::thread ([this, _wp]() {
+        if (running_thread_.joinable()) running_thread_.join();
+        // Call function on a thread:
+        running_thread_ = std::thread ([this, _wp]() {
             if (!this->backend_->threadSafeCall(&Backend::goToWaypoint, _wp)) {
-                std::cout << "Task rejected in thread!" << std::endl;
+                ROS_INFO("Non-blocking goToWaypoint rejected!");
             }
-        }).detach();
+        });
     }
+    return true;
 }
 
-void UAL::takeOff(double _height, bool _blocking) {
+bool UAL::takeOff(double _height, bool _blocking) {
+    // Check required state
+    if (state_ != LANDED) {
+        return false;
+    }
+    state_ = TAKING_OFF;
+
     if (_blocking) {
-        backend_->threadSafeCall(&Backend::takeOff, _height);
+        if (!backend_->threadSafeCall(&Backend::takeOff, _height)) {
+            ROS_INFO("Blocking takeOff rejected!");
+            return false;
+        }
+        state_ = FLYING;
     } else {
-        // Call function on a thread!
-        std::thread ([&]() {
-            takeOff(_height, true);  // Kind of recursive!
-        }).detach();
+        if (running_thread_.joinable()) running_thread_.join();
+        // Call function on a thread:
+        running_thread_ = std::thread ([this, _height]() {
+            if (!this->backend_->threadSafeCall(&Backend::takeOff, _height)) {
+                ROS_INFO("Non-blocking takeOff rejected!");
+            }
+            this->state_ = FLYING;
+        });
     }
+    return true;
 }
 
-void UAL::land(bool _blocking) {
+bool UAL::land(bool _blocking) {
+    // Check required state
+    if (state_ != FLYING) {
+        return false;
+    }
+    state_ = LANDING;
+
     if (_blocking) {
-        backend_->threadSafeCall(&Backend::land);
+        if (!backend_->threadSafeCall(&Backend::land)) {
+            ROS_INFO("Blocking land rejected!");
+            return false;
+        }
+        state_ = LANDED;
     } else {
-        // Call function on a thread!
-        std::thread ([&]() {
-            land(true);  // Kind of recursive!
-        }).detach();
+        if (running_thread_.joinable()) running_thread_.join();
+        // Call function on a thread:
+        running_thread_ = std::thread ([this]() {
+            if (!this->backend_->threadSafeCall(&Backend::land)) {
+                ROS_INFO("Non-blocking land rejected!");
+            }
+            this->state_ = LANDED;
+        });
     }
+    return true;
 }
 
-void UAL::setVelocity(const Velocity& _vel) {
+bool UAL::setVelocity(const Velocity& _vel) {
+    // Check required state
+    if (state_ != FLYING) {
+        return false;
+    }
+
     // Function is non-blocking in backend
     backend_->threadSafeCall(&Backend::setVelocity, _vel);
+    return true;
 }
 
-void UAL::setPositionError(const PositionError& _pos_error) {
+bool UAL::setPositionError(const PositionError& _pos_error) {
+    // Check required state
+    if (state_ != FLYING) {
+        return false;
+    }
+
     // Function is non-blocking in backend
     backend_->threadSafeCall(&Backend::setPositionError, _pos_error);
+    return true;
 }
 
 }}	// namespace grvc::ual

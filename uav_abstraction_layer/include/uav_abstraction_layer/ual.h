@@ -32,38 +32,51 @@ public:
     UAL(int _argc, char** _argv);
 
     /// Initialized and ready to run tasks?
-    bool	isReady() const { return backend_->isReady(); }
+    bool	 isReady() const { return backend_->isReady(); }
 
     /// Idle?
-    bool    isIdle() const { return backend_->isIdle(); }
+    bool     isIdle() const { return backend_->isIdle(); }
 
     /// Latest pose estimation of the robot
-    Pose	pose() const { return backend_->pose(); }
+    Pose	 pose() const { return backend_->pose(); }
+
+    /// Latest pose estimation of the robot
+    //Velocity velocity() const { return backend_->velocity(); }  // TODO!
 
     /// Go to the specified waypoint, following a straight line
     /// \param _wp goal waypoint
     /// \param _blocking indicates if function call is blocking (default = true)
-    void	goToWaypoint(const Waypoint& _wp, bool _blocking = true);
+    bool	goToWaypoint(const Waypoint& _wp, bool _blocking = true);
 
     /// Perform a take off maneuver
     /// \param _height target height that must be reached to consider the take off complete
     /// \param _blocking indicates if function call is blocking (default = true)
-    void    takeOff(double _height, bool _blocking = true);
+    bool    takeOff(double _height, bool _blocking = true);
 
     /// Land on the current position
     /// \param _blocking indicates if function call is blocking (default = true)
-    void	land(bool _blocking = true);
+    bool	land(bool _blocking = true);
 
     /// Set velocities
     /// \param _vel target velocity in world coordinates
-    void    setVelocity(const Velocity& _vel);
+    bool    setVelocity(const Velocity& _vel);
 
     /// Set position error control
     /// \param _pos_error position error in world coordinates
-    void	setPositionError(const PositionError& _pos_error);
+    bool	setPositionError(const PositionError& _pos_error);
 
 protected:
     Backend* backend_;
+    std::thread running_thread_;
+
+    // TODO: expose state?
+    enum State {
+        LANDED,
+        TAKING_OFF,
+        FLYING,
+        LANDING
+    };
+    std::atomic<State> state_ = {LANDED};
 };
 
 }}	// namespace grvc::ual

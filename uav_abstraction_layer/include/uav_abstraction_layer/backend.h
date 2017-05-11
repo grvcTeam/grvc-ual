@@ -43,14 +43,15 @@ public:
     /// Wrap a Backend function to make it thread-safe
     template <typename Callable, typename ... Args>
     inline bool threadSafeCall(Callable&& _fn, Args&& ... _args) {
+        // Only one thread can lock
         if (running_mutex_.try_lock()) {
-            running_task_ = true;
+            running_task_ = true;  // set running after locking
             std::bind(_fn, this, std::forward<Args>(_args)...)();
-            running_task_ = false;
             running_mutex_.unlock();
-            return true;
+            running_task_ = false;  // reset it after unlocking
+            return true;  // Call succeeded
         } else {
-            return false;
+            return false;  // Call failed
         }
     }
 
