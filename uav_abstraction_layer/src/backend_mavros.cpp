@@ -104,8 +104,8 @@ BackendMavros::BackendMavros(int _argc, char** _argv)
 void BackendMavros::arm() {
     mavros_msgs::CommandBool arming_service;
     arming_service.request.value = true;
-    // Arm: abortable
-    while (!mavros_state_.armed && !abort_ && ros::ok()) {
+    // Arm: unabortable?
+    while (!mavros_state_.armed && ros::ok()) {
         if (!arming_client_.call(arming_service)) {
             ROS_ERROR("Error in arming service calling!");
         }
@@ -119,8 +119,8 @@ void BackendMavros::setFlightMode(const std::string& _flight_mode) {
     mavros_msgs::SetMode flight_mode_service;
     flight_mode_service.request.base_mode = 0;
     flight_mode_service.request.custom_mode = _flight_mode;
-    // Set mode: abortable
-    while (mavros_state_.mode != _flight_mode && !abort_ && ros::ok()) {
+    // Set mode: unabortable?
+    while (mavros_state_.mode != _flight_mode && ros::ok()) {
         if (!flight_mode_client_.call(flight_mode_service)) {
             ROS_ERROR("Error in set flight mode [%s] service calling!", _flight_mode.c_str());
         }
@@ -238,6 +238,10 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
     // Wait until we arrive: abortable
     while(!referencePoseReached() && !abort_ && ros::ok()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    // Freeze in case it's been aborted
+    if (abort_) {
+        ref_pose_ = cur_pose_;
     }
 }
 
