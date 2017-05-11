@@ -8,4 +8,4 @@ Making this package work may be a little bit tricky, follow this steps and hail 
 
 You should be seeing a sitl simulation in gazebo, but this is not what we want, kill it and then...
 
-6. roslaunch px4_bringup simulate.launch
+6. roslaunch px4_bringup test_simulate.launch
