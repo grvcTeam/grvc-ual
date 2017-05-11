@@ -36,6 +36,8 @@
 #include <mavros_msgs/State.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
+#include <geometry_msgs/TransformStamped.h>
+#include <tf2_ros/static_transform_broadcaster.h>
 
 namespace grvc { namespace ual {
 
@@ -68,7 +70,7 @@ public:
 
 private:
     void arm();
-    void initLocalCoordMatrix();
+    void initHomeFrame();
     bool referencePoseReached() const;
     void setFlightMode(const std::string& _flight_mode);
 
@@ -103,8 +105,9 @@ private:
     ros::Subscriber mavros_cur_state_sub_;
 
     unsigned int robot_id_;
-
-    Eigen::Matrix4d local_transform_;
+    std::string uav_home_frame_id_;
+    tf2_ros::StaticTransformBroadcaster * static_tf_broadcaster_;
+    std::map <std::string, geometry_msgs::TransformStamped> cached_transforms_;
     Eigen::Vector3d local_start_pos_;
 
     std::thread offboard_thread_;

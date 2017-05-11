@@ -20,6 +20,7 @@
 //----------------------------------------------------------------------------------------------------------------------
 #include <uav_abstraction_layer/ual.h>
 #include <ros/ros.h>
+#include <geometry_msgs/PoseStamped.h>
 
 int main(int _argc, char** _argv) {
 
@@ -37,6 +38,7 @@ int main(int _argc, char** _argv) {
     double square_lenght = 10.0;
     std::list<grvc::ual::Waypoint> path;
     grvc::ual::Waypoint waypoint;
+    waypoint.header.frame_id = "map";
     waypoint.pose.position.x = +0.5*square_lenght;
     waypoint.pose.position.y = +0.5*square_lenght;
     waypoint.pose.position.z = flight_level;
@@ -54,7 +56,7 @@ int main(int _argc, char** _argv) {
     std::cout << "Blocking version of goToWaypoint" << std::endl;
     for (auto p : path) {
         std::cout << "Waypoint: " << p.pose.position.x << ", " << \
-            p.pose.position.y << ", " << p.pose.position.z << std::endl;
+            p.pose.position.y << ", " << p.pose.position.z << ", frame_id: " << p.header.frame_id << std::endl;
         ual.goToWaypoint(p);
         std::cout << "Arrived!" << std::endl;
     }

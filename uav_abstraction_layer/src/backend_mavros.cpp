@@ -22,13 +22,13 @@
 #include <string>
 #include <chrono>
 #include <uav_abstraction_layer/backend_mavros.h>
-#include <uav_abstraction_layer/tinyxml2.h>  // TODO: move?
 #include <argument_parser/argument_parser.h>
 #include <Eigen/Eigen>
 #include <ros/ros.h>
 #include <ros/package.h>
-
-using namespace tinyxml2;
+#include <tf2_ros/transform_listener.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2/LinearMath/Quaternion.h>
 
 namespace grvc { namespace ual {
 
@@ -80,7 +80,7 @@ BackendMavros::BackendMavros(int _argc, char** _argv)
         //ROS_INFO("Waiting for pose");
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
-    initLocalCoordMatrix();
+    initHomeFrame();
 
     // Thread publishing target pose at 10Hz for offboard mode
     offboard_thread_ = std::thread([this]() {
@@ -197,22 +197,43 @@ bool BackendMavros::isReady() const {
 void BackendMavros::goToWaypoint(const Waypoint& _world) {
     control_in_vel_ = false;  // Control in position
 
-    // TODO: check waypoint reference system!
-    // TODO: Solve frames issue!
-    auto homogen_world_pos = Eigen::Vector3d(_world.pose.position.x, \
-        _world.pose.position.y, _world.pose.position.z);
-    //auto homogenRefPos = localTransform.inverse().eval() * homogenWorldPos;
-    auto homogen_ref_pos = homogen_world_pos - local_start_pos_;
-    ref_pose_.pose.position.x = homogen_ref_pos(0);
-    ref_pose_.pose.position.y = homogen_ref_pos(1);
-    ref_pose_.pose.position.z = homogen_ref_pos(2);
-    //double local_yaw = _world.yaw;  // TODO: yaw transform!
-    //ref_pose_.pose.orientation.x = 0;
-    //ref_pose_.pose.orientation.y = 0;
-    //ref_pose_.pose.orientation.z = sin(0.5*local_yaw);
-    //ref_pose_.pose.orientation.w = cos(0.5*local_yaw);
-    // TODO: yaw in waypoint as an opition (yaw_lock = true)
-    ref_pose_.pose.orientation = cur_pose_.pose.orientation;        
+    geometry_msgs::PoseStamped homogen_world_pos;
+    tf2_ros::Buffer tfBuffer;
+    tf2_ros::TransformListener tfListener(tfBuffer);
+    std::string waypoint_frame_id = tf2::getFrameId(_world);
+
+    if ( waypoint_frame_id == "" || waypoint_frame_id == uav_home_frame_id_ ) {
+        // No transform is needed
+        homogen_world_pos = _world;
+    }
+    else {
+        // We need to transform
+        geometry_msgs::TransformStamped transformToHomeFrame;
+
+        if ( cached_transforms_.find(waypoint_frame_id) == cached_transforms_.end() ) {
+            // waypoint_frame_id not found in cached_transforms_
+            transformToHomeFrame = tfBuffer.lookupTransform(uav_home_frame_id_, waypoint_frame_id, ros::Time(0), ros::Duration(0.2));
+            cached_transforms_[waypoint_frame_id] = transformToHomeFrame; // Save transform in cache
+            ROS_INFO("Saved frame %s in cache",waypoint_frame_id.c_str());
+        } else {
+            // found in cache
+            transformToHomeFrame = cached_transforms_[waypoint_frame_id];
+            ROS_INFO("Found frame %s in cache",waypoint_frame_id.c_str());
+        }
+        
+        tf2::doTransform(_world, homogen_world_pos, transformToHomeFrame);
+        
+    }
+
+    std::cout << "Going to waypoint: " << homogen_world_pos.pose.position << std::endl;
+
+    // Do we still need local_start_pos_?
+    homogen_world_pos.pose.position.x -= local_start_pos_[0];
+    homogen_world_pos.pose.position.y -= local_start_pos_[1];
+    homogen_world_pos.pose.position.z -= local_start_pos_[2];
+
+    ref_pose_.pose.position = homogen_world_pos.pose.position;
+    ref_pose_.pose.orientation = cur_pose_.pose.orientation;
 
     // Wait until we arrive: abortable
     while(!referencePoseReached() && !abort_ && ros::ok()) {
@@ -265,85 +286,53 @@ bool BackendMavros::referencePoseReached() const {
         return true;
 }
 
-void BackendMavros::initLocalCoordMatrix() {
-    XMLDocument doc;
-    std::string xml_file;
-    ros::param::get("frames_file", xml_file);
-    std::string path = ros::package::getPath("px4_bringup") + xml_file;
-    
-    doc.LoadFile(path.c_str());
-    
-    XMLNode* root = doc.RootElement();
-    if(!root) {
-        ROS_ERROR("Error loading xml file %s\n", xml_file.c_str());
-        return;
+void BackendMavros::initHomeFrame() {
+
+    uav_home_frame_id_ = "uav_" + std::to_string(robot_id_) + "_home";
+    local_start_pos_ << 0.0, 0.0, 0.0;
+
+    // Get frame from rosparam
+    std::string frame_id;
+    std::string parent_frame;
+    std::string units;
+    std::vector<double> translation;
+    std::vector<double> rotation;
+    std::string uav_home_text;
+
+    uav_home_text = uav_home_frame_id_ + "_frame";
+
+    if ( ros::param::has(uav_home_text) ) {
+        ros::param::get(uav_home_text + "/frame_id", frame_id);
+        ros::param::get(uav_home_text + "/parent_frame", parent_frame);
+        ros::param::get(uav_home_text + "/units", units);
+        ros::param::get(uav_home_text + "/translation",translation);
+        ros::param::get(uav_home_text + "/rotation",rotation);
+
+        geometry_msgs::TransformStamped static_transformStamped;
+
+        static_transformStamped.header.stamp = ros::Time::now();
+        static_transformStamped.header.frame_id = parent_frame;
+        static_transformStamped.child_frame_id = frame_id;
+        static_transformStamped.transform.translation.x = translation[0];
+        static_transformStamped.transform.translation.y = translation[1];
+        static_transformStamped.transform.translation.z = translation[2];
+        tf2::Quaternion quat;
+        quat.setRPY(rotation[0],rotation[1],rotation[2]);
+        static_transformStamped.transform.rotation.x = quat.x();
+        static_transformStamped.transform.rotation.y = quat.y();
+        static_transformStamped.transform.rotation.z = quat.z();
+        static_transformStamped.transform.rotation.w = quat.w();
+
+        ROS_INFO("Before sending transform %s",uav_home_frame_id_.c_str());
+        static_tf_broadcaster_ = new tf2_ros::StaticTransformBroadcaster();
+        static_tf_broadcaster_->sendTransform(static_transformStamped);
+        ROS_INFO("After sending transform %s",uav_home_frame_id_.c_str());
     }
-
-    /*
-    // Get origin utm coordinates
-    XMLElement* origin_element = root->FirstChildElement("origin");
-    XMLElement* utm_x_element = origin_element->FirstChildElement("utmx");
-    double utm_x;
-    utm_x_element->QueryDoubleText(&utm_x);
-    XMLElement* utm_y_element = origin_element->FirstChildElement("utmy");
-    double utm_y;
-    utm_y_element->QueryDoubleText(&utm_y);
-    Cartesian3d origin_utm = Cartesian3d({utm_x,utm_y,0.0});
-
-    cout << "Origin: " << origin_utm.raw << endl;
-    */
-
-    // Get Game Transform
-    XMLElement* game_element = root->FirstChildElement("game");
-    XMLElement* rxx_element = game_element->FirstChildElement("rxx");
-    double rxx;
-    rxx_element->QueryDoubleText(&rxx);
-    XMLElement* rxy_element = game_element->FirstChildElement("rxy");
-    double rxy;
-    rxy_element->QueryDoubleText(&rxy);
-    XMLElement* ryx_element = game_element->FirstChildElement("ryx");
-    double ryx;
-    ryx_element->QueryDoubleText(&ryx);
-    XMLElement* ryy_element = game_element->FirstChildElement("ryy");
-    double ryy;
-    ryy_element->QueryDoubleText(&ryy);
-    Eigen::MatrixXd Rgame(2,2);
-    Rgame << rxx, rxy, ryx, ryy;
-
-    std::cout << "Game: " << Rgame << std::endl;
-
-    // Get robot position
-    std::cout << "Parsing uavs\n";
-
-    // Get list of robots
-    XMLElement* robot = root->FirstChildElement("robothome");
-    bool found = false;
-    double x, y;
-    while (robot && !found) {
-        //cout << "Found one robot\n";
-        unsigned id = robot->IntAttribute("id");
-        if (id == robot_id_) {
-            found = true;
-            XMLElement* x_element = robot->FirstChildElement("x");
-            x_element->QueryDoubleText(&x);
-            XMLElement* y_element = robot->FirstChildElement("y");
-            y_element->QueryDoubleText(&y);
-        }
-        robot = robot->NextSiblingElement("robothome");
+    else {
+        // No param with local frame -> Global control
+        // TODO: Initialization of home frame based on GPS estimation
+        ROS_ERROR("No uav_%d_home_frame found in rosparam. Please define starting position with relate to a common map frame.",robot_id_);
     }
-
-    std::cout << "Robot: "<< x << " " << y << std::endl;
-
-    local_start_pos_ << x, y, 0.0;
-    local_transform_ = Eigen::Matrix4d::Identity();
-    local_transform_.block(0,0,2,2) << Rgame;
-    local_transform_.block(0,3,3,1) = local_start_pos_;
-    //localTransform = localTransform.inverse();
-
-    Eigen::Vector2d game_start_pos;
-    game_start_pos << x,y;
-    Eigen::Vector2d map_start_pos = Rgame * game_start_pos;
-    local_start_pos_ << map_start_pos(0), map_start_pos(1), 0.0;
 }
 
 }}	// namespace grvc::ual

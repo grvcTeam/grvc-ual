@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   mavros_msgs
   roscpp
   std_msgs
+  tf2_ros
 )
 
 ## System dependencies are found with CMake's conventions
@@ -107,8 +108,8 @@ find_package(catkin REQUIRED COMPONENTS
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES uav_abstraction_layer tinyxml
-  CATKIN_DEPENDS argument_parser geometry_msgs mavros mavros_msgs roscpp std_msgs
+  LIBRARIES uav_abstraction_layer
+  CATKIN_DEPENDS argument_parser geometry_msgs mavros mavros_msgs roscpp std_msgs tf2_ros
 #  DEPENDS system_lib
 )
 
@@ -129,9 +130,6 @@ include_directories(
 # )
 add_library(${PROJECT_NAME}
   src/backend.cpp src/backend_mavros.cpp src/ual.cpp
-)
-add_library(tinyxml
-  src/tinyxml2.cpp
 )
 
 ## Add cmake target dependencies of the library
@@ -166,7 +164,6 @@ target_link_libraries(test_task_management
 target_link_libraries(test_ual_object
   ${PROJECT_NAME}
   ${catkin_LIBRARIES}
-  tinyxml
 )
 
 #############

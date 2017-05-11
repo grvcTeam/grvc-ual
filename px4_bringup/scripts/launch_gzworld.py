@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import xml.etree.ElementTree as xml
 import subprocess
 import argparse
 import os
@@ -7,6 +6,7 @@ import time
 import signal
 import utils
 import rospkg
+import rospy
 
 
 def main():
@@ -17,8 +17,6 @@ def main():
     parser.add_argument('-physics', type=str, default='ode', help="Gazebo physics engine to use")
     parser.add_argument('-world', type=str, default='worlds/empty.world',
                         help="World file name with respect to GAZEBO_RESOURCE_PATH")
-    parser.add_argument('-frames', type=str, default="/config/map_simulation.xml",
-                        help='path to frames xml file')
     args, unknown = parser.parse_known_args()
     utils.check_unknown_args(unknown)
 
@@ -38,18 +36,24 @@ def main():
                                  ':' + description_parent_path + \
                                  ':' + current_gz_model_path
 
-    # Get map origin lat-lon-alt from frames xml file
-    frames_tree = xml.parse(rospack.get_path("px4_bringup") + args.frames)
-    frames_root = frames_tree.getroot()
-    origin_element = frames_root.find('origin')
-    lat_element = origin_element.find('lat')
-    lon_element = origin_element.find('lon')
-    alt_element = origin_element.find('alt')
+    # Get map origin lat-lon-alt from rosparam
+    if rospy.has_param('/map_frame'):
+        map_frame_dict = rospy.get_param('/map_frame')
+        if map_frame_dict['units']=='GPS':
+            latlonalt = map_frame_dict['translation']
+        else:
+            #TODO UTM to LAT-LON
+            pass
+    elif rospy.has_param('/sim_origin'):
+        latlonalt = get_param('/sim_origin')
+    else:
+        latlonalt = [0.0, 0.0, 0.0]
 
+    print '>>> Getting /map_frame/translation param {} \n'.format(latlonalt)
     # Set gazebo origin for px4 sitl mavlink interface plugin
-    gz_env['PX4_HOME_LAT'] = lat_element.text
-    gz_env['PX4_HOME_LON'] = lon_element.text
-    gz_env['PX4_HOME_ALT'] = alt_element.text
+    gz_env['PX4_HOME_LAT'] = str(latlonalt[0])
+    gz_env['PX4_HOME_LON'] = str(latlonalt[1])
+    gz_env['PX4_HOME_ALT'] = str(latlonalt[2])
 
     # Set set use_sim_time flag to true
     subprocess.call("rosparam set /use_sim_time true", shell=True)

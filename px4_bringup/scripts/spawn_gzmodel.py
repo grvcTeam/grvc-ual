@@ -1,10 +1,14 @@
 #!/usr/bin/env python
-import xml.etree.ElementTree as xml
 import subprocess
 import argparse
 import utils
 import numpy
 import rospkg
+import rospy
+import tf2_ros
+import tf2_geometry_msgs
+from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import TransformStamped
 
 
 def main():
@@ -15,8 +19,6 @@ def main():
                         help='robot model name, must match xacro description folder name')
     parser.add_argument('-id', type=int, default=1,
                         help='robot id, used to compute sim_port')
-    parser.add_argument('-frames', type=str, default="/config/map_simulation.xml",
-                        help='path to frames xml file')
     parser.add_argument('-material', type=str, default="DarkGrey",
                         help='robot Gazebo/material; \
                         see materials/scripts/gazebo.material (at your gazebo version)')
@@ -58,39 +60,39 @@ def main():
     temp_sdf = temp_dir + "/" + args.model + ".sdf"
     subprocess.call("gz sdf -p " + temp_urdf + " > " + temp_sdf, shell=True)
 
-    # Get robot home position from frames xml file
-    frames_tree = xml.parse(rospack.get_path("px4_bringup") + args.frames)
-    frames_root = frames_tree.getroot()
-    for robothome in frames_root.findall('robothome'):
-        if robothome.get('id') == str(args.id):
-            x_element = robothome.find('x')
-            y_element = robothome.find('y')
-            z_element = robothome.find('z')
-            yaw_element = robothome.find('yaw')
+    # Get robot home position from rosparam
+    tf_buffer = tf2_ros.Buffer(rospy.Duration(1200.0)) #tf buffer length
+    tf_listener = tf2_ros.TransformListener(tf_buffer)
 
-    # Get rotation from frames xml file
-    game_element = frames_root.find('game')
-    rxx_element = game_element.find('rxx')
-    rxy_element = game_element.find('rxy')
-    ryx_element = game_element.find('ryx')
-    ryy_element = game_element.find('ryy')
-    u_matrix = numpy.matrix([[float(rxx_element.text), \
-                              float(rxy_element.text)], \
-                             [float(ryx_element.text), \
-                              float(ryy_element.text)]])
-
-    # Calculate robot x-y position in map frame
-    robot_xy = numpy.matrix([[float(x_element.text)], \
-                             [float(y_element.text)]])
-    robot_xy = numpy.dot(u_matrix, robot_xy)
+    if rospy.has_param( '/uav_{}_home_frame'.format(args.id) ):
+        uav_frame = rospy.get_param( '/uav_{}_home_frame'.format(args.id) )
+        if uav_frame['parent_frame']=='map':
+            robot_home = uav_frame['translation']
+            robot_yaw = uav_frame['rotation'][2]
+        elif uav_frame['parent_frame']=='game':
+            transform = tf_buffer.lookup_transform('map', 'game', rospy.Time(0), rospy.Duration(1.0))
+            pose_stamped = PoseStamped()
+            pose_stamped.header.frame_id = 'game'
+            pose_stamped.pose.position.x = uav_frame['translation'][0]
+            pose_stamped.pose.position.y = uav_frame['translation'][1]
+            pose_stamped.pose.position.z = uav_frame['translation'][2]
+            pose_transformed = tf2_geometry_msgs.do_transform_pose(pose_stamped, transform)
+            robot_home = [pose_transformed.pose.position.x,pose_transformed.pose.position.y, pose_transformed.pose.position.z]
+            robot_yaw = uav_frame['rotation'][2]
+        else:
+            robot_home = [0.0, 0.0, 0.0]
+            robot_yaw = 0.0
+    else:
+        robot_home = [0.0, 0.0, 0.0]
+        robot_yaw = 0.0
 
     # Spawn robot sdf in gazebo
     gzmodel_args = "gz model -f " + temp_sdf + \
     " -m " + args.model + "_" + str(args.id) + \
-    " -x " + str(robot_xy.item(0)) + \
-    " -y " + str(robot_xy.item(1)) + \
-    " -z " + str(float(z_element.text)) + \
-    " -Y " + str(float(yaw_element.text))
+    " -x " + str(robot_home[0]) + \
+    " -y " + str(robot_home[1]) + \
+    " -z " + str(robot_home[2]) + \
+    " -Y " + str(robot_yaw)
     subprocess.call(gzmodel_args, shell=True)
 
 if __name__ == "__main__":
