@@ -42,7 +42,7 @@ public:
     Pose	 pose() const { return backend_->pose(); }
 
     /// Latest pose estimation of the robot
-    //Velocity velocity() const { return backend_->velocity(); }  // TODO!
+    Velocity velocity() const { return backend_->velocity(); }
 
     /// Go to the specified waypoint, following a straight line
     /// \param _wp goal waypoint

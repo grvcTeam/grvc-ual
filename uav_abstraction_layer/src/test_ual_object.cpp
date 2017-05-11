@@ -66,6 +66,9 @@ int main(int _argc, char** _argv) {
             p.pose.position.y << ", " << p.pose.position.z << ", frame_id: " << p.header.frame_id << std::endl;
         ual.goToWaypoint(p, false);
         do {
+            grvc::ual::Velocity v = ual.velocity();
+            std::cout << "v = [" << v.twist.linear.x << ", " << v.twist.linear.y << ", " \
+                << v.twist.linear.z << "]" << std::endl;
             std::cout << "Waiting" << std::endl;
             sleep(1);
         } while (!ual.isIdle());

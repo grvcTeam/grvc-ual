@@ -51,6 +51,7 @@ BackendMavros::BackendMavros(int _argc, char** _argv)
     std::string set_pose_topic = mavros_ns + "/setpoint_position/local";
     std::string set_vel_topic = mavros_ns + "/setpoint_velocity/cmd_vel";
     std::string pose_topic = mavros_ns + "/local_position/pose";
+    std::string vel_topic = mavros_ns + "/local_position/velocity";
     std::string state_topic = mavros_ns + "/state";
 
     flight_mode_client_ = nh_->serviceClient<mavros_msgs::SetMode>(set_mode_srv.c_str());
@@ -59,10 +60,14 @@ BackendMavros::BackendMavros(int _argc, char** _argv)
     mavros_ref_pose_pub_ = nh_->advertise<geometry_msgs::PoseStamped>(set_pose_topic.c_str(), 10);
     mavros_ref_vel_pub_ = nh_->advertise<geometry_msgs::TwistStamped>(set_vel_topic.c_str(), 10);
 
-    mavros_cur_pose_sub_  = nh_->subscribe<geometry_msgs::PoseStamped>(pose_topic.c_str(), 10, \
+    mavros_cur_pose_sub_ = nh_->subscribe<geometry_msgs::PoseStamped>(pose_topic.c_str(), 10, \
         [this](const geometry_msgs::PoseStamped::ConstPtr& _msg) {
             this->cur_pose_ = *_msg;
             this->mavros_has_pose_ = true;
+    });
+    mavros_cur_vel_sub_ = nh_->subscribe<geometry_msgs::TwistStamped>(vel_topic.c_str(), 10, \
+        [this](const geometry_msgs::TwistStamped::ConstPtr& _msg) {
+            this->cur_vel_ = *_msg;
     });
     mavros_cur_state_sub_ = nh_->subscribe<mavros_msgs::State>(state_topic.c_str(), 10, \
         [this](const mavros_msgs::State::ConstPtr& _msg) {
@@ -265,6 +270,11 @@ Pose BackendMavros::pose() const {
         out.pose.position.z = cur_pose_.pose.position.z + local_start_pos_[2];
         out.pose.orientation = cur_pose_.pose.orientation;
         return out;
+}
+
+Velocity BackendMavros::velocity() const {
+    // TODO: different frames? tf!
+    return cur_vel_;
 }
 
 bool BackendMavros::referencePoseReached() const {

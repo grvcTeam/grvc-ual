@@ -47,9 +47,11 @@ public:
     BackendMavros(int _argc, char** _argv);
 
     /// Backend is initialized and ready to run tasks?
-    bool	        isReady() const override;
+    bool	         isReady() const override;
     /// Latest pose estimation of the robot
-    virtual Pose	pose() const override;
+    virtual Pose	 pose() const override;
+    /// Latest velocity estimation of the robot
+    virtual Velocity velocity() const override;
 
     /// Go to the specified waypoint, following a straight line
     /// \param _wp goal waypoint
@@ -80,6 +82,7 @@ private:
     geometry_msgs::PoseStamped ref_pose_;
     geometry_msgs::PoseStamped cur_pose_;
     geometry_msgs::TwistStamped ref_vel_;
+    geometry_msgs::TwistStamped cur_vel_;
     mavros_msgs::State mavros_state_;
 
     ros::NodeHandle* nh_;
@@ -102,6 +105,7 @@ private:
     ros::Publisher mavros_ref_pose_pub_;
     ros::Publisher mavros_ref_vel_pub_;
     ros::Subscriber mavros_cur_pose_sub_;
+    ros::Subscriber mavros_cur_vel_sub_;
     ros::Subscriber mavros_cur_state_sub_;
 
     unsigned int robot_id_;

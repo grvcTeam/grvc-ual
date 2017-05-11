@@ -62,7 +62,7 @@ public:
     /// Latest pose estimation of the robot
     virtual Pose     pose() const = 0;
     /// Latest velocity estimation of the robot
-    //virtual Velocity velocity() const = 0;  // TODO!
+    virtual Velocity velocity() const = 0;
 
     /// Go to the specified waypoint, following a straight line
     /// \param _wp goal waypoint
