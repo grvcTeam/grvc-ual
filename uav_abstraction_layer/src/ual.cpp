@@ -117,7 +117,7 @@ bool UAL::setVelocity(const Velocity& _vel) {
     // Override any previous FLYING function
     if (!backend_->isIdle()) { backend_->abort(); }
 
-    // Function is non-blocking in backend TODO: do non-thread-safe-call?
+    // Function is non-blocking in backend TODO: non-thread-safe-call?
     backend_->threadSafeCall(&Backend::setVelocity, _vel);
     return true;
 }
@@ -130,7 +130,7 @@ bool UAL::setPositionError(const PositionError& _pos_error) {
     // Override any previous FLYING function
     if (!backend_->isIdle()) { backend_->abort(); }
 
-    // Function is non-blocking in backend TODO: do non-thread-safe-call?
+    // Function is non-blocking in backend TODO: non-thread-safe-call?
     backend_->threadSafeCall(&Backend::setPositionError, _pos_error);
     return true;
 }
