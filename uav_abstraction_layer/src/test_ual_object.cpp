@@ -20,7 +20,6 @@
 //----------------------------------------------------------------------------------------------------------------------
 #include <uav_abstraction_layer/ual.h>
 #include <ros/ros.h>
-#include <geometry_msgs/PoseStamped.h>
 
 int main(int _argc, char** _argv) {
 
@@ -61,17 +60,17 @@ int main(int _argc, char** _argv) {
         std::cout << "Arrived!" << std::endl;
     }
 
-    // std::cout << "Non-blocking version of goToWaypoint" << std::endl;
-    // for (auto p : path) {
-    //     std::cout << "Waypoint: " << p.pose.position.x << ", " << \
-    //         p.pose.position.y << ", " << p.pose.position.z << std::endl;
-    //     ual.goToWaypoint(p, false);
-    //     while (!ual.isIdle()) {
-    //         std::cout << "Waiting" << std::endl;
-    //         sleep(1);
-    //     }
-    //     std::cout << "Arrived!" << std::endl;
-    // }
+    std::cout << "Non-blocking version of goToWaypoint" << std::endl;
+    for (auto p : path) {
+        std::cout << "Waypoint: " << p.pose.position.x << ", " << \
+            p.pose.position.y << ", " << p.pose.position.z << ", frame_id: " << p.header.frame_id << std::endl;
+        ual.goToWaypoint(p, false);
+        do {
+            std::cout << "Waiting" << std::endl;
+            sleep(1);
+        } while (!ual.isIdle());
+        std::cout << "Arrived!" << std::endl;
+    }
 
     // Land
     ual.land();

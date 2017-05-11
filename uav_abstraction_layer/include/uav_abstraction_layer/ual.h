@@ -30,6 +30,7 @@ namespace grvc { namespace ual {
 class UAL {
 public:
     UAL(int _argc, char** _argv);
+    ~UAL();
 
     /// Initialized and ready to run tasks?
     bool	 isReady() const { return backend_->isReady(); }
