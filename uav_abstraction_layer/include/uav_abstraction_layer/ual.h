@@ -50,6 +50,9 @@ public:
     /// Latest pose estimation of the robot
     Velocity velocity() const { return backend_->velocity(); }
 
+    /// Latest transform estimation of the robot
+    Transform transform() const { return backend_->transform(); }
+
     /// Go to the specified waypoint, following a straight line
     /// \param _wp goal waypoint
     /// \param _blocking indicates if function call is blocking (default = true)

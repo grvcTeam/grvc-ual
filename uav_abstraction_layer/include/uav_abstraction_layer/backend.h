@@ -29,6 +29,7 @@
 #include <geometry_msgs/Vector3Stamped.h>
 #include <geometry_msgs/TwistStamped.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/TransformStamped.h>
 // #include <nav_msgs/Path.h>
 
 namespace grvc { namespace ual {
@@ -37,6 +38,7 @@ typedef geometry_msgs::PoseStamped Pose;
 typedef geometry_msgs::PoseStamped Waypoint;
 typedef geometry_msgs::TwistStamped Velocity;
 typedef geometry_msgs::Vector3Stamped PositionError;
+typedef geometry_msgs::TransformStamped Transform;
 
 /// Common interface for back-end implementations of ual
 class Backend {
@@ -68,6 +70,8 @@ public:
     virtual Pose     pose() const = 0;
     /// Latest velocity estimation of the robot
     virtual Velocity velocity() const = 0;
+    /// Latest transform estimation of the robot
+    virtual Transform transform() const = 0;
 
     /// Go to the specified waypoint, following a straight line
     /// \param _wp goal waypoint

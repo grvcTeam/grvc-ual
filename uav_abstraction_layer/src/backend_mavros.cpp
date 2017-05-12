@@ -249,15 +249,6 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
 
 Pose BackendMavros::pose() const {
         Pose out;
-        ///pose.id = std::to_string(robot_id_);
-        // TODO: different frames? tf!
-        ///pose.frame = "map";
-        // TODO: transform to world coordinates?
-        /*
-        Vec4 localPose = Vec4(cur_pose_.pose.position.x,cur_pose_.pose.position.y,cur_pose_.pose.position.z,1.0);
-        Vec4 gamePose = localTransform*localPose;
-        pose.position = Vec3(gamePose[0],gamePose[1],gamePose[2]);
-        */
         out.header.frame_id = uav_home_frame_id_;
         out.pose.position.x = cur_pose_.pose.position.x + local_start_pos_[0];
         out.pose.position.y = cur_pose_.pose.position.y + local_start_pos_[1];
@@ -268,6 +259,18 @@ Pose BackendMavros::pose() const {
 
 Velocity BackendMavros::velocity() const {
     return cur_vel_;
+}
+
+Transform BackendMavros::transform() const {
+    Transform out;
+    out.header.stamp = ros::Time::now();
+    out.header.frame_id = uav_home_frame_id_;
+    out.child_frame_id = "uav_" + std::to_string(robot_id_);
+    out.transform.translation.x = cur_pose_.pose.position.x + local_start_pos_[0];
+    out.transform.translation.y = cur_pose_.pose.position.y + local_start_pos_[1];
+    out.transform.translation.z = cur_pose_.pose.position.z + local_start_pos_[2];
+    out.transform.rotation = cur_pose_.pose.orientation;
+    return out;
 }
 
 bool BackendMavros::referencePoseReached() const {

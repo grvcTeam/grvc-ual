@@ -52,6 +52,8 @@ public:
     virtual Pose	 pose() const override;
     /// Latest velocity estimation of the robot
     virtual Velocity velocity() const override;
+    /// Latest transform estimation of the robot
+    virtual Transform transform() const override;
 
     /// Go to the specified waypoint, following a straight line
     /// \param _wp goal waypoint

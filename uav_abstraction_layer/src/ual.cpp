@@ -20,6 +20,7 @@
 //----------------------------------------------------------------------------------------------------------------------
 #include <uav_abstraction_layer/ual.h>
 #include <ros/ros.h>
+#include <tf2_ros/transform_broadcaster.h>
 
 using namespace uav_abstraction_layer;
 
@@ -77,12 +78,14 @@ UAL::UAL(grvc::utils::ArgumentParser& _args) {
             });
             ros::Publisher pose_pub = nh.advertise<geometry_msgs::PoseStamped>(pose_topic, 10);
             ros::Publisher velocity_pub = nh.advertise<geometry_msgs::TwistStamped>(velocity_topic, 10);
+            static tf2_ros::TransformBroadcaster tf_pub;
 
             // Publish @ 10Hz
             ros::Rate loop_rate(10);
             while (ros::ok()) {
                 pose_pub.publish(this->pose());
                 velocity_pub.publish(this->velocity());
+                tf_pub.sendTransform(this->transform());
                 loop_rate.sleep();
             }
         });
