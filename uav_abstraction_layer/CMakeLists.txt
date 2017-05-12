@@ -146,6 +146,7 @@ add_library(${PROJECT_NAME}
 # add_executable(${PROJECT_NAME}_node src/uav_abstraction_layer_node.cpp)
 add_executable(test_task_management src/test_task_management.cpp)
 add_executable(test_ual_interfaces src/test_ual_interfaces.cpp)
+add_executable(server src/server.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -165,6 +166,10 @@ target_link_libraries(test_task_management
   ${catkin_LIBRARIES}
 )
 target_link_libraries(test_ual_interfaces
+  ${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+)
+target_link_libraries(server
   ${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )
