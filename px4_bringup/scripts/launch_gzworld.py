@@ -49,7 +49,6 @@ def main():
     else:
         latlonalt = [0.0, 0.0, 0.0]
 
-    print '>>> Getting /map_frame/translation param {} \n'.format(latlonalt)
     # Set gazebo origin for px4 sitl mavlink interface plugin
     gz_env['PX4_HOME_LAT'] = str(latlonalt[0])
     gz_env['PX4_HOME_LON'] = str(latlonalt[1])

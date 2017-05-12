@@ -333,10 +333,8 @@ void BackendMavros::initHomeFrame() {
         static_transformStamped.transform.rotation.z = quat.z();
         static_transformStamped.transform.rotation.w = quat.w();
 
-        ROS_INFO("Before sending transform %s",uav_home_frame_id_.c_str());
         static_tf_broadcaster_ = new tf2_ros::StaticTransformBroadcaster();
         static_tf_broadcaster_->sendTransform(static_transformStamped);
-        ROS_INFO("After sending transform %s",uav_home_frame_id_.c_str());
     }
     else {
         // No param with local frame -> Global control
