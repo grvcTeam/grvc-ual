@@ -32,13 +32,13 @@
 
 namespace grvc { namespace ual {
 
-BackendMavros::BackendMavros(int _argc, char** _argv)
-    : Backend(_argc, _argv), args_(_argc, _argv)
+BackendMavros::BackendMavros(grvc::utils::ArgumentParser& _args)
+    : Backend(_args)
 {
     ROS_INFO("BackendMavros constructor");
 
     // Parse arguments
-    robot_id_ = args_.getArgument("uav_id", 1);
+    robot_id_ = _args.getArgument("uav_id", 1);
 
     // Init ros communications
     ros::NodeHandle nh;

@@ -44,7 +44,7 @@ namespace grvc { namespace ual {
 class BackendMavros : public Backend {
 
 public:
-    BackendMavros(int _argc, char** _argv);
+    BackendMavros(grvc::utils::ArgumentParser& _args);
 
     /// Backend is initialized and ready to run tasks?
     bool	         isReady() const override;
@@ -76,7 +76,6 @@ private:
     bool referencePoseReached() const;
     void setFlightMode(const std::string& _flight_mode);
 
-    utils::ArgumentParser args_;
     //WaypointList path_;
     geometry_msgs::PoseStamped home_pose_;
     geometry_msgs::PoseStamped ref_pose_;

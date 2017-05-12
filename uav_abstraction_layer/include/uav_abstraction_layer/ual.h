@@ -35,7 +35,7 @@ namespace grvc { namespace ual {
 /// UAL replicates Backend interface, with some extras
 class UAL {
 public:
-    UAL(int _argc, char** _argv);
+    UAL(grvc::utils::ArgumentParser& _args);
     ~UAL();
 
     /// Initialized and ready to run tasks?
@@ -73,7 +73,6 @@ public:
     bool	setPositionError(const PositionError& _pos_error);
 
 protected:
-    utils::ArgumentParser args_;
     Backend* backend_;
     std::thread running_thread_;
     std::thread server_thread_;
@@ -86,6 +85,8 @@ protected:
         LANDING
     };
     std::atomic<State> state_ = {LANDED};
+
+    int robot_id_;
 };
 
 }}	// namespace grvc::ual

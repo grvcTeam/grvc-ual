@@ -24,6 +24,7 @@
 #include <thread>
 #include <atomic>
 #include <mutex>
+#include <argument_parser/argument_parser.h>
 #include <std_msgs/Float32.h>
 #include <geometry_msgs/Vector3Stamped.h>
 #include <geometry_msgs/TwistStamped.h>
@@ -57,7 +58,7 @@ public:
     }
 
     /// Constructor inits node
-    Backend(int _argc, char** _argv);
+    Backend(grvc::utils::ArgumentParser& _args);
 
     /// Backend is initialized and ready to run tasks?
     virtual bool     isReady() const = 0;
@@ -97,7 +98,7 @@ public:
     /// current platform.
     /// \return the newly created Backend. Whoever calls this method, is responsible for eventually
     /// destroying the Backend.
-    static Backend* createBackend(int _argc, char** _argv);
+    static Backend* createBackend(grvc::utils::ArgumentParser& _args);
 
 protected:
     /// Abort flag
