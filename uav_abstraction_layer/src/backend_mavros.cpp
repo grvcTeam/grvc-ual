@@ -65,6 +65,7 @@ BackendMavros::BackendMavros(int _argc, char** _argv)
     mavros_cur_vel_sub_ = nh.subscribe<geometry_msgs::TwistStamped>(vel_topic.c_str(), 10, \
         [this](const geometry_msgs::TwistStamped::ConstPtr& _msg) {
             this->cur_vel_ = *_msg;
+            this->cur_vel_.header.frame_id = this->uav_home_frame_id_;
     });
     mavros_cur_state_sub_ = nh.subscribe<mavros_msgs::State>(state_topic.c_str(), 10, \
         [this](const mavros_msgs::State::ConstPtr& _msg) {
@@ -257,6 +258,7 @@ Pose BackendMavros::pose() const {
         Vec4 gamePose = localTransform*localPose;
         pose.position = Vec3(gamePose[0],gamePose[1],gamePose[2]);
         */
+        out.header.frame_id = uav_home_frame_id_;
         out.pose.position.x = cur_pose_.pose.position.x + local_start_pos_[0];
         out.pose.position.y = cur_pose_.pose.position.y + local_start_pos_[1];
         out.pose.position.z = cur_pose_.pose.position.z + local_start_pos_[2];
@@ -265,7 +267,6 @@ Pose BackendMavros::pose() const {
 }
 
 Velocity BackendMavros::velocity() const {
-    // TODO: different frames? tf!
     return cur_vel_;
 }
 
