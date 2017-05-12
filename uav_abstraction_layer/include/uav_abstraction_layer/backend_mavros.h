@@ -85,8 +85,6 @@ private:
     geometry_msgs::TwistStamped cur_vel_;
     mavros_msgs::State mavros_state_;
 
-    ros::NodeHandle* nh_;
-
     //Control
     bool mavros_has_pose_ = false;
     bool control_in_vel_ = false;
@@ -115,7 +113,6 @@ private:
     Eigen::Vector3d local_start_pos_;
 
     std::thread offboard_thread_;
-    std::thread spin_thread_;
 };
 
 }}	// namespace grvc::ual

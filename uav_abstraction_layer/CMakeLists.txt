@@ -145,7 +145,7 @@ add_library(${PROJECT_NAME}
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/uav_abstraction_layer_node.cpp)
 add_executable(test_task_management src/test_task_management.cpp)
-add_executable(test_ual_object src/test_ual_object.cpp)
+add_executable(test_ual_interfaces src/test_ual_interfaces.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -164,7 +164,7 @@ add_executable(test_ual_object src/test_ual_object.cpp)
 target_link_libraries(test_task_management
   ${catkin_LIBRARIES}
 )
-target_link_libraries(test_ual_object
+target_link_libraries(test_ual_interfaces
   ${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )

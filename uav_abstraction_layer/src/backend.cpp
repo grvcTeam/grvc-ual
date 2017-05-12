@@ -23,6 +23,19 @@
 
 namespace grvc { namespace ual {
 
+Backend::Backend(int _argc, char** _argv) {
+    if (!ros::isInitialized()) {
+        grvc::utils::ArgumentParser args(_argc, _argv);
+        int robot_id = args.getArgument("uav_id", 1);
+        // Init ros node
+        ros::init(_argc, _argv, "ual_" + std::to_string(robot_id));
+        // Make communications spin!
+        spin_thread_ = std::thread([this]() {
+            ros::spin();
+        });
+    }
+}
+
 Backend* Backend::createBackend(int _argc, char** _argv) {
     Backend* be = nullptr;
     // Decide backend from arguments:

@@ -21,15 +21,80 @@
 #include <uav_abstraction_layer/ual.h>
 #include <ros/ros.h>
 
+using namespace uav_abstraction_layer;
+
 namespace grvc { namespace ual {
 
-UAL::UAL(int _argc, char** _argv) {
+UAL::UAL(int _argc, char** _argv)
+    : args_(_argc, _argv)
+{
+    // Create backend first of all, inits ros node
     backend_ = Backend::createBackend(_argc, _argv);
+
+    // Start server if explicitly asked
+    std::string server_mode = args_.getArgument<std::string>("ual_server", "off");
+    // TODO: Consider other modes?
+    if (server_mode == "on") {
+        server_thread_ = std::thread([this]() {
+            int robot_id = this->args_.getArgument("uav_id", 1);
+            std::string ual_ns = "ual_" + std::to_string(robot_id);
+            std::string take_off_srv = ual_ns + "/take_off";
+            std::string land_srv = ual_ns + "/land";
+            std::string go_to_waypoint_srv = ual_ns + "/go_to_waypoint";
+            std::string set_velocity_srv = ual_ns + "/set_velocity";
+            std::string set_position_error_srv = ual_ns + "/set_position_error";
+            std::string pose_topic = ual_ns + "/pose";
+            std::string velocity_topic = ual_ns + "/velocity";
+
+            ros::NodeHandle nh;
+            ros::ServiceServer take_off_service =
+                nh.advertiseService<TakeOff::Request, TakeOff::Response>(
+                take_off_srv,
+                [this](TakeOff::Request &req, TakeOff::Response &res) {
+                return this->takeOff(req.height, req.blocking);
+            });
+            ros::ServiceServer land_service =
+                nh.advertiseService<Land::Request, Land::Response>(
+                land_srv,
+                [this](Land::Request &req, Land::Response &res) {
+                return this->land(req.blocking);
+            });
+            ros::ServiceServer go_to_waypoint_service =
+                nh.advertiseService<GoToWaypoint::Request, GoToWaypoint::Response>(
+                go_to_waypoint_srv,
+                [this](GoToWaypoint::Request &req, GoToWaypoint::Response &res) {
+                return this->goToWaypoint(req.waypoint, req.blocking);
+            });
+            ros::ServiceServer set_velocity_service =
+                nh.advertiseService<SetVelocity::Request, SetVelocity::Response>(
+                set_velocity_srv,
+                [this](SetVelocity::Request &req, SetVelocity::Response &res) {
+                return this->setVelocity(req.velocity);
+            });
+            ros::ServiceServer set_position_error_service =
+                nh.advertiseService<SetPositionError::Request, SetPositionError::Response>(
+                set_position_error_srv,
+                [this](SetPositionError::Request &req, SetPositionError::Response &res) {
+                return this->setPositionError(req.position_error);
+            });
+            ros::Publisher pose_pub = nh.advertise<geometry_msgs::PoseStamped>(pose_topic, 10);
+            ros::Publisher velocity_pub = nh.advertise<geometry_msgs::TwistStamped>(velocity_topic, 10);
+
+            // Publish @ 10Hz
+            ros::Rate loop_rate(10);
+            while (ros::ok()) {
+                pose_pub.publish(this->pose());
+                velocity_pub.publish(this->velocity());
+                loop_rate.sleep();
+            }
+        });
+    }
 }
 
 UAL::~UAL() {
     if (!backend_->isIdle()) { backend_->abort(); }
-    if (running_thread_.joinable()) running_thread_.join();
+    if (running_thread_.joinable()) { running_thread_.join(); }
+    if (server_thread_.joinable()) { server_thread_.join(); }
 }
 
 bool UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {

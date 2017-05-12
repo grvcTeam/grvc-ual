@@ -21,6 +21,7 @@
 #ifndef UAV_ABSTRACTION_LAYER_BACKEND_H
 #define UAV_ABSTRACTION_LAYER_BACKEND_H
 
+#include <thread>
 #include <atomic>
 #include <mutex>
 #include <std_msgs/Float32.h>
@@ -54,6 +55,9 @@ public:
             return false;  // Call failed
         }
     }
+
+    /// Constructor inits node
+    Backend(int _argc, char** _argv);
 
     /// Backend is initialized and ready to run tasks?
     virtual bool     isReady() const = 0;
@@ -104,6 +108,9 @@ protected:
     /// Implemented via mutex-locking
     std::mutex running_mutex_;
     std::atomic<bool> running_task_ = {false};
+
+    // Ros spinning thread
+    std::thread spin_thread_;
 };
 
 }}	// namespace grvc::ual

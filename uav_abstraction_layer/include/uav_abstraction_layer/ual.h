@@ -22,6 +22,12 @@
 #define UAV_ABSTRACTION_LAYER_UAL_H
 
 #include <uav_abstraction_layer/backend.h>
+#include <argument_parser/argument_parser.h>
+#include <uav_abstraction_layer/GoToWaypoint.h>
+#include <uav_abstraction_layer/TakeOff.h>
+#include <uav_abstraction_layer/Land.h>
+#include <uav_abstraction_layer/SetVelocity.h>
+#include <uav_abstraction_layer/SetPositionError.h>
 #include <thread>
 
 namespace grvc { namespace ual {
@@ -67,8 +73,10 @@ public:
     bool	setPositionError(const PositionError& _pos_error);
 
 protected:
+    utils::ArgumentParser args_;
     Backend* backend_;
     std::thread running_thread_;
+    std::thread server_thread_;
 
     // TODO: expose state?
     enum State {

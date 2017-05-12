@@ -33,7 +33,7 @@
 namespace grvc { namespace ual {
 
 BackendMavros::BackendMavros(int _argc, char** _argv)
-    : args_(_argc, _argv)
+    : Backend(_argc, _argv), args_(_argc, _argv)
 {
     ROS_INFO("BackendMavros constructor");
 
@@ -41,10 +41,7 @@ BackendMavros::BackendMavros(int _argc, char** _argv)
     robot_id_ = args_.getArgument("uav_id", 1);
 
     // Init ros communications
-    std::string node_name = "backend_" + std::to_string(robot_id_);
-    ros::init(_argc, _argv, node_name);
-    nh_ = new ros::NodeHandle();
-
+    ros::NodeHandle nh;
     std::string mavros_ns = "mavros_" + std::to_string(robot_id_);
     std::string set_mode_srv = mavros_ns + "/set_mode";
     std::string arming_srv = mavros_ns + "/cmd/arming";
@@ -54,29 +51,24 @@ BackendMavros::BackendMavros(int _argc, char** _argv)
     std::string vel_topic = mavros_ns + "/local_position/velocity";
     std::string state_topic = mavros_ns + "/state";
 
-    flight_mode_client_ = nh_->serviceClient<mavros_msgs::SetMode>(set_mode_srv.c_str());
-    arming_client_ = nh_->serviceClient<mavros_msgs::CommandBool>(arming_srv.c_str());
+    flight_mode_client_ = nh.serviceClient<mavros_msgs::SetMode>(set_mode_srv.c_str());
+    arming_client_ = nh.serviceClient<mavros_msgs::CommandBool>(arming_srv.c_str());
 
-    mavros_ref_pose_pub_ = nh_->advertise<geometry_msgs::PoseStamped>(set_pose_topic.c_str(), 10);
-    mavros_ref_vel_pub_ = nh_->advertise<geometry_msgs::TwistStamped>(set_vel_topic.c_str(), 10);
+    mavros_ref_pose_pub_ = nh.advertise<geometry_msgs::PoseStamped>(set_pose_topic.c_str(), 10);
+    mavros_ref_vel_pub_ = nh.advertise<geometry_msgs::TwistStamped>(set_vel_topic.c_str(), 10);
 
-    mavros_cur_pose_sub_ = nh_->subscribe<geometry_msgs::PoseStamped>(pose_topic.c_str(), 10, \
+    mavros_cur_pose_sub_ = nh.subscribe<geometry_msgs::PoseStamped>(pose_topic.c_str(), 10, \
         [this](const geometry_msgs::PoseStamped::ConstPtr& _msg) {
             this->cur_pose_ = *_msg;
             this->mavros_has_pose_ = true;
     });
-    mavros_cur_vel_sub_ = nh_->subscribe<geometry_msgs::TwistStamped>(vel_topic.c_str(), 10, \
+    mavros_cur_vel_sub_ = nh.subscribe<geometry_msgs::TwistStamped>(vel_topic.c_str(), 10, \
         [this](const geometry_msgs::TwistStamped::ConstPtr& _msg) {
             this->cur_vel_ = *_msg;
     });
-    mavros_cur_state_sub_ = nh_->subscribe<mavros_msgs::State>(state_topic.c_str(), 10, \
+    mavros_cur_state_sub_ = nh.subscribe<mavros_msgs::State>(state_topic.c_str(), 10, \
         [this](const mavros_msgs::State::ConstPtr& _msg) {
             this->mavros_state_ = *_msg;
-    });
-
-    // Make communications spin!
-    spin_thread_ = std::thread([this](){
-        ros::spin();
     });
 
     // TODO: Check this and solve frames issue

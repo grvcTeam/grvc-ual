@@ -29,6 +29,18 @@ int main(int _argc, char** _argv) {
         sleep(1);
     }
 
+    // Start server if explicitly asked:
+    grvc::utils::ArgumentParser args(_argc, _argv);
+    std::string server_mode = args.getArgument<std::string>("ual_server", "off");
+    if (server_mode == "on") {
+        std::cout << "UAL server is now available" << std::endl;
+        // Do nothing
+        while (ros::ok()) { sleep(1); }
+        return 0;
+    }
+
+    // Else, use class interface to perform a simple mission:
+    std::cout << "Mission using UAL object" << std::endl;
     // Define flight level and take off
 	double flight_level = 10.0;
     ual.takeOff(flight_level);
