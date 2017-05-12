@@ -45,7 +45,7 @@ def main():
             #TODO UTM to LAT-LON
             pass
     elif rospy.has_param('/sim_origin'):
-        latlonalt = get_param('/sim_origin')
+        latlonalt = rospy.get_param('/sim_origin')
     else:
         latlonalt = [0.0, 0.0, 0.0]
 
