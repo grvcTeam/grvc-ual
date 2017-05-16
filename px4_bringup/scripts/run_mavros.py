@@ -42,7 +42,7 @@ def main():
         subprocess.call("rosparam set " + node_name + "/fcu_url " + fcu_url, shell=True)
         subprocess.call("rosparam set " + node_name + "/gcs_url " + \
         udp_config["gcs_url"], shell=True)
-    elif args.mode == "real":
+    elif args.mode == "serial":
         fcu_url = "serial:///dev/ttyACM0:57600"
         subprocess.call("rosparam set " + node_name + "/fcu_url " + fcu_url, shell=True)
     elif args.mode == "udp":
