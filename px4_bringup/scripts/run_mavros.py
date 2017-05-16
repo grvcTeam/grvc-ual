@@ -13,6 +13,10 @@ def main():
                         help='robot id, used to compute udp ports')
     parser.add_argument('-mode', type=str, default="sitl",
                         help='robot mode, used to set proper fcu_url')
+    parser.add_argument('-target_ip', type=str, default="localhost",
+                        help='IP address of the device running px4, used to set proper fcu_url')
+    parser.add_argument('-own_ip', type=str, default="localhost",
+                        help='IP address of this device, used to set proper fcu_url')
     args, unknown = parser.parse_known_args()
     utils.check_unknown_args(unknown)
 
@@ -41,6 +45,11 @@ def main():
     elif args.mode == "real":
         fcu_url = "serial:///dev/ttyACM0:57600"
         subprocess.call("rosparam set " + node_name + "/fcu_url " + fcu_url, shell=True)
+    elif args.mode == "udp":
+        # TODO: get ports from args?
+        fcu_url = "udp://:14550@{}:14556".format(args.target_ip)
+        subprocess.call("rosparam set " + node_name + "/fcu_url " + fcu_url, shell=True)
+        subprocess.call("rosparam set " + node_name + "/gcs_url " + "udp://@{}".format(args.own_ip), shell=True)
 
     # ...and load blacklist, config (as seen in mavros node.launch)
     yaml_path = rospack.get_path("px4_bringup") + "/config/"
