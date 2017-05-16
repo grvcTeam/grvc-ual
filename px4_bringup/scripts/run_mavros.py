@@ -28,8 +28,8 @@ def main():
     subprocess.call("mkdir -p " + temp_dir, shell=True)
 
     # Set a param to tell the system current spawn mode
-    spawn_ns = "mavros_spawn/" + str(args.id)
-    subprocess.call("rosparam set " + spawn_ns + "/mode " + args.mode, shell=True)
+    run_ns = "run_mavros/uav_" + str(args.id)
+    subprocess.call("rosparam set " + run_ns + "/mode " + args.mode, shell=True)
 
     # Get udp configuration, depending on id
     udp_config = utils.udp_config(args.id)
