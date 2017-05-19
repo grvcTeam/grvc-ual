@@ -8,4 +8,4 @@ Master branch should always be last stable version of this software. As packages
 
 Download the latest stable version from [here](https://github.com/grvcTeam/grvc-ual/releases).
 
-You can find the instructions for installation in the [Wiki](https://github.com/grvcTeam/grvc-ual/wiki).
+You can find the instructions for installation and how to use the UAL in the [Wiki](https://github.com/grvcTeam/grvc-ual/wiki).

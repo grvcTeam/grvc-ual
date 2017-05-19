@@ -22,10 +22,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     <node pkg="px4_bringup" type="launch_gzworld.py" name="gazebo_world" output="screen"
     args="-physics=ode -world=$(find px4_bringup)/config/empty_light.world"/>
 
+    <!-- Launch robots. Argument mode can be:
+        - sitl: for software in the loop simulation
+        - serial: for serial connection to px4
+        - udp: for udp connection to px4
+    -->
     <!-- Launch robot id=1 -->
     <include file="$(find px4_bringup)/launch/spawn_robot.launch">
         <arg name="id" value="1"/>
         <arg name="material" value="Orange"/>
+        <arg name="mode" value="sitl"/>
     </include>
 
     <group if="$(arg multi)">
@@ -33,11 +39,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         <include file="$(find px4_bringup)/launch/spawn_robot.launch">
             <arg name="id" value="2"/>
             <arg name="material" value="Indigo"/>
+            <arg name="mode" value="sitl"/>
         </include>
         <!-- Launch robot id=3 -->
         <include file="$(find px4_bringup)/launch/spawn_robot.launch">
             <arg name="id" value="3"/>
             <arg name="material" value="ZincYellow"/>
+            <arg name="mode" value="sitl"/>
         </include>
     </group>
 
