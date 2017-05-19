@@ -20,6 +20,7 @@
 //----------------------------------------------------------------------------------------------------------------------
 #include <uav_abstraction_layer/backend.h>
 #include <uav_abstraction_layer/backend_mavros.h>
+#include <uav_abstraction_layer/backend_light.h>
 
 namespace grvc { namespace ual {
 
@@ -39,7 +40,13 @@ Backend* Backend::createBackend(grvc::utils::ArgumentParser& _args) {
     Backend* be = nullptr;
     // Decide backend from arguments:
     // BackendMavros only available
-    be = new BackendMavros(_args);
+    std::string selected_backend = _args.getArgument("backend", "mavros");
+    if (selected_backend == "mavros") {
+        be = new BackendMavros(_args);
+    }
+    else if (selected_backend == "light") {
+        be = new BackendLight(_args);
+    }
     return be;
 }
 
