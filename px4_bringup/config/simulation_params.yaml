@@ -1,5 +1,5 @@
 # Number of UAVs
-number_of_uavs: 2
+number_of_uavs: 3
 
 #--------------------------------------------------------------------------------------------#
 # Gazebo origin (lat-lon-alt) can be defined with 'map_frame' or with 'sim_origin' params
@@ -24,7 +24,7 @@ uav_1_home_frame:
   frame_id: "uav_1_home"
   parent_frame: "map"
   units: "m"
-  translation: [-28.0, 34.0, 0.5]
+  translation: [-10.0, -10.0, 0.5]
   rotation: [0.0, 0.0, 0.0] # RPY
 
 # uav_2_home frame
@@ -32,5 +32,13 @@ uav_2_home_frame:
   frame_id: "uav_2_home"
   parent_frame: "map"
   units: "m"
-  translation: [-28.0, 26.0, 0.5]
+  translation: [-10.0, 10.0, 0.5]
+  rotation: [0.0, 0.0, 0.0] # RPY
+
+# uav_3_home frame
+uav_3_home_frame:
+  frame_id: "uav_3_home"
+  parent_frame: "map"
+  units: "m"
+  translation: [10.0, 0.0, 0.5]
   rotation: [0.0, 0.0, 0.0] # RPY
