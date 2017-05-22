@@ -8,6 +8,7 @@ add_definitions(-std=c++11)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
+  message_generation
   argument_parser
   geometry_msgs
   mavros
@@ -112,7 +113,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES uav_abstraction_layer
-  CATKIN_DEPENDS argument_parser geometry_msgs mavros mavros_msgs roscpp std_msgs tf2_ros
+  CATKIN_DEPENDS message_runtime argument_parser geometry_msgs mavros mavros_msgs roscpp std_msgs tf2_ros
 #  DEPENDS system_lib
 )
 
