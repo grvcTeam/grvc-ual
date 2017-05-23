@@ -9,6 +9,7 @@ import tf2_ros
 import tf2_geometry_msgs
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import TransformStamped
+import xml.etree.ElementTree as ET
 
 
 def main():
@@ -22,6 +23,8 @@ def main():
     parser.add_argument('-material', type=str, default="DarkGrey",
                         help='robot Gazebo/material; \
                         see materials/scripts/gazebo.material (at your gazebo version)')
+    parser.add_argument('-backend', type=str, default="mavros",
+                        help='backend to use')
     args, unknown = parser.parse_known_args()
     utils.check_unknown_args(unknown)
 
@@ -59,6 +62,19 @@ def main():
     # Create sdf from urdf
     temp_sdf = temp_dir + "/" + args.model + ".sdf"
     subprocess.call("gz sdf -p " + temp_urdf + " > " + temp_sdf, shell=True)
+    
+    # Set gravity=0 for light simulations
+    if args.backend == 'light':
+        tree = ET.parse(temp_sdf)
+        root = tree.getroot()
+        model = root.find('model')
+        for linktag in model.findall('link'):
+            #if linktag.get('name') == 'base_link':
+            gravitytag = linktag.find('gravity')
+            if gravitytag == None:
+                gravitytag = ET.SubElement(linktag,'gravity')
+            gravitytag.text = '0'
+        tree.write(temp_sdf)
 
     # Get robot home position from rosparam
     tf_buffer = tf2_ros.Buffer(rospy.Duration(1200.0)) #tf buffer length
@@ -85,13 +101,15 @@ def main():
     else:
         robot_home = [0.0, 0.0, 0.0]
         robot_yaw = 0.0
+    
+    z_min = 0
 
     # Spawn robot sdf in gazebo
     gzmodel_args = "gz model -f " + temp_sdf + \
     " -m " + args.model + "_" + str(args.id) + \
     " -x " + str(robot_home[0]) + \
     " -y " + str(robot_home[1]) + \
-    " -z " + str(robot_home[2]) + \
+    " -z " + str(robot_home[2]+z_min) + \
     " -Y " + str(robot_yaw)
     subprocess.call(gzmodel_args, shell=True)
 
