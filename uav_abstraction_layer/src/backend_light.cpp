@@ -21,7 +21,7 @@
 
 #include <string>
 #include <chrono>
-#include <uav_abstraction_layer/backend_mavros.h>
+#include <uav_abstraction_layer/backend_light.h>
 #include <argument_parser/argument_parser.h>
 #include <Eigen/Eigen>
 #include <ros/ros.h>
@@ -29,6 +29,12 @@
 #include <tf2_ros/transform_listener.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2/LinearMath/Quaternion.h>
+//#include <gazebo_animator/frame.h>
+//#include <gazebo_animator/key_frame.h>
+//#include <gazebo_animator/gazebo_animated_link.h>
+#include <algorithm>
+#include <gazebo_msgs/LinkState.h>
+
 
 namespace grvc { namespace ual {
 
@@ -39,20 +45,84 @@ BackendLight::BackendLight(grvc::utils::ArgumentParser& _args)
 
     // Parse arguments
     robot_id_ = _args.getArgument("uav_id", 1);
+    max_h_vel_ = _args.getArgument("max_h_vel", 0.5); // m/s
+    max_v_vel_ = _args.getArgument("max_v_vel", 0.5); // m/s
+    max_yaw_vel_ = _args.getArgument("max_yaw_vel", 0.2); // rad/s
 
     // Init ros communications
     ros::NodeHandle nh;
 
     initHomeFrame();
 
-    // Thread publishing target pose at 10Hz for offboard mode
+    // Create GazeboAnimatedLink object
+    link_name_ = _args.getArgument("link_name", std::string("mbzirc_") + std::to_string(robot_id_) + std::string("::base_link"));
+    //link_ = new GazeboAnimatedLink(link_name, uav_home_frame_id_);
+
+    std::string link_state_pub_topic = "/gazebo/set_link_state";
+    link_state_publisher_ = nh.advertise<gazebo_msgs::LinkState>(link_state_pub_topic, 1);
+
+    // Thread publishing target pose at 25Hz
     offboard_thread_ = std::thread([this]() {
+        double _fps = 25;
+        ros::Rate rate(_fps);
+        gazebo_msgs::LinkState current;
+        current.link_name = link_name_;
         while (ros::ok()) {
+            if (control_in_vel_) {
+                ref_pose_ = cur_pose_;
+            } else {
+                ref_vel_ = calcVel(ref_pose_);
+            }
+            move();
             // Play here?
-            // TODO: Check this frequency and use ros::Rate
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            //link_->playOnce();
+            current.pose.position.x = cur_pose_.pose.position.x;
+            current.pose.position.y = cur_pose_.pose.position.y;
+            current.pose.position.z = cur_pose_.pose.position.z;
+            current.reference_frame = uav_home_frame_id_;
+            link_state_publisher_.publish(current);
+            
+            //std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            ros::spinOnce();
+            rate.sleep();
         }
     });
+}
+
+bool BackendLight::isReady() const {
+    return true;
+}
+
+void BackendLight::move() {
+    double _fps = 25;
+    double t = 1 / _fps;
+    cur_pose_.pose.position.x += t * ref_vel_.twist.linear.x;
+    cur_pose_.pose.position.y += t * ref_vel_.twist.linear.y;
+    cur_pose_.pose.position.z += t * ref_vel_.twist.linear.z;
+    
+    // TODO: cur_pose_.pose.orientation = ...
+}
+
+Velocity BackendLight::calcVel(Pose _target_pose) {
+    Velocity vel;
+    
+    double dx = _target_pose.pose.position.x - cur_pose_.pose.position.x;
+    double dy = _target_pose.pose.position.y - cur_pose_.pose.position.y;
+    double dz = _target_pose.pose.position.z - cur_pose_.pose.position.z;
+
+    double Th = sqrt( dx*dx + dy*dy ) / max_h_vel_;
+    double Tz = dz / max_v_vel_;
+    //double Tyaw = () / max_yaw_vel_;
+    double T = std::max(Th, Tz);
+
+    vel.twist.linear.x = dx / T;
+    vel.twist.linear.y = dy / T;
+    vel.twist.linear.z = dz / T;
+    vel.twist.angular.x = 0.0;
+    vel.twist.angular.y = 0.0;
+    vel.twist.angular.z = 0.0;
+
+    return vel;
 }
 
 void BackendLight::takeOff(double _height) {
@@ -154,16 +224,12 @@ void BackendLight::goToWaypoint(const Waypoint& _world) {
     }
 }
 
-/*void BackendMavros::trackPath(const WaypointList &_path) {
-    // TODO: basic imlementation, ideally different from a stack of gotos
-}*/
-
 Pose BackendLight::pose() const {
         Pose out;
         out.header.frame_id = uav_home_frame_id_;
-        out.pose.position.x = cur_pose_.pose.position.x + local_start_pos_[0];
-        out.pose.position.y = cur_pose_.pose.position.y + local_start_pos_[1];
-        out.pose.position.z = cur_pose_.pose.position.z + local_start_pos_[2];
+        out.pose.position.x = cur_pose_.pose.position.x;
+        out.pose.position.y = cur_pose_.pose.position.y;
+        out.pose.position.z = cur_pose_.pose.position.z;
         out.pose.orientation = cur_pose_.pose.orientation;
         return out;
 }
@@ -177,9 +243,9 @@ Transform BackendLight::transform() const {
     out.header.stamp = ros::Time::now();
     out.header.frame_id = uav_home_frame_id_;
     out.child_frame_id = "uav_" + std::to_string(robot_id_);
-    out.transform.translation.x = cur_pose_.pose.position.x + local_start_pos_[0];
-    out.transform.translation.y = cur_pose_.pose.position.y + local_start_pos_[1];
-    out.transform.translation.z = cur_pose_.pose.position.z + local_start_pos_[2];
+    out.transform.translation.x = cur_pose_.pose.position.x;
+    out.transform.translation.y = cur_pose_.pose.position.y;
+    out.transform.translation.z = cur_pose_.pose.position.z;
     out.transform.rotation = cur_pose_.pose.orientation;
     return out;
 }
@@ -210,7 +276,6 @@ bool BackendLight::referencePoseReached() const {
 void BackendLight::initHomeFrame() {
 
     uav_home_frame_id_ = "uav_" + std::to_string(robot_id_) + "_home";
-    local_start_pos_ << 0.0, 0.0, 0.0;
 
     // Get frame from rosparam
     std::string frame_id;
@@ -246,6 +311,12 @@ void BackendLight::initHomeFrame() {
 
         static_tf_broadcaster_ = new tf2_ros::StaticTransformBroadcaster();
         static_tf_broadcaster_->sendTransform(static_transformStamped);
+
+        // Set initial pose in local frame
+        cur_pose_.pose.position.x = 0.0;
+        cur_pose_.pose.position.y = 0.0;
+        cur_pose_.pose.position.z = 0.0;
+        cur_pose_.pose.orientation = static_transformStamped.transform.rotation;
     }
     else {
         // No param with local frame -> Global control

@@ -40,7 +40,7 @@ Backend* Backend::createBackend(grvc::utils::ArgumentParser& _args) {
     Backend* be = nullptr;
     // Decide backend from arguments:
     // BackendMavros only available
-    std::string selected_backend = _args.getArgument("backend", "mavros");
+    std::string selected_backend = _args.getArgument<std::string>("backend", "mavros");
     if (selected_backend == "mavros") {
         be = new BackendMavros(_args);
     }

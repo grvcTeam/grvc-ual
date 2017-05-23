@@ -67,10 +67,10 @@ public:
     void	setPositionError(const PositionError& _pos_error) override;
 
 private:
-    void arm();
     void initHomeFrame();
     bool referencePoseReached() const;
-    void setFlightMode(const std::string& _flight_mode);
+    void move();
+    Velocity calcVel(Pose _target_pose);
 
     //WaypointList path_;
     geometry_msgs::PoseStamped home_pose_;
@@ -78,10 +78,13 @@ private:
     geometry_msgs::PoseStamped cur_pose_;
     geometry_msgs::TwistStamped ref_vel_;
     geometry_msgs::TwistStamped cur_vel_;
-    mavros_msgs::State mavros_state_;
+
+    //Gazebo animated link
+    //GazeboAnimatedLink * link_;
+    std::string link_name_;
+    ros::Publisher link_state_publisher_;
 
     //Control
-    bool mavros_has_pose_ = false;
     bool control_in_vel_ = false;
     Eigen::Vector3d integral_control_vel_ = {0,0,0};
     Eigen::Vector3d previous_error_control_vel_ = {0,0,0};
@@ -92,16 +95,10 @@ private:
     float k_i_z_ = 0.05;
     float k_d_z_ = 0.0;
 
-    /// Ros Communication
-    ros::ServiceClient flight_mode_client_;
-    ros::ServiceClient arming_client_;
-    ros::Publisher mavros_ref_pose_pub_;
-    ros::Publisher mavros_ref_vel_pub_;
-    ros::Subscriber mavros_cur_pose_sub_;
-    ros::Subscriber mavros_cur_vel_sub_;
-    ros::Subscriber mavros_cur_state_sub_;
-
     unsigned int robot_id_;
+    float max_h_vel_;
+    float max_v_vel_;
+    float max_yaw_vel_;
     std::string uav_home_frame_id_;
     tf2_ros::StaticTransformBroadcaster * static_tf_broadcaster_;
     std::map <std::string, geometry_msgs::TransformStamped> cached_transforms_;

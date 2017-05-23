@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
   tf2_ros
+  gazebo_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -112,7 +113,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES uav_abstraction_layer
-  CATKIN_DEPENDS argument_parser geometry_msgs mavros mavros_msgs roscpp std_msgs tf2_ros
+  CATKIN_DEPENDS argument_parser geometry_msgs mavros mavros_msgs roscpp std_msgs tf2_ros gazebo_msgs
 #  DEPENDS system_lib
 )
 
@@ -132,7 +133,7 @@ include_directories(
 #   src/${PROJECT_NAME}/uav_abstraction_layer.cpp
 # )
 add_library(${PROJECT_NAME}
-  src/backend.cpp src/backend_mavros.cpp src/ual.cpp
+  src/backend.cpp src/backend_mavros.cpp src/backend_light.cpp src/ual.cpp
 )
 
 ## Add cmake target dependencies of the library
