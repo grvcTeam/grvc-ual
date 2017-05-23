@@ -33,8 +33,15 @@
 //#include <gazebo_animator/key_frame.h>
 //#include <gazebo_animator/gazebo_animated_link.h>
 #include <algorithm>
+#include <cmath>
 #include <gazebo_msgs/LinkState.h>
 
+// Frames/s for publishing in gazebo topics
+#define FPS 25.0
+
+// Admissible errors for following the target pose
+#define ADMISSIBLE_ERROR_M 0.001
+#define ADMISSIBLE_ERROR_RAD 0.001
 
 namespace grvc { namespace ual {
 
@@ -45,7 +52,7 @@ BackendLight::BackendLight(grvc::utils::ArgumentParser& _args)
 
     // Parse arguments
     robot_id_ = _args.getArgument("uav_id", 1);
-    max_h_vel_ = _args.getArgument("max_h_vel", 0.5); // m/s
+    max_h_vel_ = _args.getArgument("max_h_vel", 0.8); // m/s
     max_v_vel_ = _args.getArgument("max_v_vel", 0.5); // m/s
     max_yaw_vel_ = _args.getArgument("max_yaw_vel", 0.2); // rad/s
 
@@ -56,6 +63,7 @@ BackendLight::BackendLight(grvc::utils::ArgumentParser& _args)
 
     // Create GazeboAnimatedLink object
     link_name_ = _args.getArgument("link_name", std::string("mbzirc_") + std::to_string(robot_id_) + std::string("::base_link"));
+    ROS_INFO("Gazebo link name: %s",link_name_.c_str());
     //link_ = new GazeboAnimatedLink(link_name, uav_home_frame_id_);
 
     std::string link_state_pub_topic = "/gazebo/set_link_state";
@@ -63,8 +71,7 @@ BackendLight::BackendLight(grvc::utils::ArgumentParser& _args)
 
     // Thread publishing target pose at 25Hz
     offboard_thread_ = std::thread([this]() {
-        double _fps = 25;
-        ros::Rate rate(_fps);
+        ros::Rate rate(FPS);
         gazebo_msgs::LinkState current;
         current.link_name = link_name_;
         while (ros::ok()) {
@@ -74,12 +81,12 @@ BackendLight::BackendLight(grvc::utils::ArgumentParser& _args)
                 ref_vel_ = calcVel(ref_pose_);
             }
             move();
-            // Play here?
-            //link_->playOnce();
-            current.pose.position.x = cur_pose_.pose.position.x;
-            current.pose.position.y = cur_pose_.pose.position.y;
-            current.pose.position.z = cur_pose_.pose.position.z;
-            current.reference_frame = uav_home_frame_id_;
+            
+            current.pose.position.x = gazebo_pose_.pose.position.x;
+            current.pose.position.y = gazebo_pose_.pose.position.y;
+            current.pose.position.z = gazebo_pose_.pose.position.z;
+            current.pose.orientation.w = 1;
+            current.reference_frame = "map";
             link_state_publisher_.publish(current);
             
             //std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -94,33 +101,59 @@ bool BackendLight::isReady() const {
 }
 
 void BackendLight::move() {
-    double _fps = 25;
-    double t = 1 / _fps;
-    cur_pose_.pose.position.x += t * ref_vel_.twist.linear.x;
-    cur_pose_.pose.position.y += t * ref_vel_.twist.linear.y;
-    cur_pose_.pose.position.z += t * ref_vel_.twist.linear.z;
+    double t = 1 / FPS;
+    cur_pose_.pose.position.x += t * (0.8 * ref_vel_.twist.linear.x + 0.2 * cur_vel_.twist.linear.x);
+    cur_pose_.pose.position.y += t * (0.8 * ref_vel_.twist.linear.y + 0.2 * cur_vel_.twist.linear.y);
+    cur_pose_.pose.position.z += t * (0.8 * ref_vel_.twist.linear.z + 0.2 * cur_vel_.twist.linear.z);
     
     // TODO: cur_pose_.pose.orientation = ...
+
+    // Transform to map
+    tf2_ros::Buffer tfBuffer;
+    tf2_ros::TransformListener tfListener(tfBuffer);
+    geometry_msgs::TransformStamped transformToGazeboFrame;
+
+    if ( cached_transforms_.find("inv_map") == cached_transforms_.end() ) {
+        // inv_map not found in cached_transforms_
+        transformToGazeboFrame = tfBuffer.lookupTransform("map", uav_home_frame_id_, ros::Time(0), ros::Duration(0.2));
+        cached_transforms_["inv_map"] = transformToGazeboFrame; // Save transform in cache
+    } else {
+        // found in cache
+        transformToGazeboFrame = cached_transforms_["inv_map"];
+    }
+    tf2::doTransform(cur_pose_, gazebo_pose_, transformToGazeboFrame);
+    
+    cur_vel_ = ref_vel_;
 }
 
 Velocity BackendLight::calcVel(Pose _target_pose) {
     Velocity vel;
-    
+
     double dx = _target_pose.pose.position.x - cur_pose_.pose.position.x;
     double dy = _target_pose.pose.position.y - cur_pose_.pose.position.y;
     double dz = _target_pose.pose.position.z - cur_pose_.pose.position.z;
 
     double Th = sqrt( dx*dx + dy*dy ) / max_h_vel_;
-    double Tz = dz / max_v_vel_;
+    double Tz = std::abs( dz / max_v_vel_ );
     //double Tyaw = () / max_yaw_vel_;
     double T = std::max(Th, Tz);
 
+    if ( T < 1/FPS ) {
+        T = 1/FPS;
+    }
+
     vel.twist.linear.x = dx / T;
+    if ( std::abs( vel.twist.linear.x ) < ADMISSIBLE_ERROR_M ) { vel.twist.linear.x = 0.0; }
     vel.twist.linear.y = dy / T;
+    if ( std::abs( vel.twist.linear.y ) < ADMISSIBLE_ERROR_M ) { vel.twist.linear.y = 0.0; }
     vel.twist.linear.z = dz / T;
+    if ( std::abs( vel.twist.linear.z ) < ADMISSIBLE_ERROR_M ) { vel.twist.linear.z = 0.0; }
     vel.twist.angular.x = 0.0;
+    if ( std::abs( vel.twist.angular.x ) < ADMISSIBLE_ERROR_RAD ) { vel.twist.angular.x = 0.0; }
     vel.twist.angular.y = 0.0;
+    if ( std::abs( vel.twist.angular.y ) < ADMISSIBLE_ERROR_RAD ) { vel.twist.angular.y = 0.0; }
     vel.twist.angular.z = 0.0;
+    if ( std::abs( vel.twist.angular.z ) < ADMISSIBLE_ERROR_RAD ) { vel.twist.angular.z = 0.0; }
 
     return vel;
 }
@@ -145,7 +178,7 @@ void BackendLight::land() {
 
     ROS_INFO("Landing...");
     ref_pose_ = cur_pose_;
-    ref_pose_.pose.position.z = 0.5; // TODO: Check minimum altitud in Gazebo
+    ref_pose_.pose.position.z = 0.0; // TODO: Check minimum altitud in Gazebo
     // Landing is unabortable!
     while (!referencePoseReached() && ros::ok()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -317,6 +350,7 @@ void BackendLight::initHomeFrame() {
         cur_pose_.pose.position.y = 0.0;
         cur_pose_.pose.position.z = 0.0;
         cur_pose_.pose.orientation = static_transformStamped.transform.rotation;
+        ref_pose_ = cur_pose_;
     }
     else {
         // No param with local frame -> Global control

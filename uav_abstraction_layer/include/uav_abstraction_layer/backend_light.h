@@ -76,6 +76,7 @@ private:
     geometry_msgs::PoseStamped home_pose_;
     geometry_msgs::PoseStamped ref_pose_;
     geometry_msgs::PoseStamped cur_pose_;
+    geometry_msgs::PoseStamped gazebo_pose_;
     geometry_msgs::TwistStamped ref_vel_;
     geometry_msgs::TwistStamped cur_vel_;
 
