@@ -102,9 +102,14 @@ bool BackendLight::isReady() const {
 
 void BackendLight::move() {
     double t = 1 / FPS;
-    cur_pose_.pose.position.x += t * (0.8 * ref_vel_.twist.linear.x + 0.2 * cur_vel_.twist.linear.x);
-    cur_pose_.pose.position.y += t * (0.8 * ref_vel_.twist.linear.y + 0.2 * cur_vel_.twist.linear.y);
-    cur_pose_.pose.position.z += t * (0.8 * ref_vel_.twist.linear.z + 0.2 * cur_vel_.twist.linear.z);
+
+    cur_vel_.twist.linear.x = (0.2 * ref_vel_.twist.linear.x + 0.8 * cur_vel_.twist.linear.x);
+    cur_vel_.twist.linear.y = (0.2 * ref_vel_.twist.linear.y + 0.8 * cur_vel_.twist.linear.y);
+    cur_vel_.twist.linear.z = (0.2 * ref_vel_.twist.linear.z + 0.8 * cur_vel_.twist.linear.z);
+
+    cur_pose_.pose.position.x += t * cur_vel_.twist.linear.x;
+    cur_pose_.pose.position.y += t * cur_vel_.twist.linear.y;
+    cur_pose_.pose.position.z += t * cur_vel_.twist.linear.z;
     
     // TODO: cur_pose_.pose.orientation = ...
 
@@ -122,8 +127,6 @@ void BackendLight::move() {
         transformToGazeboFrame = cached_transforms_["inv_map"];
     }
     tf2::doTransform(cur_pose_, gazebo_pose_, transformToGazeboFrame);
-    
-    cur_vel_ = ref_vel_;
 }
 
 Velocity BackendLight::calcVel(Pose _target_pose) {
