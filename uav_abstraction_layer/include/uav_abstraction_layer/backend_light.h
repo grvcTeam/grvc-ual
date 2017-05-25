@@ -43,7 +43,7 @@ public:
     /// Backend is initialized and ready to run tasks?
     bool	         isReady() const override;
     /// Latest pose estimation of the robot
-    virtual Pose	 pose() const override;
+    virtual Pose	 pose() override;
     /// Latest velocity estimation of the robot
     virtual Velocity velocity() const override;
     /// Latest transform estimation of the robot
@@ -96,6 +96,7 @@ private:
     float max_h_vel_;
     float max_v_vel_;
     float max_yaw_vel_;
+    std::string pose_frame_id_;
     std::string uav_home_frame_id_;
     tf2_ros::StaticTransformBroadcaster * static_tf_broadcaster_;
     std::map <std::string, geometry_msgs::TransformStamped> cached_transforms_;

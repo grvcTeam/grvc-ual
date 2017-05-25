@@ -39,6 +39,7 @@ BackendMavros::BackendMavros(grvc::utils::ArgumentParser& _args)
 
     // Parse arguments
     robot_id_ = _args.getArgument("uav_id", 1);
+    pose_frame_id_ = _args.getArgument<std::string>("pose_frame_id", "");
 
     // Init ros communications
     ros::NodeHandle nh;
@@ -212,11 +213,9 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
             // waypoint_frame_id not found in cached_transforms_
             transformToHomeFrame = tfBuffer.lookupTransform(uav_home_frame_id_, waypoint_frame_id, ros::Time(0), ros::Duration(0.2));
             cached_transforms_[waypoint_frame_id] = transformToHomeFrame; // Save transform in cache
-            ROS_INFO("Saved frame %s in cache",waypoint_frame_id.c_str());
         } else {
             // found in cache
             transformToHomeFrame = cached_transforms_[waypoint_frame_id];
-            ROS_INFO("Found frame %s in cache",waypoint_frame_id.c_str());
         }
         
         tf2::doTransform(_world, homogen_world_pos, transformToHomeFrame);
@@ -247,13 +246,39 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
     // TODO: basic imlementation, ideally different from a stack of gotos
 }*/
 
-Pose BackendMavros::pose() const {
+Pose BackendMavros::pose() {
         Pose out;
-        out.header.frame_id = uav_home_frame_id_;
+
         out.pose.position.x = cur_pose_.pose.position.x + local_start_pos_[0];
         out.pose.position.y = cur_pose_.pose.position.y + local_start_pos_[1];
         out.pose.position.z = cur_pose_.pose.position.z + local_start_pos_[2];
         out.pose.orientation = cur_pose_.pose.orientation;
+
+        if (pose_frame_id_ == "") {
+            // Default: local pose
+            out.header.frame_id = uav_home_frame_id_;
+        }
+        else {
+            // Publish pose in different frame
+            Pose aux = out;
+            geometry_msgs::TransformStamped transformToPoseFrame;
+            std::string pose_frame_id_map = "inv_" + pose_frame_id_;
+
+            if ( cached_transforms_.find(pose_frame_id_map) == cached_transforms_.end() ) {
+                // inv_pose_frame_id_ not found in cached_transforms_
+                tf2_ros::Buffer tfBuffer;
+                tf2_ros::TransformListener tfListener(tfBuffer);
+                transformToPoseFrame = tfBuffer.lookupTransform(pose_frame_id_,uav_home_frame_id_, ros::Time(0), ros::Duration(0.2));
+                cached_transforms_[pose_frame_id_map] = transformToPoseFrame; // Save transform in cache
+            } else {
+                // found in cache
+                transformToPoseFrame = cached_transforms_[pose_frame_id_map];
+            }
+
+            tf2::doTransform(aux, out, transformToPoseFrame);
+            out.header.frame_id = pose_frame_id_;
+        }
+
         return out;
 }
 

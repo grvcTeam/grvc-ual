@@ -49,6 +49,7 @@ BackendLight::BackendLight(grvc::utils::ArgumentParser& _args)
 
     // Parse arguments
     robot_id_ = _args.getArgument("uav_id", 1);
+    pose_frame_id_ = _args.getArgument<std::string>("pose_frame_id", "");
     max_h_vel_ = _args.getArgument("max_h_vel", 0.8); // m/s
     max_v_vel_ = _args.getArgument("max_v_vel", 0.5); // m/s
     max_yaw_vel_ = _args.getArgument("max_yaw_vel", 0.2); // rad/s
@@ -253,13 +254,39 @@ void BackendLight::goToWaypoint(const Waypoint& _world) {
     }
 }
 
-Pose BackendLight::pose() const {
+Pose BackendLight::pose() {
         Pose out;
-        out.header.frame_id = uav_home_frame_id_;
+
         out.pose.position.x = cur_pose_.pose.position.x;
         out.pose.position.y = cur_pose_.pose.position.y;
         out.pose.position.z = cur_pose_.pose.position.z;
         out.pose.orientation = cur_pose_.pose.orientation;
+
+        if (pose_frame_id_ == "") {
+            // Default: local pose
+            out.header.frame_id = uav_home_frame_id_;
+        }
+        else {
+            // Publish pose in different frame
+            Pose aux = out;
+            geometry_msgs::TransformStamped transformToPoseFrame;
+            std::string pose_frame_id_map = "inv_" + pose_frame_id_;
+
+            if ( cached_transforms_.find(pose_frame_id_map) == cached_transforms_.end() ) {
+                // inv_pose_frame_id_ not found in cached_transforms_
+                tf2_ros::Buffer tfBuffer;
+                tf2_ros::TransformListener tfListener(tfBuffer);
+                transformToPoseFrame = tfBuffer.lookupTransform(pose_frame_id_,uav_home_frame_id_, ros::Time(0), ros::Duration(0.2));
+                cached_transforms_[pose_frame_id_map] = transformToPoseFrame; // Save transform in cache
+            } else {
+                // found in cache
+                transformToPoseFrame = cached_transforms_[pose_frame_id_map];
+            }
+
+            tf2::doTransform(aux, out, transformToPoseFrame);
+            out.header.frame_id = pose_frame_id_;
+        }
+
         return out;
 }
 

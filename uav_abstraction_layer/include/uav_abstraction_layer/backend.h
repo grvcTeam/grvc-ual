@@ -67,7 +67,7 @@ public:
     /// Is it idle?
     bool             isIdle();
     /// Latest pose estimation of the robot
-    virtual Pose     pose() const = 0;
+    virtual Pose     pose() = 0;
     /// Latest velocity estimation of the robot
     virtual Velocity velocity() const = 0;
     /// Latest transform estimation of the robot
