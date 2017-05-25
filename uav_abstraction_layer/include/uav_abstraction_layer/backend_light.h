@@ -52,8 +52,6 @@ public:
     /// Go to the specified waypoint, following a straight line
     /// \param _wp goal waypoint
     void	goToWaypoint(const Waypoint& _wp) override;
-    /// Follow a list of waypoints, one after another
-    // void trackPath(const Path& _path) override;
     /// Perform a take off maneuver
     /// \param _height target height that must be reached to consider the take off complete
     void    takeOff(double _height) override;
@@ -72,7 +70,6 @@ private:
     void move();
     Velocity calcVel(Pose _target_pose);
 
-    //WaypointList path_;
     geometry_msgs::PoseStamped home_pose_;
     geometry_msgs::PoseStamped ref_pose_;
     geometry_msgs::PoseStamped cur_pose_;
@@ -81,7 +78,6 @@ private:
     geometry_msgs::TwistStamped cur_vel_;
 
     //Gazebo animated link
-    //GazeboAnimatedLink * link_;
     std::string link_name_;
     ros::Publisher link_state_publisher_;
 

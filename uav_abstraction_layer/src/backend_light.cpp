@@ -29,9 +29,6 @@
 #include <tf2_ros/transform_listener.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2/LinearMath/Quaternion.h>
-//#include <gazebo_animator/frame.h>
-//#include <gazebo_animator/key_frame.h>
-//#include <gazebo_animator/gazebo_animated_link.h>
 #include <algorithm>
 #include <cmath>
 #include <gazebo_msgs/LinkState.h>
@@ -61,10 +58,9 @@ BackendLight::BackendLight(grvc::utils::ArgumentParser& _args)
 
     initHomeFrame();
 
-    // Create GazeboAnimatedLink object
+    // Create GazeboAnimatedLink object. TODO: Get model name by args
     link_name_ = _args.getArgument("link_name", std::string("mbzirc_") + std::to_string(robot_id_) + std::string("::base_link"));
     ROS_INFO("Gazebo link name: %s",link_name_.c_str());
-    //link_ = new GazeboAnimatedLink(link_name, uav_home_frame_id_);
 
     std::string link_state_pub_topic = "/gazebo/set_link_state";
     link_state_publisher_ = nh.advertise<gazebo_msgs::LinkState>(link_state_pub_topic, 1);
@@ -89,7 +85,6 @@ BackendLight::BackendLight(grvc::utils::ArgumentParser& _args)
             current.reference_frame = "map";
             link_state_publisher_.publish(current);
             
-            //std::this_thread::sleep_for(std::chrono::milliseconds(100));
             ros::spinOnce();
             rate.sleep();
         }
@@ -234,11 +229,9 @@ void BackendLight::goToWaypoint(const Waypoint& _world) {
             // waypoint_frame_id not found in cached_transforms_
             transformToHomeFrame = tfBuffer.lookupTransform(uav_home_frame_id_, waypoint_frame_id, ros::Time(0), ros::Duration(0.2));
             cached_transforms_[waypoint_frame_id] = transformToHomeFrame; // Save transform in cache
-            ROS_INFO("Saved frame %s in cache",waypoint_frame_id.c_str());
         } else {
             // found in cache
             transformToHomeFrame = cached_transforms_[waypoint_frame_id];
-            ROS_INFO("Found frame %s in cache",waypoint_frame_id.c_str());
         }
         
         tf2::doTransform(_world, homogen_world_pos, transformToHomeFrame);
