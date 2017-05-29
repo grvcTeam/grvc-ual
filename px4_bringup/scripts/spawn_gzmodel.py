@@ -31,6 +31,9 @@ def main():
     # Get an instance of RosPack with the default search paths
     rospack = rospkg.RosPack()
 
+    # Init ros node
+    rospy.init_node('spawn_gzmodel_{}'.format(args.id))
+
     # Xacro description must be in robots_description package
     description_dir = rospack.get_path("robots_description")
     xacro_description = description_dir + "/models/" + args.model + "/model.xacro"

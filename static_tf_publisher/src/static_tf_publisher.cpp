@@ -58,6 +58,16 @@ int main(int argc, char **argv)
 
         static_transforms_to_publish.push_back( getTransform(parent_frame.c_str(),frame_id.c_str(),translation[0],translation[1],translation[2],rotation[0],rotation[1],rotation[2]) );
     }
+    if (ros::param::has("/game_frame"))
+    {
+        ros::param::get("/game_frame/frame_id",frame_id);
+        ros::param::get("/game_frame/parent_frame",parent_frame);
+        ros::param::get("/game_frame/units",units);
+        ros::param::get("/game_frame/translation",translation);
+        ros::param::get("/game_frame/rotation",rotation);
+
+        static_transforms_to_publish.push_back( getTransform(parent_frame.c_str(),frame_id.c_str(),translation[0],translation[1],translation[2],rotation[0],rotation[1],rotation[2]) );
+    }
     
     static_broadcaster.sendTransform(static_transforms_to_publish);
 
