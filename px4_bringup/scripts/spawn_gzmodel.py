@@ -89,7 +89,7 @@ def main():
             robot_home = uav_frame['translation']
             robot_yaw = uav_frame['rotation'][2]
         elif uav_frame['parent_frame']=='game':
-            transform = tf_buffer.lookup_transform('map', 'game', rospy.Time(0), rospy.Duration(1.0))
+            transform = tf_buffer.lookup_transform('map', 'game', rospy.Time(0), rospy.Duration(3.0))
             pose_stamped = PoseStamped()
             pose_stamped.header.frame_id = 'game'
             pose_stamped.pose.position.x = uav_frame['translation'][0]
@@ -105,14 +105,12 @@ def main():
         robot_home = [0.0, 0.0, 0.0]
         robot_yaw = 0.0
     
-    z_min = 0
-
     # Spawn robot sdf in gazebo
     gzmodel_args = "gz model -f " + temp_sdf + \
     " -m " + args.model + "_" + str(args.id) + \
     " -x " + str(robot_home[0]) + \
     " -y " + str(robot_home[1]) + \
-    " -z " + str(robot_home[2]+z_min) + \
+    " -z " + str(robot_home[2]) + \
     " -Y " + str(robot_yaw)
     subprocess.call(gzmodel_args, shell=True)
 
