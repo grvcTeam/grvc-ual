@@ -16,11 +16,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     <arg name="material" default="Orange"/>
     <arg name="target_ip" default="localhost"/>
     <arg name="own_ip" default="localhost"/>
+    <arg name="type" default="xacro"/>
 
     <group if="$(eval mode == 'sitl')">
         <!-- Spawn model in Gazebo -->
         <node pkg="px4_bringup" type="spawn_gzmodel.py" name="spawn_gzmodel_$(arg id)" output="screen"
-        args="-model=$(arg robot_model) -id=$(arg id) -material=$(arg material)"/>
+        args="-model=$(arg robot_model) -id=$(arg id) -material=$(arg material) -type=$(arg type)"/>
 
         <!-- Run px4 controller -->
         <!-- Important parameter cwd="node", px4 link generation may cause errors otherwise -->

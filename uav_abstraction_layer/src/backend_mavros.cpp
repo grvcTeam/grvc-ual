@@ -35,11 +35,11 @@ namespace grvc { namespace ual {
 BackendMavros::BackendMavros(grvc::utils::ArgumentParser& _args)
     : Backend(_args)
 {
-    ROS_INFO("BackendMavros constructor");
-
     // Parse arguments
     robot_id_ = _args.getArgument("uav_id", 1);
     pose_frame_id_ = _args.getArgument<std::string>("pose_frame_id", "");
+
+    ROS_INFO("BackendMavros constructor with id %d",robot_id_);
 
     // Init ros communications
     ros::NodeHandle nh;
@@ -98,6 +98,8 @@ BackendMavros::BackendMavros(grvc::utils::ArgumentParser& _args)
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     });
+
+    ROS_INFO("BackendMavros %d running!",robot_id_);
 }
 
 void BackendMavros::arm() {

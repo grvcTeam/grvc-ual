@@ -25,6 +25,8 @@ def main():
                         see materials/scripts/gazebo.material (at your gazebo version)')
     parser.add_argument('-backend', type=str, default="mavros",
                         help='backend to use')
+    parser.add_argument('-type', type=str, default="xacro",
+                        help='file type: xacro, sdf')
     args, unknown = parser.parse_known_args()
     utils.check_unknown_args(unknown)
 
@@ -36,7 +38,6 @@ def main():
 
     # Xacro description must be in robots_description package
     description_dir = rospack.get_path("robots_description")
-    xacro_description = description_dir + "/models/" + args.model + "/model.xacro"
 
     # Create temporary directory for robot sitl stuff
     temp_dir = utils.temp_dir(args.id)
@@ -45,26 +46,45 @@ def main():
     # Get udp configuration, depending on id
     udp_config = utils.udp_config(args.id)
 
-    # Create urdf from xacro description
-    temp_urdf = temp_dir + "/" + args.model + ".urdf"
-    xacro_args = "xacro --inorder -o " + temp_urdf + " " + \
-    xacro_description + \
-    " enable_mavlink_interface:=true" + \
-    " enable_ground_truth:=false" + \
-    " enable_logging:=false" + \
-    " enable_camera:=false" + \
-    " enable_wind:=false" + \
-    " mavlink_udp_port:=" + str(udp_config["sim_port"]) + \
-    " visual_material:=" + args.material
-    xacro_out = open(temp_dir+"/xacro.out", 'w')
-    xacro_err = open(temp_dir+"/xacro.err", 'w')
-    subprocess.call(xacro_args, shell=True, stdout=xacro_out, stderr=xacro_err)
-    xacro_out.close()
-    xacro_err.close()
+    # Check file type (xacro or sdf)
+    if args.type == "xacro":
+        xacro_description = description_dir + "/models/" + args.model + "/model.xacro"
 
-    # Create sdf from urdf
-    temp_sdf = temp_dir + "/" + args.model + ".sdf"
-    subprocess.call("gz sdf -p " + temp_urdf + " > " + temp_sdf, shell=True)
+        # Create urdf from xacro description
+        temp_urdf = temp_dir + "/" + args.model + ".urdf"
+        xacro_args = "xacro --inorder -o " + temp_urdf + " " + \
+        xacro_description + \
+        " enable_mavlink_interface:=true" + \
+        " enable_ground_truth:=false" + \
+        " enable_logging:=false" + \
+        " enable_camera:=false" + \
+        " enable_wind:=false" + \
+        " mavlink_udp_port:=" + str(udp_config["sim_port"]) + \
+        " visual_material:=" + args.material
+        xacro_out = open(temp_dir+"/xacro.out", 'w')
+        xacro_err = open(temp_dir+"/xacro.err", 'w')
+        subprocess.call(xacro_args, shell=True, stdout=xacro_out, stderr=xacro_err)
+        xacro_out.close()
+        xacro_err.close()
+
+        # Create sdf from urdf
+        temp_sdf = temp_dir + "/" + args.model + ".sdf"
+        subprocess.call("gz sdf -p " + temp_urdf + " > " + temp_sdf, shell=True)
+
+    elif args.type == "sdf":
+        model_sdf = description_dir + "/models/" + args.model + "/" + args.model + ".sdf"
+        temp_sdf = temp_dir + "/" + args.model + ".sdf"
+        subprocess.call("cp " + model_sdf + " " + temp_sdf, shell=True)
+
+        # Change simulation port
+        tree = ET.parse(temp_sdf)
+        root = tree.getroot()
+        model = root.find('model')
+        for plugintag in model.findall('plugin'):
+            if plugintag.get('name') == 'mavlink_interface':
+                porttag = plugintag.find('mavlink_udp_port')
+                porttag.text = str(udp_config["sim_port"])
+        tree.write(temp_sdf)
     
     # Set gravity=0 for light simulations
     if args.backend == 'light':
