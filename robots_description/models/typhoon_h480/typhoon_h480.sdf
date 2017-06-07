@@ -402,6 +402,7 @@
         <visualize>false</visualize>
         <!-- how to make this work without using urdf? -->
         <plugin name="cgo3_camera_controller" filename="libgazebo_ros_camera.so">
+          <robotNamespace></robotNamespace>
           <alwaysOn>true</alwaysOn>
           <updateRate>0.0</updateRate>
           <cameraName>cgo3_camera</cameraName>
@@ -506,15 +507,16 @@
           </clip>
         </camera>
         <plugin name="r200" filename="libgazebo_ros_openni_kinect.so">
+          <robotNamespace></robotNamespace>
           <baseline>0.7</baseline>
           <alwaysOn>true</alwaysOn>
           <updateRate>10.0</updateRate>
           <cameraName>r200</cameraName>
-          <imageTopicName>/r200/rgb/image_raw</imageTopicName>
-          <cameraInfoTopicName>/r200/rgb/camera_info</cameraInfoTopicName>
-          <depthImageTopicName>/r200/depth/image_raw</depthImageTopicName>
-          <depthImageInfoTopicName>/r200/depth/camera_info</depthImageInfoTopicName>
-          <pointCloudTopicName>/r200/depth/points</pointCloudTopicName>
+          <imageTopicName>r200/rgb/image_raw</imageTopicName>
+          <cameraInfoTopicName>r200/rgb/camera_info</cameraInfoTopicName>
+          <depthImageTopicName>r200/depth/image_raw</depthImageTopicName>
+          <depthImageInfoTopicName>r200/depth/camera_info</depthImageInfoTopicName>
+          <pointCloudTopicName>r200/depth/points</pointCloudTopicName>
           <frameName>r200_depth_optical_frame</frameName>
           <pointCloudCutoff>0.4</pointCloudCutoff>
           <pointCloudCutoffMax>50</pointCloudCutoffMax>
