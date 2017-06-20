@@ -36,7 +36,7 @@ UAL::UAL(grvc::utils::ArgumentParser& _args) {
     // TODO: Consider other modes?
     if (server_mode == "on") {
         server_thread_ = std::thread([this]() {
-            std::string ual_ns = "ual_" + std::to_string(this->robot_id_);
+            std::string ual_ns = "ual";//_" + std::to_string(this->robot_id_);
             std::string take_off_srv = ual_ns + "/take_off";
             std::string land_srv = ual_ns + "/land";
             std::string go_to_waypoint_srv = ual_ns + "/go_to_waypoint";

@@ -336,7 +336,7 @@ void BackendMavros::initHomeFrame() {
     std::vector<double> rotation;
     std::string uav_home_text;
 
-    uav_home_text = uav_home_frame_id_ + "_frame";
+    uav_home_text = "/" + uav_home_frame_id_ + "_frame";
 
     if ( ros::param::has(uav_home_text) ) {
         ros::param::get(uav_home_text + "/frame_id", frame_id);
