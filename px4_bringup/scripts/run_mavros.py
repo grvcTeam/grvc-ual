@@ -35,7 +35,7 @@ def main():
     udp_config = utils.udp_config(args.id)
 
     # Set params for mavros...
-    node_name = "mavros_" + str(args.id)
+    node_name = "mavros"
     if args.mode == "sitl":
         fcu_url = "udp://:" + str(udp_config["o_port"][1]) + \
         "@127.0.0.1:" + str(udp_config["u_port"][1])

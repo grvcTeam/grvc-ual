@@ -43,7 +43,7 @@ BackendMavros::BackendMavros(grvc::utils::ArgumentParser& _args)
 
     // Init ros communications
     ros::NodeHandle nh;
-    std::string mavros_ns = "mavros_" + std::to_string(robot_id_);
+    std::string mavros_ns = "mavros";
     std::string set_mode_srv = mavros_ns + "/set_mode";
     std::string arming_srv = mavros_ns + "/cmd/arming";
     std::string set_pose_topic = mavros_ns + "/setpoint_position/local";
