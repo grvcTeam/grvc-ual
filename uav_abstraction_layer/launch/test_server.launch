@@ -11,6 +11,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 <launch>
 
     <arg name="multi" default="false"/>
+    <arg name="nsprefix" default="uav_"/>
 
     <!-- Load frame transforms for map and UAVs -->
     <rosparam file="$(find px4_bringup)/config/simulation_params.yaml" command="load" />
@@ -32,6 +33,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         <arg name="id" value="1"/>
         <arg name="material" value="Orange"/>
         <arg name="mode" value="sitl"/>
+        <arg name="nsprefix" value="$(arg nsprefix)"/>
     </include>
 
     <group if="$(arg multi)">
@@ -40,23 +42,25 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             <arg name="id" value="2"/>
             <arg name="material" value="Indigo"/>
             <arg name="mode" value="sitl"/>
+            <arg name="nsprefix" value="$(arg nsprefix)"/>
         </include>
         <!-- Launch robot id=3 -->
         <include file="$(find px4_bringup)/launch/spawn_robot.launch">
             <arg name="id" value="3"/>
             <arg name="material" value="ZincYellow"/>
             <arg name="mode" value="sitl"/>
+            <arg name="nsprefix" value="$(arg nsprefix)"/>
         </include>
     </group>
 
-    <!-- Or just start UAL in server mode -->
-    <node pkg="uav_abstraction_layer" type="server" name="server_1" output="screen" ns="drone_1" args="-uav_id=1"/>
+    <!-- Launch UAL server for uav id=1 -->
+    <node pkg="uav_abstraction_layer" type="server" name="server" output="screen" ns="$(arg nsprefix)1" args="-uav_id=1"/>
 
     <group if="$(arg multi)">
         <!-- Launch UAL server for uav id=2 -->
-        <node pkg="uav_abstraction_layer" type="server" name="server_2" output="screen" ns="drone_2" args="-uav_id=2"/>
+        <node pkg="uav_abstraction_layer" type="server" name="server" output="screen" ns="$(arg nsprefix)2" args="-uav_id=2"/>
         <!-- Launch UAL server for uav id=3 -->
-        <node pkg="uav_abstraction_layer" type="server" name="server_3" output="screen" ns="drone_3" args="-uav_id=3"/>
+        <node pkg="uav_abstraction_layer" type="server" name="server" output="screen" ns="$(arg nsprefix)3" args="-uav_id=3"/>
     </group>
 
 </launch>

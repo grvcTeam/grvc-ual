@@ -12,6 +12,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     <arg name="multi" default="false"/>
     <arg name="backend" default="light"/>
+    <arg name="nsprefix" default="uav_"/>
 
     <!-- Load frame transforms for map and UAVs -->
     <rosparam file="$(find px4_bringup)/config/simulation_params.yaml" command="load" />
@@ -31,16 +32,19 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         <!-- Launch robot id=2 -->
 	<node pkg="px4_bringup" type="spawn_gzmodel.py" name="spawn_gzmodel_2" output="screen"
         args="-model=mbzirc -id=2 -material=Indigo -backend=$(arg backend) "/>
-
-	<node pkg="uav_abstraction_layer" type="server" name="server_2" output="screen" args="-uav_id=2 -backend=$(arg backend) -pose_frame_id=map"/>
-
         <!-- Launch robot id=3 -->
 	<node pkg="px4_bringup" type="spawn_gzmodel.py" name="spawn_gzmodel_3" output="screen"
         args="-model=mbzirc -id=3 -material=ZincYellow -backend=$(arg backend) "/>
-
-	<node pkg="uav_abstraction_layer" type="server" name="server_3" output="screen" args="-uav_id=3 -backend=$(arg backend) -pose_frame_id=map"/>
     </group>
 
-    <node pkg="uav_abstraction_layer" type="server" name="server_1" output="screen" args="-uav_id=1 -backend=$(arg backend) -pose_frame_id=map"/>
+    <!-- Launch UAL server for uav id=1 -->
+    <node pkg="uav_abstraction_layer" type="server" name="server" output="screen" ns="$(arg nsprefix)1" args="-uav_id=1 -backend=$(arg backend) -pose_frame_id=map"/>
+
+    <group if="$(arg multi)">
+        <!-- Launch UAL server for uav id=2 -->
+        <node pkg="uav_abstraction_layer" type="server" name="server" output="screen" ns="$(arg nsprefix)2" args="-uav_id=2 -backend=$(arg backend) -pose_frame_id=map"/>
+        <!-- Launch UAL server for uav id=3 -->
+        <node pkg="uav_abstraction_layer" type="server" name="server" output="screen" ns="$(arg nsprefix)3" args="-uav_id=3 -backend=$(arg backend) -pose_frame_id=map"/>
+    </group>
 
 </launch>
