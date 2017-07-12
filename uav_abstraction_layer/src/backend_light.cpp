@@ -50,8 +50,8 @@ BackendLight::BackendLight(grvc::utils::ArgumentParser& _args)
     // Parse arguments
     robot_id_ = _args.getArgument("uav_id", 1);
     pose_frame_id_ = _args.getArgument<std::string>("pose_frame_id", "");
-    max_h_vel_ = _args.getArgument("max_h_vel", 0.8); // m/s
-    max_v_vel_ = _args.getArgument("max_v_vel", 0.5); // m/s
+    max_h_vel_ = _args.getArgument("max_h_vel", 1.5); // m/s
+    max_v_vel_ = _args.getArgument("max_v_vel", 1.0); // m/s
     max_yaw_vel_ = _args.getArgument("max_yaw_vel", 0.2); // rad/s
 
     // Init ros communications
@@ -341,7 +341,7 @@ void BackendLight::initHomeFrame() {
     std::vector<double> rotation;
     std::string uav_home_text;
 
-    uav_home_text = "/" + uav_home_frame_id_ + "_frame";
+    uav_home_text = uav_home_frame_id_ + "_frame";
 
     if ( ros::param::has(uav_home_text) ) {
         ros::param::get(uav_home_text + "/frame_id", frame_id);

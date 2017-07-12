@@ -43,7 +43,7 @@ BackendMavros::BackendMavros(grvc::utils::ArgumentParser& _args)
 
     // Init ros communications
     ros::NodeHandle nh;
-    std::string mavros_ns = "mavros";
+    std::string mavros_ns = _args.getArgument<std::string>("ns_prefix", "uav_") + std::to_string(this->robot_id_) + "/mavros";
     std::string set_mode_srv = mavros_ns + "/set_mode";
     std::string arming_srv = mavros_ns + "/cmd/arming";
     std::string set_pose_topic = mavros_ns + "/setpoint_position/local";
@@ -336,7 +336,7 @@ void BackendMavros::initHomeFrame() {
     std::vector<double> rotation;
     std::string uav_home_text;
 
-    uav_home_text = "/" + uav_home_frame_id_ + "_frame";
+    uav_home_text = uav_home_frame_id_ + "_frame";
 
     if ( ros::param::has(uav_home_text) ) {
         ros::param::get(uav_home_text + "/frame_id", frame_id);

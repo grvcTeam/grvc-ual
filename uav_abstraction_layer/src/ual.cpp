@@ -30,13 +30,14 @@ UAL::UAL(grvc::utils::ArgumentParser& _args) {
     // Create backend first of all, inits ros node
     backend_ = Backend::createBackend(_args);
     robot_id_ = _args.getArgument("uav_id", 1);
+    ns_prefix_ = _args.getArgument<std::string>("ns_prefix", "uav_");
 
     // Start server if explicitly asked
     std::string server_mode = _args.getArgument<std::string>("ual_server", "off");
     // TODO: Consider other modes?
     if (server_mode == "on") {
         server_thread_ = std::thread([this]() {
-            std::string ual_ns = "ual";//_" + std::to_string(this->robot_id_);
+            std::string ual_ns =  this->ns_prefix_ + std::to_string(this->robot_id_) + "/ual";//_" + std::to_string(this->robot_id_);
             std::string take_off_srv = ual_ns + "/take_off";
             std::string land_srv = ual_ns + "/land";
             std::string go_to_waypoint_srv = ual_ns + "/go_to_waypoint";
