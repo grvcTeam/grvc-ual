@@ -3,6 +3,7 @@ import subprocess
 import argparse
 import utils
 import numpy
+import os
 import rospkg
 import rospy
 import tf2_ros
@@ -25,8 +26,6 @@ def main():
                         see materials/scripts/gazebo.material (at your gazebo version)')
     parser.add_argument('-backend', type=str, default="mavros",
                         help='backend to use')
-    parser.add_argument('-type', type=str, default="xacro",
-                        help='file type: xacro, sdf')
     args, unknown = parser.parse_known_args()
     utils.check_unknown_args(unknown)
 
@@ -47,7 +46,16 @@ def main():
     udp_config = utils.udp_config(args.id)
 
     # Check file type (xacro or sdf)
-    if args.type == "xacro":
+    model_file_type = ""
+    for listed_file in sorted(os.listdir(description_dir + "/models/" + args.model)):
+        if listed_file == "model.sdf":
+            model_file_type = "sdf"
+            break
+        if listed_file == "model.xacro":
+            model_file_type = "xacro"
+            break
+
+    if model_file_type == "xacro":
         xacro_description = description_dir + "/models/" + args.model + "/model.xacro"
 
         # Create urdf from xacro description
@@ -71,8 +79,8 @@ def main():
         temp_sdf = temp_dir + "/" + args.model + ".sdf"
         subprocess.call("gz sdf -p " + temp_urdf + " > " + temp_sdf, shell=True)
 
-    elif args.type == "sdf":
-        model_sdf = description_dir + "/models/" + args.model + "/" + args.model + ".sdf"
+    elif model_file_type == "sdf":
+        model_sdf = description_dir + "/models/" + args.model + "/model.sdf"
         temp_sdf = temp_dir + "/" + args.model + ".sdf"
         subprocess.call("cp " + model_sdf + " " + temp_sdf, shell=True)
 
@@ -85,7 +93,10 @@ def main():
                 porttag = plugintag.find('mavlink_udp_port')
                 porttag.text = str(udp_config["sim_port"])
         tree.write(temp_sdf)
-    
+
+    else:
+        raise IOError("Couldn't find model.sdf/model.xacro description file")
+
     # Set gravity=0 for light simulations
     if args.backend == 'light':
         tree = ET.parse(temp_sdf)
