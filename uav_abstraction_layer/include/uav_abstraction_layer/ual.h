@@ -75,6 +75,11 @@ public:
     /// \param _pos_error position error in world coordinates
     bool	setPositionError(const PositionError& _pos_error);
 
+    /// Recover from manual flight mode
+    /// Useful when uav is flying in manual mode and we want to go to auto,
+    /// but not needed to take off. Call is blocking by definition.
+    bool    recoverFromManual();
+
 protected:
     Backend* backend_;
     std::thread running_thread_;

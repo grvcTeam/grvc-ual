@@ -71,6 +71,10 @@ public:
     /// Set position error control
     /// \param _pos_error position error in world coordinates
     void	setPositionError(const PositionError& _pos_error) override;
+    /// Recover from manual flight mode
+    /// Useful when uav is flying in manual mode and we want to go to auto,
+    /// but not needed to take off.
+    void    recoverFromManual() override;
 
 private:
     void arm();

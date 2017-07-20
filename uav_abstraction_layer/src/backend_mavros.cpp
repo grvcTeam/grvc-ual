@@ -132,6 +132,17 @@ void BackendMavros::setFlightMode(const std::string& _flight_mode) {
     }
 }
 
+void BackendMavros::recoverFromManual() {
+    if (mavros_state_.mode == "MANUAL") {
+        control_in_vel_ = false;
+        ref_pose_ = cur_pose_;
+        setFlightMode("OFFBOARD");
+        ROS_INFO("Recovered from manual mode!");
+    } else {
+        ROS_WARN("Unable to recover from manual mode (not in manual!)");
+    }
+}
+
 void BackendMavros::takeOff(double _height) {
     control_in_vel_ = false;  // Take off control is performed in position (not velocity)
 

@@ -21,6 +21,7 @@
 #include <uav_abstraction_layer/ual.h>
 #include <ros/ros.h>
 #include <tf2_ros/transform_broadcaster.h>
+#include <std_srvs/Empty.h>
 
 using namespace uav_abstraction_layer;
 
@@ -37,12 +38,13 @@ UAL::UAL(grvc::utils::ArgumentParser& _args) {
     // TODO: Consider other modes?
     if (server_mode == "on") {
         server_thread_ = std::thread([this]() {
-            std::string ual_ns =  this->ns_prefix_ + std::to_string(this->robot_id_) + "/ual";//_" + std::to_string(this->robot_id_);
+            std::string ual_ns =  this->ns_prefix_ + std::to_string(this->robot_id_) + "/ual";
             std::string take_off_srv = ual_ns + "/take_off";
             std::string land_srv = ual_ns + "/land";
             std::string go_to_waypoint_srv = ual_ns + "/go_to_waypoint";
             std::string set_velocity_srv = ual_ns + "/set_velocity";
             std::string set_position_error_srv = ual_ns + "/set_position_error";
+            std::string recover_from_manual_srv = ual_ns + "/recover_from_manual";
             std::string pose_topic = ual_ns + "/pose";
             std::string velocity_topic = ual_ns + "/velocity";
 
@@ -76,6 +78,12 @@ UAL::UAL(grvc::utils::ArgumentParser& _args) {
                 set_position_error_srv,
                 [this](SetPositionError::Request &req, SetPositionError::Response &res) {
                 return this->setPositionError(req.position_error);
+            });
+            ros::ServiceServer recover_from_manual_service =
+                nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>(
+                recover_from_manual_srv,
+                [this](std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
+                return this->recoverFromManual();
             });
             ros::Publisher pose_pub = nh.advertise<geometry_msgs::PoseStamped>(pose_topic, 10);
             ros::Publisher velocity_pub = nh.advertise<geometry_msgs::TwistStamped>(velocity_topic, 10);
@@ -199,6 +207,24 @@ bool UAL::setPositionError(const PositionError& _pos_error) {
 
     // Function is non-blocking in backend TODO: non-thread-safe-call?
     backend_->threadSafeCall(&Backend::setPositionError, _pos_error);
+    return true;
+}
+
+bool UAL::recoverFromManual() {
+    // Check required states
+    // In case take off was performed in manual mode,
+    // LANDED state must be considered
+    if (state_ != FLYING || state_ != LANDED) {
+        return false;
+    }
+    // Override any previous FLYING/LANDED function
+    if (!backend_->isIdle()) { backend_->abort(); }
+
+    // Direct call! TODO: Check nobody explodes!
+    backend_->recoverFromManual();
+    // Now we should be flying
+    // Potential bug: if uav is really LANDED!
+    state_ = FLYING;
     return true;
 }
 
