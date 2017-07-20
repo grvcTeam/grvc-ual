@@ -133,7 +133,10 @@ void BackendMavros::setFlightMode(const std::string& _flight_mode) {
 }
 
 void BackendMavros::recoverFromManual() {
-    if (mavros_state_.mode == "MANUAL") {
+    // TODO: Check manual modes
+    if (mavros_state_.mode == "POSCTL" ||
+        mavros_state_.mode == "ALTCTL" ||
+        mavros_state_.mode == "STABILIZED") {
         control_in_vel_ = false;
         ref_pose_ = cur_pose_;
         setFlightMode("OFFBOARD");

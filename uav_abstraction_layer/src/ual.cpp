@@ -211,20 +211,15 @@ bool UAL::setPositionError(const PositionError& _pos_error) {
 }
 
 bool UAL::recoverFromManual() {
-    // Check required states
-    // In case take off was performed in manual mode,
-    // LANDED state must be considered
-    if (state_ != FLYING || state_ != LANDED) {
+    // Check required state
+    if (state_ != FLYING) {
         return false;
     }
-    // Override any previous FLYING/LANDED function
+    // Override any previous FLYING function
     if (!backend_->isIdle()) { backend_->abort(); }
 
     // Direct call! TODO: Check nobody explodes!
     backend_->recoverFromManual();
-    // Now we should be flying
-    // Potential bug: if uav is really LANDED!
-    state_ = FLYING;
     return true;
 }
 

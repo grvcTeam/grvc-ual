@@ -76,8 +76,8 @@ public:
     bool	setPositionError(const PositionError& _pos_error);
 
     /// Recover from manual flight mode
-    /// Useful when uav is flying in manual mode and we want to go to auto,
-    /// but not needed to take off. Call is blocking by definition.
+    /// Use it when FLYING uav is switched to manual mode and want to go BACK to auto.
+    /// Call is blocking by definition.
     bool    recoverFromManual();
 
 protected:
