@@ -32,27 +32,26 @@
 #include <algorithm>
 #include <cmath>
 #include <gazebo_msgs/LinkState.h>
+#include <random>
 
 // Frames/s for publishing in gazebo topics
 #define FPS 25.0
 
-// Admissible errors for following the target pose
-#define ADMISSIBLE_ERROR_M 0.001
-#define ADMISSIBLE_ERROR_RAD 0.001
-
 namespace grvc { namespace ual {
 
 BackendLight::BackendLight(grvc::utils::ArgumentParser& _args)
-    : Backend(_args)
+    : Backend(_args), generator_(std::chrono::system_clock::now().time_since_epoch().count()), distribution_(0.0,_args.getArgument("noise_var", 0.0))
 {
     ROS_INFO("BackendLight constructor");
 
     // Parse arguments
     robot_id_ = _args.getArgument("uav_id", 1);
     pose_frame_id_ = _args.getArgument<std::string>("pose_frame_id", "");
-    max_h_vel_ = _args.getArgument("max_h_vel", 1.5); // m/s
-    max_v_vel_ = _args.getArgument("max_v_vel", 1.0); // m/s
+    max_h_vel_ = _args.getArgument("max_h_vel", 1.6); // m/s
+    max_v_vel_ = _args.getArgument("max_v_vel", 1.2); // m/s
     max_yaw_vel_ = _args.getArgument("max_yaw_vel", 0.2); // rad/s
+    max_pose_error_ = _args.getArgument("max_pose_error", 0.1); // m
+    max_orient_error_ = _args.getArgument("max_orient_error", 0.01); // rad
 
     // Init ros communications
     ros::NodeHandle nh;
@@ -106,7 +105,11 @@ void BackendLight::move() {
     cur_pose_.pose.position.x += t * cur_vel_.twist.linear.x;
     cur_pose_.pose.position.y += t * cur_vel_.twist.linear.y;
     cur_pose_.pose.position.z += t * cur_vel_.twist.linear.z;
-    
+
+    cur_pose_noisy_.pose.position.x = cur_pose_.pose.position.x + distribution_(generator_);
+    cur_pose_noisy_.pose.position.y = cur_pose_.pose.position.y + distribution_(generator_);
+    cur_pose_noisy_.pose.position.z = cur_pose_.pose.position.z + distribution_(generator_);
+
     // TODO: cur_pose_.pose.orientation = ...
 
     // Transform to map
@@ -128,31 +131,37 @@ void BackendLight::move() {
 Velocity BackendLight::calcVel(Pose _target_pose) {
     Velocity vel;
 
-    double dx = _target_pose.pose.position.x - cur_pose_.pose.position.x;
-    double dy = _target_pose.pose.position.y - cur_pose_.pose.position.y;
-    double dz = _target_pose.pose.position.z - cur_pose_.pose.position.z;
+    if(flying_) {
+        double dx = _target_pose.pose.position.x - cur_pose_noisy_.pose.position.x;
+        double dy = _target_pose.pose.position.y - cur_pose_noisy_.pose.position.y;
+        double dz = _target_pose.pose.position.z - cur_pose_noisy_.pose.position.z;
+        //TODO: 
+        double dYaw = 0.0;
 
-    double Th = sqrt( dx*dx + dy*dy ) / max_h_vel_;
-    double Tz = std::abs( dz / max_v_vel_ );
-    //double Tyaw = () / max_yaw_vel_;
-    double T = std::max(Th, Tz);
+        double Th = sqrt( dx*dx + dy*dy ) / max_h_vel_;
+        double Tz = std::abs( dz / max_v_vel_ );
+        //TODO: double TYaw = () / max_yaw_vel_;
+        double T = std::max(Th, Tz);
 
-    if ( T < 1/FPS ) {
-        T = 1/FPS;
+        if ( T < 1/FPS ) {
+            T = 1/FPS;
+        }
+
+        vel.twist.linear.x = dx / T;
+        vel.twist.linear.y = dy / T;
+        vel.twist.linear.z = dz / T;
+        vel.twist.angular.z = 0.0;
+
+        if ( std::abs( dx ) < max_pose_error_ ) { vel.twist.linear.x = 0.0; }
+        if ( std::abs( dy ) < max_pose_error_ ) { vel.twist.linear.y = 0.0; }
+        if ( std::abs( dz ) < max_pose_error_ ) { vel.twist.linear.z = 0.0; }
+        if ( std::abs( dYaw ) < max_orient_error_ ) { vel.twist.angular.z = 0.0; }
     }
-
-    vel.twist.linear.x = dx / T;
-    if ( std::abs( vel.twist.linear.x ) < ADMISSIBLE_ERROR_M ) { vel.twist.linear.x = 0.0; }
-    vel.twist.linear.y = dy / T;
-    if ( std::abs( vel.twist.linear.y ) < ADMISSIBLE_ERROR_M ) { vel.twist.linear.y = 0.0; }
-    vel.twist.linear.z = dz / T;
-    if ( std::abs( vel.twist.linear.z ) < ADMISSIBLE_ERROR_M ) { vel.twist.linear.z = 0.0; }
-    vel.twist.angular.x = 0.0;
-    if ( std::abs( vel.twist.angular.x ) < ADMISSIBLE_ERROR_RAD ) { vel.twist.angular.x = 0.0; }
-    vel.twist.angular.y = 0.0;
-    if ( std::abs( vel.twist.angular.y ) < ADMISSIBLE_ERROR_RAD ) { vel.twist.angular.y = 0.0; }
-    vel.twist.angular.z = 0.0;
-    if ( std::abs( vel.twist.angular.z ) < ADMISSIBLE_ERROR_RAD ) { vel.twist.angular.z = 0.0; }
+    else {
+        vel.twist.linear.x = 0;
+        vel.twist.linear.y = 0;
+        vel.twist.linear.z = 0;
+    }
 
     return vel;
 }
@@ -164,6 +173,9 @@ void BackendLight::takeOff(double _height) {
     home_pose_ = cur_pose_;
     ref_pose_ = home_pose_;
     ref_pose_.pose.position.z += _height;
+
+    // Set flying flag true
+    flying_ = true;
 
     // Wait until take off: unabortable!
     while (!referencePoseReached() && ros::ok()) {
@@ -183,6 +195,7 @@ void BackendLight::land() {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     ROS_INFO("Landed!");
+    flying_ = false;
 }
 
 void BackendLight::setVelocity(const Velocity& _vel) {
@@ -257,9 +270,9 @@ void BackendLight::goToWaypoint(const Waypoint& _world) {
 Pose BackendLight::pose() {
         Pose out;
 
-        out.pose.position.x = cur_pose_.pose.position.x;
-        out.pose.position.y = cur_pose_.pose.position.y;
-        out.pose.position.z = cur_pose_.pose.position.z;
+        out.pose.position.x = cur_pose_noisy_.pose.position.x;
+        out.pose.position.y = cur_pose_noisy_.pose.position.y;
+        out.pose.position.z = cur_pose_noisy_.pose.position.z;
         out.pose.orientation = cur_pose_.pose.orientation;
 
         if (pose_frame_id_ == "") {

@@ -76,6 +76,7 @@ private:
     geometry_msgs::PoseStamped home_pose_;
     geometry_msgs::PoseStamped ref_pose_;
     geometry_msgs::PoseStamped cur_pose_;
+    geometry_msgs::PoseStamped cur_pose_noisy_;
     geometry_msgs::PoseStamped gazebo_pose_;
     geometry_msgs::TwistStamped ref_vel_;
     geometry_msgs::TwistStamped cur_vel_;
@@ -84,7 +85,12 @@ private:
     std::string link_name_;
     ros::Publisher link_state_publisher_;
 
+    //Noise
+    std::default_random_engine generator_;
+    std::normal_distribution<double> distribution_;
+
     //Control
+    bool flying_ = false;
     bool control_in_vel_ = false;
     Eigen::Vector3d integral_control_vel_ = {0,0,0};
     Eigen::Vector3d previous_error_control_vel_ = {0,0,0};
@@ -99,6 +105,8 @@ private:
     float max_h_vel_;
     float max_v_vel_;
     float max_yaw_vel_;
+    float max_pose_error_;
+    float max_orient_error_;
     std::string pose_frame_id_;
     std::string uav_home_frame_id_;
     tf2_ros::StaticTransformBroadcaster * static_tf_broadcaster_;
