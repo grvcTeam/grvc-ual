@@ -13,6 +13,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     <arg name="multi" default="false"/>
     <arg name="backend" default="light"/>
     <arg name="ns_prefix" default="uav_"/>
+    <arg name="noise_var" default="0.0"/>
+    <arg name="max_pose_error" default="0.1"/>
 
     <!-- Load frame transforms for map and UAVs -->
     <rosparam file="$(find px4_bringup)/config/simulation_params.yaml" command="load" />
@@ -39,15 +41,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     <!-- Launch UAL server for uav id=1 -->
     <node pkg="uav_abstraction_layer" type="server" name="server_1" output="screen"
-        args="-uav_id=1 -ns_prefix=$(arg ns_prefix) -backend=$(arg backend) -pose_frame_id=map"/>
+        args="-uav_id=1 -ns_prefix=$(arg ns_prefix) -backend=$(arg backend) -pose_frame_id=map -noise_var=$(arg noise_var) -max_pose_error=$(arg max_pose_error)"/>
 
     <group if="$(arg multi)">
         <!-- Launch UAL server for uav id=2 -->
         <node pkg="uav_abstraction_layer" type="server" name="server_2" output="screen"
-            args="-uav_id=2 -ns_prefix=$(arg ns_prefix) -backend=$(arg backend) -pose_frame_id=map"/>
+            args="-uav_id=2 -ns_prefix=$(arg ns_prefix) -backend=$(arg backend) -pose_frame_id=map -noise_var=$(arg noise_var) -max_pose_error=$(arg max_pose_error)"/>
         <!-- Launch UAL server for uav id=3 -->
         <node pkg="uav_abstraction_layer" type="server" name="server_3" output="screen"
-            args="-uav_id=3 -ns_prefix=$(arg ns_prefix) -backend=$(arg backend) -pose_frame_id=map"/>
+            args="-uav_id=3 -ns_prefix=$(arg ns_prefix) -backend=$(arg backend) -pose_frame_id=map -noise_var=$(arg noise_var) -max_pose_error=$(arg max_pose_error)"/>
     </group>
 
 </launch>
