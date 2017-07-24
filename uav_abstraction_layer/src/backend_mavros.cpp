@@ -227,7 +227,7 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
 
         if ( cached_transforms_.find(waypoint_frame_id) == cached_transforms_.end() ) {
             // waypoint_frame_id not found in cached_transforms_
-            transformToHomeFrame = tfBuffer.lookupTransform(uav_home_frame_id_, waypoint_frame_id, ros::Time(0), ros::Duration(0.2));
+            transformToHomeFrame = tfBuffer.lookupTransform(uav_home_frame_id_, waypoint_frame_id, ros::Time(0), ros::Duration(1.0));
             cached_transforms_[waypoint_frame_id] = transformToHomeFrame; // Save transform in cache
         } else {
             // found in cache
@@ -284,7 +284,7 @@ Pose BackendMavros::pose() {
                 // inv_pose_frame_id_ not found in cached_transforms_
                 tf2_ros::Buffer tfBuffer;
                 tf2_ros::TransformListener tfListener(tfBuffer);
-                transformToPoseFrame = tfBuffer.lookupTransform(pose_frame_id_,uav_home_frame_id_, ros::Time(0), ros::Duration(0.2));
+                transformToPoseFrame = tfBuffer.lookupTransform(pose_frame_id_,uav_home_frame_id_, ros::Time(0), ros::Duration(1.0));
                 cached_transforms_[pose_frame_id_map] = transformToPoseFrame; // Save transform in cache
             } else {
                 // found in cache
