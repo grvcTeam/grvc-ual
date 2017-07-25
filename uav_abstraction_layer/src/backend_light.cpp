@@ -252,7 +252,7 @@ void BackendLight::goToWaypoint(const Waypoint& _world) {
         
     }
 
-    std::cout << "Going to waypoint: " << homogen_world_pos.pose.position << std::endl;
+//    std::cout << "Going to waypoint: " << homogen_world_pos.pose.position << std::endl;
 
     ref_pose_.pose.position = homogen_world_pos.pose.position;
     ref_pose_.pose.orientation = cur_pose_.pose.orientation;

@@ -238,7 +238,7 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
         
     }
 
-    std::cout << "Going to waypoint: " << homogen_world_pos.pose.position << std::endl;
+//    std::cout << "Going to waypoint: " << homogen_world_pos.pose.position << std::endl;
 
     // Do we still need local_start_pos_?
     homogen_world_pos.pose.position.x -= local_start_pos_[0];
