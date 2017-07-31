@@ -41,6 +41,37 @@
 
 namespace grvc { namespace ual {
 
+// TODO: Move controller to utils, add dynamic tuning tools
+class PidController {
+public:
+    PidController(const std::string& _name, double _k_p, double _k_i, double _k_d) {
+        name_ = _name;
+        k_p_ = _k_p;
+        k_i_ = _k_i;
+        k_d_ = _k_d;
+        ROS_INFO("Created PidController %s with gains: [%f, %f, %f]", name_.c_str(), k_p_, k_i_, k_d_);
+    }
+
+    double control_signal(double _error, double _dt) {
+        // TODO: anti-windup and other pid sofistications :)
+        error_sum_ += _error * _dt;
+        double error_diff = _error - previous_error_;
+        previous_error_ = _error;
+
+        double output = k_p_ * _error + k_i_ * error_sum_ + k_d_ * error_diff / _dt;
+        return output;
+    }
+
+protected:
+    std::string name_;
+    double k_p_;
+    double k_i_;
+    double k_d_;
+    double error_sum_ = 0;
+    double previous_error_ = 0;
+};
+
+
 class BackendMavros : public Backend {
 
 public:
@@ -92,14 +123,9 @@ private:
     //Control
     bool mavros_has_pose_ = false;
     bool control_in_vel_ = false;
-    Eigen::Vector3d integral_control_vel_ = {0,0,0};
-    Eigen::Vector3d previous_error_control_vel_ = {0,0,0};
-    float p_gain_xy_ = 0.4;  // TODO: PID? Tune!
-    float k_i_xy_ = 0.07;
-    float k_d_xy_ = 0.0;
-    float p_gain_z_ = 0.4;  // TODO: PID? Tune!
-    float k_i_z_ = 0.05;
-    float k_d_z_ = 0.0;
+    PidController* pid_x_;
+    PidController* pid_y_;
+    PidController* pid_z_;
 
     /// Ros Communication
     ros::ServiceClient flight_mode_client_;
