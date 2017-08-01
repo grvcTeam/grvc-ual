@@ -47,7 +47,7 @@ public:
     /// Latest pose estimation of the robot
     Pose	 pose() const { return backend_->pose(); }
 
-    /// Latest pose estimation of the robot
+    /// Latest velocity estimation of the robot
     Velocity velocity() const { return backend_->velocity(); }
 
     /// Latest transform estimation of the robot
