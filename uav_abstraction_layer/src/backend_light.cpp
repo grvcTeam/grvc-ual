@@ -345,23 +345,24 @@ bool BackendLight::referencePoseReached() const {
 void BackendLight::initHomeFrame() {
 
     uav_home_frame_id_ = "uav_" + std::to_string(robot_id_) + "_home";
+    local_start_pos_ << 0.0, 0.0, 0.0;
 
     // Get frame from rosparam
     std::string frame_id;
     std::string parent_frame;
     std::string units;
     std::vector<double> translation;
-    std::vector<double> rotation;
+    double gz_yaw;
     std::string uav_home_text;
 
-    uav_home_text = uav_home_frame_id_ + "_frame";
+    uav_home_text = uav_home_frame_id_;
 
     if ( ros::param::has(uav_home_text) ) {
-        ros::param::get(uav_home_text + "/frame_id", frame_id);
+        ros::param::get(uav_home_text + "/home_frame_id", frame_id);
         ros::param::get(uav_home_text + "/parent_frame", parent_frame);
         ros::param::get(uav_home_text + "/units", units);
         ros::param::get(uav_home_text + "/translation",translation);
-        ros::param::get(uav_home_text + "/rotation",rotation);
+        ros::param::get(uav_home_text + "/gz_initial_yaw",gz_yaw);
 
         geometry_msgs::TransformStamped static_transformStamped;
 
@@ -371,12 +372,20 @@ void BackendLight::initHomeFrame() {
         static_transformStamped.transform.translation.x = translation[0];
         static_transformStamped.transform.translation.y = translation[1];
         static_transformStamped.transform.translation.z = translation[2];
-        tf2::Quaternion quat;
-        quat.setRPY(rotation[0],rotation[1],rotation[2]);
-        static_transformStamped.transform.rotation.x = quat.x();
-        static_transformStamped.transform.rotation.y = quat.y();
-        static_transformStamped.transform.rotation.z = quat.z();
-        static_transformStamped.transform.rotation.w = quat.w();
+
+        if(parent_frame == "map" || parent_frame == "") {
+            static_transformStamped.transform.rotation.x = 0;
+            static_transformStamped.transform.rotation.y = 0;
+            static_transformStamped.transform.rotation.z = 0;
+            static_transformStamped.transform.rotation.w = 1;
+        }
+        else {
+            tf2_ros::Buffer tfBuffer;
+            tf2_ros::TransformListener tfListener(tfBuffer);
+            geometry_msgs::TransformStamped transform_to_map;
+            transform_to_map = tfBuffer.lookupTransform(parent_frame, "map", ros::Time(0), ros::Duration(2.0));
+            static_transformStamped.transform.rotation = transform_to_map.transform.rotation;
+        }
 
         static_tf_broadcaster_ = new tf2_ros::StaticTransformBroadcaster();
         static_tf_broadcaster_->sendTransform(static_transformStamped);
@@ -385,7 +394,12 @@ void BackendLight::initHomeFrame() {
         cur_pose_.pose.position.x = 0.0;
         cur_pose_.pose.position.y = 0.0;
         cur_pose_.pose.position.z = 0.0;
-        cur_pose_.pose.orientation = static_transformStamped.transform.rotation;
+        tf2::Quaternion quat;
+        quat.setRPY(0.0,0.0,gz_yaw);
+        cur_pose_.pose.orientation.x = quat.x();
+        cur_pose_.pose.orientation.y = quat.y();
+        cur_pose_.pose.orientation.z = quat.z();
+        cur_pose_.pose.orientation.w = quat.w();
         ref_pose_ = cur_pose_;
     }
     else {

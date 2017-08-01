@@ -114,11 +114,11 @@ def main():
     tf_buffer = tf2_ros.Buffer(rospy.Duration(1200.0)) #tf buffer length
     tf_listener = tf2_ros.TransformListener(tf_buffer)
 
-    if rospy.has_param( 'uav_{}_home_frame'.format(args.id) ):
-        uav_frame = rospy.get_param( 'uav_{}_home_frame'.format(args.id) )
+    if rospy.has_param( 'uav_{}_home'.format(args.id) ):
+        uav_frame = rospy.get_param( 'uav_{}_home'.format(args.id) )
         if uav_frame['parent_frame']=='map':
             robot_home = uav_frame['translation']
-            robot_yaw = uav_frame['rotation'][2]
+            robot_yaw = uav_frame['gz_initial_yaw']
         elif uav_frame['parent_frame']=='game':
             transform = tf_buffer.lookup_transform('map', 'game', rospy.Time(0), rospy.Duration(3.0))
             pose_stamped = PoseStamped()
@@ -128,20 +128,26 @@ def main():
             pose_stamped.pose.position.z = uav_frame['translation'][2]
             pose_transformed = tf2_geometry_msgs.do_transform_pose(pose_stamped, transform)
             robot_home = [pose_transformed.pose.position.x,pose_transformed.pose.position.y, pose_transformed.pose.position.z]
-            robot_yaw = uav_frame['rotation'][2]
+            robot_yaw = uav_frame['gz_initial_yaw']
         else:
             robot_home = [0.0, 0.0, 0.0]
             robot_yaw = 0.0
     else:
         robot_home = [0.0, 0.0, 0.0]
         robot_yaw = 0.0
-    
+
+    # Sleep for waiting the world to load
+    rospy.sleep(0.2)
+
+    # Minimum z to avoid collision with ground
+    z_min = 0.3
+
     # Spawn robot sdf in gazebo
     gzmodel_args = "gz model -f " + temp_sdf + \
     " -m " + args.model + "_" + str(args.id) + \
     " -x " + str(robot_home[0]) + \
     " -y " + str(robot_home[1]) + \
-    " -z " + str(robot_home[2]) + \
+    " -z " + str(robot_home[2]+z_min) + \
     " -Y " + str(robot_yaw)
     subprocess.call(gzmodel_args, shell=True)
 
