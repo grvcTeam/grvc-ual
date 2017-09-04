@@ -94,7 +94,7 @@ public:
     virtual void    recoverFromManual() = 0;
 
     /// Cancel execution of the current task
-    void	        abort();
+    void	        abort(bool _freeze = true);
 
     virtual ~Backend() = default; // Ensure proper destructor calling for derived classes
 
@@ -111,6 +111,10 @@ protected:
     /// Abort flag
     /// If you want your task to be abortable, check its value periodically
     std::atomic<bool> abort_ = {false};
+
+    /// Freeze flag
+    /// When aborting a task, freezes the platform if it is true
+    std::atomic<bool> freeze_ = {false};
 
     /// Simplest state-machine model: idle/running
     /// Implemented via mutex-locking

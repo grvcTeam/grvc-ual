@@ -249,7 +249,7 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     // Freeze in case it's been aborted
-    if (abort_) {
+    if (abort_ && freeze_) {
         ref_pose_ = cur_pose_;
     }
 }

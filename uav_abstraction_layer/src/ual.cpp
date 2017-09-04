@@ -113,7 +113,7 @@ bool UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {
         return false;
     }
     // Override any previous FLYING function
-    if (!backend_->isIdle()) { backend_->abort(); }
+    if (!backend_->isIdle()) { backend_->abort(false); }
 
     if (_blocking) {
         if (!backend_->threadSafeCall(&Backend::goToWaypoint, _wp)) {

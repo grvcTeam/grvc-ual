@@ -54,14 +54,16 @@ bool Backend::isIdle() {
     return !running_task_;
 }
 
-void Backend::abort() {
+void Backend::abort(bool _freeze) {
     // Block until end of task
     while (running_task_) {
         abort_ = true;
+        freeze_ = _freeze;
         std::this_thread::yield();
      }
     // Reset flag
     abort_ = false;
+    freeze_ = false;
 }
 
 }}	// namespace grvc::ual
