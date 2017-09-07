@@ -10,6 +10,7 @@ add_definitions(-std=c++11)
 find_package(catkin REQUIRED COMPONENTS
   message_generation
   argument_parser
+  handy_tools
   geometry_msgs
   mavros
   mavros_msgs

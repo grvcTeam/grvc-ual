@@ -42,9 +42,9 @@ BackendMavros::BackendMavros(grvc::utils::ArgumentParser& _args)
     ROS_INFO("BackendMavros constructor with id %d",robot_id_);
 
     // Init controllers  // TODO: PID? Tune!
-    pid_x_ = new PidController("x", 0.4, 0.07, 0.0);
-    pid_y_ = new PidController("y", 0.4, 0.07, 0.0);
-    pid_z_ = new PidController("z", 0.4, 0.05, 0.0);
+    pid_x_ = new grvc::utils::PidController("x", 0.4, 0.07, 0.0);
+    pid_y_ = new grvc::utils::PidController("y", 0.4, 0.07, 0.0);
+    pid_z_ = new grvc::utils::PidController("z", 0.4, 0.05, 0.0);
 
     // Init ros communications
     ros::NodeHandle nh;
