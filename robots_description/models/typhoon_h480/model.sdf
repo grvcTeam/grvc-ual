@@ -767,7 +767,7 @@
       </physics>
     </joint>
 
-    <link name='typhoon_h480/imu_link'>
+    <link name='imu_link'>
       <pose frame=''>0 0 0 0 0 3.1415927</pose>
       <inertial>
         <pose frame=''>0 0 0 0 -0 0</pose>
@@ -782,8 +782,8 @@
         </inertia>
       </inertial>
     </link>
-    <joint name='typhoon_h480/imu_joint' type='revolute'>
-      <child>typhoon_h480/imu_link</child>
+    <joint name='imu_joint' type='revolute'>
+      <child>imu_link</child>
       <parent>base_link</parent>
       <axis>
         <xyz>1 0 0</xyz>
@@ -1543,7 +1543,7 @@
           <zero_position_armed>0</zero_position_armed>
           <joint_control_type>position_gztopic</joint_control_type>
           <gztopic>/gimbal_roll_cmd</gztopic>
-          <joint_name>cgo3_camera_joint</joint_name>
+          <joint_name>cgo3_horizontal_arm_joint</joint_name>
         </channel>
         <channel name="gimbal_pitch">
           <input_index>7</input_index>
@@ -1606,7 +1606,7 @@
     <static>0</static>
     <plugin name='rotors_gazebo_imu_plugin' filename='librotors_gazebo_imu_plugin.so'>
       <robotNamespace></robotNamespace>
-      <linkName>typhoon_h480/imu_link</linkName>
+      <linkName>imu_link</linkName>
       <imuTopic>/imu</imuTopic>
       <gyroscopeNoiseDensity>0.0003394</gyroscopeNoiseDensity>
       <gyroscopeRandomWalk>3.8785e-05</gyroscopeRandomWalk>
