@@ -30,14 +30,16 @@
 #include <geometry_msgs/TwistStamped.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TransformStamped.h>
+#include <sensor_msgs/NavSatFix.h>
 // #include <nav_msgs/Path.h>
 
 namespace grvc { namespace ual {
 
-typedef geometry_msgs::PoseStamped Pose;
-typedef geometry_msgs::PoseStamped Waypoint;
-typedef geometry_msgs::TwistStamped Velocity;
-typedef geometry_msgs::Vector3Stamped PositionError;
+typedef geometry_msgs::PoseStamped      Pose;
+typedef geometry_msgs::PoseStamped      Waypoint;
+typedef sensor_msgs::NavSatFix          WaypointGeo;
+typedef geometry_msgs::TwistStamped     Velocity;
+typedef geometry_msgs::Vector3Stamped   PositionError;
 typedef geometry_msgs::TransformStamped Transform;
 
 /// Common interface for back-end implementations of ual
@@ -76,6 +78,11 @@ public:
     /// Go to the specified waypoint, following a straight line
     /// \param _wp goal waypoint
     virtual void	goToWaypoint(const Waypoint& _wp) = 0;
+
+    /// Go to the specified waypoint in geographic coordinates, following a straight line
+    /// \param _wp goal waypoint in geographic coordinates
+    virtual void	goToWaypointGeo(const WaypointGeo& _wp) = 0;
+
     /// Follow a list of waypoints, one after another
     // virtual void	trackPath(const Path& _path) = 0;
     /// Perform a take off maneuver

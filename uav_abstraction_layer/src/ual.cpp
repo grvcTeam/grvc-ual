@@ -19,6 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //----------------------------------------------------------------------------------------------------------------------
 #include <uav_abstraction_layer/ual.h>
+#include <uav_abstraction_layer/GoToWaypointGeo.h>
 #include <ros/ros.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <std_srvs/Empty.h>
@@ -42,6 +43,7 @@ UAL::UAL(grvc::utils::ArgumentParser& _args) {
             std::string take_off_srv = ual_ns + "/take_off";
             std::string land_srv = ual_ns + "/land";
             std::string go_to_waypoint_srv = ual_ns + "/go_to_waypoint";
+            std::string go_to_waypoint_geo_srv = ual_ns + "/go_to_waypoint_geo";
             std::string set_velocity_srv = ual_ns + "/set_velocity";
             std::string set_position_error_srv = ual_ns + "/set_position_error";
             std::string recover_from_manual_srv = ual_ns + "/recover_from_manual";
@@ -66,6 +68,12 @@ UAL::UAL(grvc::utils::ArgumentParser& _args) {
                 go_to_waypoint_srv,
                 [this](GoToWaypoint::Request &req, GoToWaypoint::Response &res) {
                 return this->goToWaypoint(req.waypoint, req.blocking);
+            });
+            ros::ServiceServer go_to_waypoint_geo_service =
+                nh.advertiseService<GoToWaypointGeo::Request, GoToWaypointGeo::Response>(
+                go_to_waypoint_geo_srv,
+                [this](GoToWaypointGeo::Request &req, GoToWaypointGeo::Response &res) {
+                return this->goToWaypointGeo(req.waypoint, req.blocking);
             });
             ros::ServiceServer set_velocity_service =
                 nh.advertiseService<SetVelocity::Request, SetVelocity::Response>(
@@ -125,6 +133,30 @@ bool UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {
         // Call function on a thread:
         running_thread_ = std::thread ([this, _wp]() {
             if (!this->backend_->threadSafeCall(&Backend::goToWaypoint, _wp)) {
+                ROS_INFO("Non-blocking goToWaypoint rejected!");
+            }
+        });
+    }
+    return true;
+}
+bool UAL::goToWaypointGeo(const WaypointGeo& _wp, bool _blocking) {
+    // Check required state
+    if (state_ != FLYING) {
+        return false;
+    }
+    // Override any previous FLYING function
+    if (!backend_->isIdle()) { backend_->abort(false); }
+
+    if (_blocking) {
+        if (!backend_->threadSafeCall(&Backend::goToWaypointGeo, _wp)) {
+            ROS_INFO("Blocking goToWaypoint rejected!");
+            return false;
+        }
+    } else {
+        if (running_thread_.joinable()) running_thread_.join();
+        // Call function on a thread:
+        running_thread_ = std::thread ([this, _wp]() {
+            if (!this->backend_->threadSafeCall(&Backend::goToWaypointGeo, _wp)) {
                 ROS_INFO("Non-blocking goToWaypoint rejected!");
             }
         });

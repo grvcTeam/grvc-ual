@@ -18,6 +18,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   tf2_ros
   gazebo_msgs
+  sensor_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -64,6 +65,7 @@ find_package(catkin REQUIRED COMPONENTS
 add_service_files(
   FILES
   GoToWaypoint.srv
+  GoToWaypointGeo.srv
   TakeOff.srv
   Land.srv
   SetVelocity.srv
@@ -80,7 +82,7 @@ add_service_files(
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
   DEPENDENCIES
-  geometry_msgs std_msgs
+  geometry_msgs std_msgs sensor_msgs
 )
 
 ################################################
@@ -115,7 +117,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES uav_abstraction_layer
-  CATKIN_DEPENDS message_runtime argument_parser geometry_msgs mavros mavros_msgs roscpp std_msgs tf2_ros gazebo_msgs
+  CATKIN_DEPENDS message_runtime argument_parser geometry_msgs mavros mavros_msgs roscpp std_msgs tf2_ros gazebo_msgs sensor_msgs
 #  DEPENDS system_lib
 )
 

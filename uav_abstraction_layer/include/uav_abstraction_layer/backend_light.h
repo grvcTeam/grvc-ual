@@ -52,6 +52,11 @@ public:
     /// Go to the specified waypoint, following a straight line
     /// \param _wp goal waypoint
     void	goToWaypoint(const Waypoint& _wp) override;
+
+    /// Go to the specified waypoint in geographic coordinates, following a straight line
+    /// \param _wp goal waypoint in geographic coordinates
+    void	goToWaypointGeo(const WaypointGeo& _wp) override;
+    
     /// Perform a take off maneuver
     /// \param _height target height that must be reached to consider the take off complete
     void    takeOff(double _height) override;
