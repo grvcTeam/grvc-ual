@@ -131,8 +131,13 @@ void BackendMavros::setFlightMode(const std::string& _flight_mode) {
             ROS_ERROR("Error in set flight mode [%s] service calling!", _flight_mode.c_str());
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(300));
+#ifdef MAVROS_VERSION_BELOW_0_20_0
         ROS_INFO("Set flight mode [%s] response.success = %s", _flight_mode.c_str(), \
             flight_mode_service.response.success ? "true" : "false");
+#else
+        ROS_INFO("Set flight mode [%s] response.success = %s", _flight_mode.c_str(), \
+            flight_mode_service.response.mode_sent ? "true" : "false");
+#endif
         ROS_INFO("Trying to set offboard mode; mavros_state_.mode = %s", mavros_state_.mode.c_str());
     }
 }
