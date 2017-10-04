@@ -92,6 +92,19 @@ def main():
             if plugintag.get('name') == 'mavlink_interface':
                 porttag = plugintag.find('mavlink_udp_port')
                 porttag.text = str(udp_config["sim_port"])
+
+        # Typhoon_h480 patch - TODO use xacro instead
+        if args.model == 'typhoon_h480':
+            for plugintag in model.findall('plugin'):
+                if plugintag.get('name') == 'gimbal_controller':
+                    imutag = plugintag.find('imu')
+                    imutag.text = 'typhoon_h480_' + str(args.id) + '::camera_imu'
+            for linktag in model.findall('link'):
+                if linktag.get('name') == 'cgo3_camera_link':
+                    for sensortag in linktag.findall('sensor'):
+                        if sensortag.get('name') == 'camera_imu':
+                            sensortag.set('name', 'typhoon_h480_' + str(args.id) + '::camera_imu')
+
         tree.write(temp_sdf)
 
     else:

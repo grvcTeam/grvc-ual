@@ -23,6 +23,19 @@ find_package(catkin REQUIRED COMPONENTS
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
+# Check for mavros version for compatibility with older versions
+execute_process(COMMAND rosversion mavros
+		OUTPUT_VARIABLE mavros_version
+		OUTPUT_STRIP_TRAILING_WHITESPACE
+		)
+if ("${mavros_version}" VERSION_LESS "0.20.0")
+  add_definitions("-DMAVROS_VERSION_BELOW_0_20_0=\"${mavros_version}\"")
+else()
+  find_file(geographiclib_file "egm96-5.pgm" "/usr/share/GeographicLib/geoids/")
+  if ("${geographiclib_file}" STREQUAL "geographiclib_file-NOTFOUND")
+    message(FATAL_ERROR "GeographicLib exception: File not readable /usr/share/GeographicLib/geoids/egm96-5.pgm \n Run install_geographiclib_dataset.sh script in order to install Geoid Model dataset! \n Or run: $ sudo geographiclib-get-geoids egm96-5")
+  endif()
+endif()
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed

@@ -31,7 +31,8 @@ Backend::Backend(grvc::utils::ArgumentParser& _args) {
         ros::init(_args.argc(), _args.argv(), "ual_" + std::to_string(robot_id));
         // Make communications spin!
         spin_thread_ = std::thread([this]() {
-            ros::spin();
+            ros::MultiThreadedSpinner spinner(2); // Use 2 threads
+            spinner.spin();
         });
     }
 }
