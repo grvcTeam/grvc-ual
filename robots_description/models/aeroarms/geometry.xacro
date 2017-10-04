@@ -111,7 +111,7 @@
     <parent link="base_link"/>
     <child link="left_shoulder"/>
     <axis xyz="0 0 1"/>
-    <dynamics damping="0.7" friction="0.0"/>
+    <dynamics damping="0.7" friction="0.4"/>
     <limit effort="5000.0" lower="${-0.5*pi}" upper="${0.5*pi}" velocity="1"/>
   </joint>
 
@@ -139,7 +139,7 @@
     <parent link="left_shoulder"/>
     <child link="left_upperarm"/>
     <axis xyz="0 1 0"/>
-    <dynamics damping="0.7" friction="0.0"/>
+    <dynamics damping="0.7" friction="0.4"/>
     <limit effort="5000.0" lower="${-0.5*pi}" upper="${0.5*pi}" velocity="1"/>
   </joint>
 
@@ -167,7 +167,7 @@
     <parent link="left_upperarm"/>
     <child link="left_elbow"/>
     <axis xyz="0 1 0"/>
-    <dynamics damping="0.7" friction="0.0"/>
+    <dynamics damping="0.7" friction="0.4"/>
     <limit effort="5000.0" lower="${-0.5*pi}" upper="${0.5*pi}" velocity="1"/>
   </joint>
 
@@ -195,7 +195,7 @@
     <parent link="left_elbow"/>
     <child link="left_forearm"/>
     <axis xyz="1 0 0"/>
-    <dynamics damping="0.7" friction="0.0"/>
+    <dynamics damping="0.7" friction="0.4"/>
     <limit effort="5000.0" lower="${-0.5*pi}" upper="${0.5*pi}" velocity="1"/>
   </joint>
 
@@ -226,7 +226,7 @@
     <parent link="base_link"/>
     <child link="right_shoulder"/>
     <axis xyz="0 0 1"/>
-    <dynamics damping="0.7" friction="0.0"/>
+    <dynamics damping="0.7" friction="0.4"/>
     <limit effort="5000.0" lower="${-0.5*pi}" upper="${0.5*pi}" velocity="1"/>
   </joint>
 
@@ -254,7 +254,7 @@
     <parent link="right_shoulder"/>
     <child link="right_upperarm"/>
     <axis xyz="0 1 0"/>
-    <dynamics damping="0.7" friction="0.0"/>
+    <dynamics damping="0.7" friction="0.4"/>
     <limit effort="5000.0" lower="${-0.5*pi}" upper="${0.5*pi}" velocity="1"/>
   </joint>
 
@@ -282,7 +282,7 @@
     <parent link="right_upperarm"/>
     <child link="right_elbow"/>
     <axis xyz="0 1 0"/>
-    <dynamics damping="0.7" friction="0.0"/>
+    <dynamics damping="0.7" friction="0.4"/>
     <limit effort="5000.0" lower="${-0.5*pi}" upper="${0.5*pi}" velocity="1"/>
   </joint>
 
@@ -310,7 +310,7 @@
     <parent link="right_elbow"/>
     <child link="right_forearm"/>
     <axis xyz="1 0 0"/>
-    <dynamics damping="0.7" friction="0.0"/>
+    <dynamics damping="0.7" friction="0.4"/>
     <limit effort="5000.0" lower="${-0.5*pi}" upper="${0.5*pi}" velocity="1"/>
   </joint>
 
