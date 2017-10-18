@@ -267,6 +267,10 @@ void BackendLight::goToWaypoint(const Waypoint& _world) {
     }
 }
 
+void BackendLight::goToWaypointGeo(const WaypointGeo& _world) {
+    assert(false); // 666 NOT IMPLEMENTED YET
+}
+
 Pose BackendLight::pose() {
         Pose out;
 

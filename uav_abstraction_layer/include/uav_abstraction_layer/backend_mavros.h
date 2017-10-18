@@ -35,6 +35,7 @@
 
 //Mavros messages
 #include <mavros_msgs/State.h>
+#include <mavros_msgs/GlobalPositionTarget.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
 #include <geometry_msgs/TransformStamped.h>
@@ -59,6 +60,11 @@ public:
     /// Go to the specified waypoint, following a straight line
     /// \param _wp goal waypoint
     void	goToWaypoint(const Waypoint& _wp) override;
+
+    /// Go to the specified waypoint in geographic coordinates, following a straight line
+    /// \param _wp goal waypoint in geographic coordinates
+    void	goToWaypointGeo(const WaypointGeo& _wp);
+
     /// Follow a list of waypoints, one after another
     // void trackPath(const Path& _path) override;
     /// Perform a take off maneuver
@@ -77,6 +83,7 @@ public:
     void    recoverFromManual() override;
 
 private:
+    void offboardThreadLoop();
     void arm();
     void initHomeFrame();
     bool referencePoseReached() const;
@@ -85,14 +92,16 @@ private:
     //WaypointList path_;
     geometry_msgs::PoseStamped home_pose_;
     geometry_msgs::PoseStamped ref_pose_;
+    sensor_msgs::NavSatFix     ref_pose_global_;
     geometry_msgs::PoseStamped cur_pose_;
     geometry_msgs::TwistStamped ref_vel_;
     geometry_msgs::TwistStamped cur_vel_;
     mavros_msgs::State mavros_state_;
 
     //Control
+    enum class eControlMode {LOCAL_VEL, LOCAL_POSE, GLOBAL_POSE};
     bool mavros_has_pose_ = false;
-    bool control_in_vel_ = false;
+    eControlMode control_mode_ = eControlMode::LOCAL_POSE;
     grvc::utils::PidController* pid_x_;
     grvc::utils::PidController* pid_y_;
     grvc::utils::PidController* pid_z_;
@@ -101,6 +110,7 @@ private:
     ros::ServiceClient flight_mode_client_;
     ros::ServiceClient arming_client_;
     ros::Publisher mavros_ref_pose_pub_;
+    ros::Publisher mavros_ref_pose_global_pub_;
     ros::Publisher mavros_ref_vel_pub_;
     ros::Subscriber mavros_cur_pose_sub_;
     ros::Subscriber mavros_cur_vel_sub_;
