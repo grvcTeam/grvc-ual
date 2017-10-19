@@ -58,6 +58,11 @@ public:
     /// \param _blocking indicates if function call is blocking (default = true)
     bool	goToWaypoint(const Waypoint& _wp, bool _blocking = true);
 
+    /// Go to the specified waypoint in geographic coordinates, following a straight line
+    /// \param _wp goal waypoint in geographic coordinates
+    /// \param _blocking indicates if function call is blocking (default = true)
+    bool	goToWaypointGeo(const WaypointGeo& _wp, bool _blocking = true);
+
     /// Perform a take off maneuver
     /// \param _height target height that must be reached to consider the take off complete
     /// \param _blocking indicates if function call is blocking (default = true)

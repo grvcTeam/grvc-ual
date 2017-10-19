@@ -1,0 +1,3 @@
+sensor_msgs/NavSatFix waypoint
+bool blocking
+---

@@ -52,6 +52,7 @@ BackendMavros::BackendMavros(grvc::utils::ArgumentParser& _args)
     std::string set_mode_srv = mavros_ns + "/set_mode";
     std::string arming_srv = mavros_ns + "/cmd/arming";
     std::string set_pose_topic = mavros_ns + "/setpoint_position/local";
+    std::string set_pose_global_topic = mavros_ns + "/setpoint_raw/global";
     std::string set_vel_topic = mavros_ns + "/setpoint_velocity/cmd_vel";
     std::string pose_topic = mavros_ns + "/local_position/pose";
     std::string vel_topic = mavros_ns + "/local_position/velocity";
@@ -61,6 +62,7 @@ BackendMavros::BackendMavros(grvc::utils::ArgumentParser& _args)
     arming_client_ = nh.serviceClient<mavros_msgs::CommandBool>(arming_srv.c_str());
 
     mavros_ref_pose_pub_ = nh.advertise<geometry_msgs::PoseStamped>(set_pose_topic.c_str(), 10);
+    mavros_ref_pose_global_pub_ = nh.advertise<mavros_msgs::GlobalPositionTarget>(set_pose_global_topic.c_str(), 10);
     mavros_ref_vel_pub_ = nh.advertise<geometry_msgs::TwistStamped>(set_vel_topic.c_str(), 10);
 
     mavros_cur_pose_sub_ = nh.subscribe<geometry_msgs::PoseStamped>(pose_topic.c_str(), 10, \
@@ -87,24 +89,47 @@ BackendMavros::BackendMavros(grvc::utils::ArgumentParser& _args)
     initHomeFrame();
 
     // Thread publishing target pose at 10Hz for offboard mode
-    offboard_thread_ = std::thread([this]() {
-        while (ros::ok()) {
-            if (control_in_vel_) {
-                mavros_ref_vel_pub_.publish(ref_vel_);
-                ref_pose_ = cur_pose_;
-            } else {
-                mavros_ref_pose_pub_.publish(ref_pose_);
-                ref_vel_.twist.linear.x = 0;
-                ref_vel_.twist.linear.y = 0;
-                ref_vel_.twist.linear.z = 0;
-                ref_vel_.twist.angular.z = 0;
-            }
-            // TODO: Check this frequency and use ros::Rate
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
-    });
+    offboard_thread_ = std::thread(&BackendMavros::offboardThreadLoop, this);
 
     ROS_INFO("BackendMavros %d running!",robot_id_);
+}
+
+void BackendMavros::offboardThreadLoop(){
+    while (ros::ok()) {
+        switch(control_mode_){
+        case eControlMode::LOCAL_VEL:
+            mavros_ref_vel_pub_.publish(ref_vel_);
+            ref_pose_ = cur_pose_;
+            break;
+        case eControlMode::LOCAL_POSE:
+            mavros_ref_pose_pub_.publish(ref_pose_);
+            ref_vel_.twist.linear.x = 0;
+            ref_vel_.twist.linear.y = 0;
+            ref_vel_.twist.linear.z = 0;
+            ref_vel_.twist.angular.z = 0;
+            break;
+        case eControlMode::GLOBAL_POSE:
+            ref_vel_.twist.linear.x = 0;
+            ref_vel_.twist.linear.y = 0;
+            ref_vel_.twist.linear.z = 0;
+            ref_vel_.twist.angular.z = 0;
+            ref_pose_ = cur_pose_;
+
+            mavros_msgs::GlobalPositionTarget msg;    
+            msg.latitude = ref_pose_global_.latitude;
+            msg.longitude = ref_pose_global_.longitude;
+            msg.altitude = ref_pose_global_.altitude;
+            msg.header.stamp = ros::Time::now();
+            msg.coordinate_frame = mavros_msgs::GlobalPositionTarget::FRAME_GLOBAL_REL_ALT;
+            msg.type_mask = 4088; //((4095^1)^2)^4;
+
+            mavros_ref_pose_global_pub_.publish(msg);
+            break;
+        }
+
+        // TODO: Check this frequency and use ros::Rate
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
 }
 
 void BackendMavros::arm() {
@@ -147,7 +172,7 @@ void BackendMavros::recoverFromManual() {
     if (mavros_state_.mode == "POSCTL" ||
         mavros_state_.mode == "ALTCTL" ||
         mavros_state_.mode == "STABILIZED") {
-        control_in_vel_ = false;
+        control_mode_ = eControlMode::LOCAL_POSE;
         ref_pose_ = cur_pose_;
         setFlightMode("OFFBOARD");
         ROS_INFO("Recovered from manual mode!");
@@ -157,7 +182,7 @@ void BackendMavros::recoverFromManual() {
 }
 
 void BackendMavros::takeOff(double _height) {
-    control_in_vel_ = false;  // Take off control is performed in position (not velocity)
+    control_mode_ = eControlMode::LOCAL_POSE;  // Take off control is performed in position (not velocity)
 
     arm();
     // Set offboard mode after saving home pose
@@ -177,7 +202,7 @@ void BackendMavros::takeOff(double _height) {
 }
 
 void BackendMavros::land() {
-    control_in_vel_ = false;  // Back to control in position (just in case)
+    control_mode_ = eControlMode::LOCAL_POSE;  // Back to control in position (just in case)
     // Set land mode
     setFlightMode("AUTO.LAND");
     ROS_INFO("Landing...");
@@ -191,7 +216,7 @@ void BackendMavros::land() {
 }
 
 void BackendMavros::setVelocity(const Velocity& _vel) {
-    control_in_vel_ = true;  // Velocity control!
+    control_mode_ = eControlMode::LOCAL_VEL;  // Velocity control!
     // TODO: _vel world <-> body tf...
     ref_vel_ = _vel;
 }
@@ -211,7 +236,7 @@ bool BackendMavros::isReady() const {
 }
 
 void BackendMavros::goToWaypoint(const Waypoint& _world) {
-    control_in_vel_ = false;  // Control in position
+    control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
 
     geometry_msgs::PoseStamped homogen_world_pos;
     tf2_ros::Buffer tfBuffer;
@@ -248,6 +273,23 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
 
     ref_pose_.pose.position = homogen_world_pos.pose.position;
     ref_pose_.pose.orientation = cur_pose_.pose.orientation;
+
+    // Wait until we arrive: abortable
+    while(!referencePoseReached() && !abort_ && ros::ok()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    // Freeze in case it's been aborted
+    if (abort_ && freeze_) {
+        ref_pose_ = cur_pose_;
+    }
+}
+
+void	BackendMavros::goToWaypointGeo(const WaypointGeo& _wp){
+    control_mode_ = eControlMode::GLOBAL_POSE; // Control in position
+    
+    ref_pose_global_.latitude = _wp.latitude;
+    ref_pose_global_.longitude = _wp.longitude;
+    ref_pose_global_.altitude = _wp.altitude;
 
     // Wait until we arrive: abortable
     while(!referencePoseReached() && !abort_ && ros::ok()) {
