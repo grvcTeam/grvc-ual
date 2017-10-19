@@ -12,11 +12,11 @@ xmlns:xacro="http://ros.org/wiki/xacro">
     </plugin>
   </gazebo>
 
-  <gazebo>
+  <!--gazebo>
     <plugin name="joint_animator_gazebo_plugin" filename="libjoint_animator_gazebo_plugin.so">
       <robotNamespace>/aeroarms</robotNamespace>
     </plugin>
-  </gazebo>
+  </gazebo-->
 
   <!-- Gravity at left arm -->
   <gazebo reference="left_shoulder">
