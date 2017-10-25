@@ -49,7 +49,7 @@ BackendLight::BackendLight(grvc::utils::ArgumentParser& _args)
     pose_frame_id_ = _args.getArgument<std::string>("pose_frame_id", "");
     max_h_vel_ = _args.getArgument("max_h_vel", 1.6); // m/s
     max_v_vel_ = _args.getArgument("max_v_vel", 1.2); // m/s
-    max_yaw_vel_ = _args.getArgument("max_yaw_vel", 0.2); // rad/s
+    max_yaw_vel_ = _args.getArgument("max_yaw_vel", 1.0); // rad/s
     max_pose_error_ = _args.getArgument("max_pose_error", 0.1); // m
     max_orient_error_ = _args.getArgument("max_orient_error", 0.01); // rad
 
@@ -78,10 +78,7 @@ BackendLight::BackendLight(grvc::utils::ArgumentParser& _args)
             }
             move();
             
-            current.pose.position.x = gazebo_pose_.pose.position.x;
-            current.pose.position.y = gazebo_pose_.pose.position.y;
-            current.pose.position.z = gazebo_pose_.pose.position.z;
-            current.pose.orientation.w = 1;
+            current.pose = gazebo_pose_.pose;
             current.reference_frame = "map";
             link_state_publisher_.publish(current);
             
@@ -101,6 +98,7 @@ void BackendLight::move() {
     cur_vel_.twist.linear.x = (0.2 * ref_vel_.twist.linear.x + 0.8 * cur_vel_.twist.linear.x);
     cur_vel_.twist.linear.y = (0.2 * ref_vel_.twist.linear.y + 0.8 * cur_vel_.twist.linear.y);
     cur_vel_.twist.linear.z = (0.2 * ref_vel_.twist.linear.z + 0.8 * cur_vel_.twist.linear.z);
+    cur_vel_.twist.angular.z = (0.5 * ref_vel_.twist.angular.z + 0.5 * cur_vel_.twist.angular.z);
 
     cur_pose_.pose.position.x += t * cur_vel_.twist.linear.x;
     cur_pose_.pose.position.y += t * cur_vel_.twist.linear.y;
@@ -110,7 +108,20 @@ void BackendLight::move() {
     cur_pose_noisy_.pose.position.y = cur_pose_.pose.position.y + distribution_(generator_);
     cur_pose_noisy_.pose.position.z = cur_pose_.pose.position.z + distribution_(generator_);
 
-    // TODO: cur_pose_.pose.orientation = ...
+    tf2::Quaternion quat1(cur_pose_.pose.orientation.x,cur_pose_.pose.orientation.y,cur_pose_.pose.orientation.z,cur_pose_.pose.orientation.w);
+    tf2::Matrix3x3 m(quat1);
+    double cur_yaw, cur_pitch, cur_roll;
+    m.getRPY(cur_roll, cur_pitch, cur_yaw);
+    cur_roll += t * cur_vel_.twist.angular.x;
+    cur_pitch += t * cur_vel_.twist.angular.y;
+    cur_yaw += t * cur_vel_.twist.angular.z;
+    tf2::Quaternion quat2;
+    quat2.setRPY(cur_roll, cur_pitch, cur_yaw);
+    cur_pose_.pose.orientation.x = quat2.x();
+    cur_pose_.pose.orientation.y = quat2.y();
+    cur_pose_.pose.orientation.z = quat2.z();
+    cur_pose_.pose.orientation.w = quat2.w();
+    cur_pose_noisy_.pose.orientation = cur_pose_.pose.orientation;
 
     // Transform to map
     tf2_ros::Buffer tfBuffer;
@@ -135,13 +146,15 @@ Velocity BackendLight::calcVel(Pose _target_pose) {
         double dx = _target_pose.pose.position.x - cur_pose_noisy_.pose.position.x;
         double dy = _target_pose.pose.position.y - cur_pose_noisy_.pose.position.y;
         double dz = _target_pose.pose.position.z - cur_pose_noisy_.pose.position.z;
-        //TODO: 
-        double dYaw = 0.0;
+        double dYaw = 2*atan2(_target_pose.pose.orientation.z,_target_pose.pose.orientation.w) - 2*atan2(cur_pose_noisy_.pose.orientation.z,cur_pose_noisy_.pose.orientation.w);
+        while (dYaw < -M_PI) dYaw += 2*M_PI;
+        while (dYaw >  M_PI) dYaw -= 2*M_PI;
 
         double Th = sqrt( dx*dx + dy*dy ) / max_h_vel_;
         double Tz = std::abs( dz / max_v_vel_ );
-        //TODO: double TYaw = () / max_yaw_vel_;
+        double TYaw = std::abs( dYaw / max_yaw_vel_);
         double T = std::max(Th, Tz);
+        T = std::max(T, TYaw);
 
         if ( T < 1/FPS ) {
             T = 1/FPS;
@@ -150,7 +163,7 @@ Velocity BackendLight::calcVel(Pose _target_pose) {
         vel.twist.linear.x = dx / T;
         vel.twist.linear.y = dy / T;
         vel.twist.linear.z = dz / T;
-        vel.twist.angular.z = 0.0;
+        vel.twist.angular.z = dYaw / T;
 
         if ( std::abs( dx ) < max_pose_error_ ) { vel.twist.linear.x = 0.0; }
         if ( std::abs( dy ) < max_pose_error_ ) { vel.twist.linear.y = 0.0; }
@@ -254,8 +267,7 @@ void BackendLight::goToWaypoint(const Waypoint& _world) {
 
 //    std::cout << "Going to waypoint: " << homogen_world_pos.pose.position << std::endl;
 
-    ref_pose_.pose.position = homogen_world_pos.pose.position;
-    ref_pose_.pose.orientation = cur_pose_.pose.orientation;
+    ref_pose_.pose = homogen_world_pos.pose;
 
     // Wait until we arrive: abortable
     while(!referencePoseReached() && !abort_ && ros::ok()) {

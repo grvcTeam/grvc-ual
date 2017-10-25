@@ -271,8 +271,7 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
     homogen_world_pos.pose.position.y -= local_start_pos_[1];
     homogen_world_pos.pose.position.z -= local_start_pos_[2];
 
-    ref_pose_.pose.position = homogen_world_pos.pose.position;
-    ref_pose_.pose.orientation = cur_pose_.pose.orientation;
+    ref_pose_.pose = homogen_world_pos.pose;
 
     // Wait until we arrive: abortable
     while(!referencePoseReached() && !abort_ && ros::ok()) {
