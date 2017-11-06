@@ -84,6 +84,20 @@
     <origin xyz="0 0 -0.10" rpy="0 1.57 0" />
   </xacro:camera_macro>
 
+  <link name="camera_depth_base_link"></link>
+  <joint name="camera_depth_base_joint" type="fixed">
+    <origin xyz="0.4 0 0" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="camera_depth_base_link"/>
+  </joint>
+
+  <link name="camera_depth_link"></link>
+  <joint name="camera_depth_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2} "/>
+    <parent link="camera_depth_base_link"/>
+    <child link="camera_depth_link"/>
+  </joint>
+
   <!-- Left arm -->
   <!-- Inertias are not symmetrical, can't use xacro -->
   <link name="left_shoulder">

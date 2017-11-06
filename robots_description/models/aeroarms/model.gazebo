@@ -47,7 +47,7 @@ xmlns:xacro="http://ros.org/wiki/xacro">
   </gazebo>
 
 <!-- rgbd sensor -->
-<gazebo reference="base_link">
+<gazebo reference="camera_depth_base_link">
     <sensor type="depth" name="openni_camera_camera">
         <always_on>1</always_on>
         <visualize>true</visualize>
@@ -70,7 +70,7 @@ xmlns:xacro="http://ros.org/wiki/xacro">
             <alwaysOn>true</alwaysOn>
                 <updateRate>10.0</updateRate>
                 <cameraName>camera</cameraName>
-                <frameName>base_link</frameName>
+                <frameName>camera_depth_link</frameName>
             <imageTopicName>rgb/image_raw</imageTopicName>
             <depthImageTopicName>depth/image_raw</depthImageTopicName>
             <pointCloudTopicName>depth/points</pointCloudTopicName>
