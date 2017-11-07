@@ -213,6 +213,66 @@
     <limit effort="5000.0" lower="${-0.5*pi}" upper="${0.5*pi}" velocity="1"/>
   </joint>
 
+  <link name="left_wrist_pitch">
+    <inertial>
+      <origin xyz="0 0 0"/>
+      <!--mass value="0.049"/>
+      <inertia ixx="6.73e-06" ixy="-2.83e-06" ixz="-5.16e-08" iyy="9.42e-05" iyz="1.62e-08" izz="9.58e-05"/-->
+      <mass value="0.1"/>
+      <inertia ixx="8.5833e-04" ixy="0" ixz="0" iyy="8.5833e-04" iyz="0" izz="5e-04"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 -32e-03 0"/>
+      <geometry>
+        <mesh filename="package://robots_description/models/aeroarms/meshes/visual/left/wrist_pitch.dae" scale=".001 .001 .001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 -32e-03 0"/>
+      <geometry>
+        <mesh filename="package://robots_description/models/aeroarms/meshes/collision/left/wrist_pitch.dae" scale=".001 .001 .001"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="left_forearm_to_wrist_pitch" type="revolute">
+    <origin xyz="185e-03 -2e-03 0" rpy="0 0 ${0.5*pi}"/>
+    <parent link="left_forearm"/>
+    <child link="left_wrist_pitch"/>
+    <axis xyz="1 0 0"/>
+    <dynamics damping="0.7" friction="0.4"/>
+    <limit effort="5000.0" lower="${-0.5*pi}" upper="${0.5*pi}" velocity="1"/>
+  </joint>
+
+  <link name="left_wrist_yaw">
+    <inertial>
+      <origin xyz="0 0 0"/>
+      <!--mass value="0.049"/>
+      <inertia ixx="6.73e-06" ixy="-2.83e-06" ixz="-5.16e-08" iyy="9.42e-05" iyz="1.62e-08" izz="9.58e-05"/-->
+      <mass value="0.1"/>
+      <inertia ixx="8.5833e-04" ixy="0" ixz="0" iyy="8.5833e-04" iyz="0" izz="5e-04"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 -45e-03 0" rpy="0 0 ${0.5*pi}"/>
+      <geometry>
+        <mesh filename="package://robots_description/models/aeroarms/meshes/visual/left/wrist_yaw.dae" scale=".001 .001 .001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 -45e-03 0" rpy="0 0 ${0.5*pi}"/>
+      <geometry>
+        <mesh filename="package://robots_description/models/aeroarms/meshes/collision/left/wrist_yaw.dae" scale=".001 .001 .001"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="left_wrist_pitch_to_wrist_yaw" type="revolute">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <parent link="left_wrist_pitch"/>
+    <child link="left_wrist_yaw"/>
+    <axis xyz="0 0 1"/>
+    <dynamics damping="0.7" friction="0.4"/>
+    <limit effort="5000.0" lower="${-0.5*pi}" upper="${0.5*pi}" velocity="1"/>
+  </joint>
+
   <!-- Right arm -->
   <!-- Inertias are not symmetrical, can't use xacro -->
   <link name="right_shoulder">
@@ -324,6 +384,66 @@
     <parent link="right_elbow"/>
     <child link="right_forearm"/>
     <axis xyz="1 0 0"/>
+    <dynamics damping="0.7" friction="0.4"/>
+    <limit effort="5000.0" lower="${-0.5*pi}" upper="${0.5*pi}" velocity="1"/>
+  </joint>
+
+  <link name="right_wrist_pitch">
+    <inertial>
+      <origin xyz="0 0 0"/>
+      <!--mass value="0.049"/>
+      <inertia ixx="6.73e-06" ixy="-2.83e-06" ixz="-5.16e-08" iyy="9.42e-05" iyz="1.62e-08" izz="9.58e-05"/-->
+      <mass value="0.1"/>
+      <inertia ixx="8.5833e-04" ixy="0" ixz="0" iyy="8.5833e-04" iyz="0" izz="5e-04"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 -32e-03 0"/>
+      <geometry>
+        <mesh filename="package://robots_description/models/aeroarms/meshes/visual/right/wrist_pitch.dae" scale=".001 .001 .001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 -32e-03 0"/>
+      <geometry>
+        <mesh filename="package://robots_description/models/aeroarms/meshes/collision/right/wrist_pitch.dae" scale=".001 .001 .001"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="right_forearm_to_wrist_pitch" type="revolute">
+    <origin xyz="185e-03 2e-03 0" rpy="0 0 ${0.5*pi}"/>
+    <parent link="right_forearm"/>
+    <child link="right_wrist_pitch"/>
+    <axis xyz="1 0 0"/>
+    <dynamics damping="0.7" friction="0.4"/>
+    <limit effort="5000.0" lower="${-0.5*pi}" upper="${0.5*pi}" velocity="1"/>
+  </joint>
+
+  <link name="right_wrist_yaw">
+    <inertial>
+      <origin xyz="0 0 0"/>
+      <!--mass value="0.049"/>
+      <inertia ixx="6.73e-06" ixy="-2.83e-06" ixz="-5.16e-08" iyy="9.42e-05" iyz="1.62e-08" izz="9.58e-05"/-->
+      <mass value="0.1"/>
+      <inertia ixx="8.5833e-04" ixy="0" ixz="0" iyy="8.5833e-04" iyz="0" izz="5e-04"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 -45e-03 0" rpy="0 0 ${0.5*pi}"/>
+      <geometry>
+        <mesh filename="package://robots_description/models/aeroarms/meshes/visual/right/wrist_yaw.dae" scale=".001 .001 .001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 -45e-03 0" rpy="0 0 ${0.5*pi}"/>
+      <geometry>
+        <mesh filename="package://robots_description/models/aeroarms/meshes/collision/right/wrist_yaw.dae" scale=".001 .001 .001"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="right_wrist_pitch_to_wrist_yaw" type="revolute">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <parent link="right_wrist_pitch"/>
+    <child link="right_wrist_yaw"/>
+    <axis xyz="0 0 1"/>
     <dynamics damping="0.7" friction="0.4"/>
     <limit effort="5000.0" lower="${-0.5*pi}" upper="${0.5*pi}" velocity="1"/>
   </joint>
