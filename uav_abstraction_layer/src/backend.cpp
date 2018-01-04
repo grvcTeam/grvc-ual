@@ -21,6 +21,7 @@
 #include <uav_abstraction_layer/backend.h>
 #include <uav_abstraction_layer/backend_mavros.h>
 #include <uav_abstraction_layer/backend_light.h>
+#include <uav_abstraction_layer/backend_dummy.h>
 
 namespace grvc { namespace ual {
 
@@ -47,6 +48,9 @@ Backend* Backend::createBackend(grvc::utils::ArgumentParser& _args) {
     }
     else if (selected_backend == "light") {
         be = new BackendLight(_args);
+    }
+    else if (selected_backend == "dummy") {
+        be = new BackendDummy(_args);
     }
     return be;
 }
