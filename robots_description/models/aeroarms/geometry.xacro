@@ -119,7 +119,7 @@
       </geometry>
     </collision>
   </link>
-  <joint name="left_multi_to_shoulder" type="revolute">
+  <joint name="q1_1" type="revolute">
     <!--origin xyz="200.781e-3 125.235e-3 -123.775e-3"/-->
     <origin xyz="50e-3 120e-3 10e-3"/>
     <parent link="base_link"/>
@@ -148,7 +148,7 @@
       </geometry>
     </collision>
   </link>
-  <joint name="left_shoulder_to_upperarm" type="revolute">
+  <joint name="q1_2" type="revolute">
     <origin xyz="0 25.9e-3 -30e-3"/>
     <parent link="left_shoulder"/>
     <child link="left_upperarm"/>
@@ -176,7 +176,7 @@
       </geometry>
     </collision>
   </link>
-  <joint name="left_upperarm_to_elbow" type="revolute">
+  <joint name="q1_3" type="revolute">
     <origin xyz="0 13e-3 -250e-3"/>
     <parent link="left_upperarm"/>
     <child link="left_elbow"/>
@@ -204,7 +204,7 @@
       </geometry>
     </collision>
   </link>
-  <joint name="left_elbow_to_forearm" type="revolute">
+  <joint name="q1_4" type="revolute">
     <origin xyz="80.9e-3 -34.502e-3 0"/>
     <parent link="left_elbow"/>
     <child link="left_forearm"/>
@@ -234,7 +234,7 @@
       </geometry>
     </collision>
   </link>
-  <joint name="left_forearm_to_wrist_pitch" type="revolute">
+  <joint name="q1_5" type="revolute">
     <origin xyz="185e-03 -2e-03 0" rpy="0 0 ${0.5*pi}"/>
     <parent link="left_forearm"/>
     <child link="left_wrist_pitch"/>
@@ -264,7 +264,7 @@
       </geometry>
     </collision>
   </link>
-  <joint name="left_wrist_pitch_to_wrist_yaw" type="revolute">
+  <joint name="q1_6" type="revolute">
     <origin xyz="0 0 0" rpy="0 0 0"/>
     <parent link="left_wrist_pitch"/>
     <child link="left_wrist_yaw"/>
@@ -294,7 +294,7 @@
       </geometry>
     </collision>
   </link>
-  <joint name="right_multi_to_shoulder" type="revolute">
+  <joint name="q2_1" type="revolute">
     <!--origin xyz="200.781e-3 -124.765e-3 -123.775e-3"/-->
     <origin xyz="50e-3 -120e-3 10e-3"/>
     <parent link="base_link"/>
@@ -323,7 +323,7 @@
       </geometry>
     </collision>
   </link>
-  <joint name="right_shoulder_to_upperarm" type="revolute">
+  <joint name="q2_2" type="revolute">
     <origin xyz="0 -25.9e-3 -30e-3"/>
     <parent link="right_shoulder"/>
     <child link="right_upperarm"/>
@@ -351,7 +351,7 @@
       </geometry>
     </collision>
   </link>
-  <joint name="right_upperarm_to_elbow" type="revolute">
+  <joint name="q2_3" type="revolute">
     <origin xyz="0 -13e-3 -250e-3"/>
     <parent link="right_upperarm"/>
     <child link="right_elbow"/>
@@ -379,7 +379,7 @@
       </geometry>
     </collision>
   </link>
-  <joint name="right_elbow_to_forearm" type="revolute">
+  <joint name="q2_4" type="revolute">
     <origin xyz="80.9e-3 34.502e-3 0"/>
     <parent link="right_elbow"/>
     <child link="right_forearm"/>
@@ -409,7 +409,7 @@
       </geometry>
     </collision>
   </link>
-  <joint name="right_forearm_to_wrist_pitch" type="revolute">
+  <joint name="q2_5" type="revolute">
     <origin xyz="185e-03 2e-03 0" rpy="0 0 ${0.5*pi}"/>
     <parent link="right_forearm"/>
     <child link="right_wrist_pitch"/>
@@ -439,7 +439,7 @@
       </geometry>
     </collision>
   </link>
-  <joint name="right_wrist_pitch_to_wrist_yaw" type="revolute">
+  <joint name="q2_6" type="revolute">
     <origin xyz="0 0 0" rpy="0 0 0"/>
     <parent link="right_wrist_pitch"/>
     <child link="right_wrist_yaw"/>

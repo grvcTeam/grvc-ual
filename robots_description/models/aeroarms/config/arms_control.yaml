@@ -7,43 +7,43 @@ aeroarms:
 
   # Position Controllers
   # Left arm
-  left_multi_to_shoulder_position_controller:
+  q1_1_position_controller:
     type: effort_controllers/JointPositionController
-    joint: left_multi_to_shoulder
+    joint: q1_1
     pid: {p: 1.0, i: 0.5, d: 0.0, i_clamp: 2.0}
 
-  left_shoulder_to_upperarm_position_controller:
+  q1_2_position_controller:
     type: effort_controllers/JointPositionController
-    joint: left_shoulder_to_upperarm
+    joint: q1_2
     pid: {p: 1.0, i: 0.5, d: 0.0, i_clamp: 2.0}
 
-  left_upperarm_to_elbow_position_controller:
+  q1_3_position_controller:
     type: effort_controllers/JointPositionController
-    joint: left_upperarm_to_elbow
+    joint: q1_3
     pid: {p: 1.0, i: 0.5, d: 0.0, i_clamp: 2.0}
 
-  left_elbow_to_forearm_position_controller:
+  q1_4_position_controller:
     type: effort_controllers/JointPositionController
-    joint: left_elbow_to_forearm
+    joint: q1_4
     pid: {p: 0.25, i: 0.1, d: 0.0, i_clamp: 1.0}
 
   # Right arm
-  right_multi_to_shoulder_position_controller:
+  q2_1_position_controller:
     type: effort_controllers/JointPositionController
-    joint: right_multi_to_shoulder
+    joint: q2_1
     pid: {p: 1.0, i: 0.5, d: 0.0, i_clamp: 2.0}
 
-  right_shoulder_to_upperarm_position_controller:
+  q2_2_position_controller:
     type: effort_controllers/JointPositionController
-    joint: right_shoulder_to_upperarm
+    joint: q2_2
     pid: {p: 1.0, i: 0.5, d: 0.0, i_clamp: 2.0}
 
-  right_upperarm_to_elbow_position_controller:
+  q2_3_position_controller:
     type: effort_controllers/JointPositionController
-    joint: right_upperarm_to_elbow
+    joint: q2_3
     pid: {p: 1.0, i: 0.5, d: 0.0, i_clamp: 2.0}
 
-  right_elbow_to_forearm_position_controller:
+  q2_4_position_controller:
     type: effort_controllers/JointPositionController
-    joint: right_elbow_to_forearm
+    joint: q2_4
     pid: {p: 0.25, i: 0.1, d: 0.0, i_clamp: 1.0}
