@@ -177,12 +177,12 @@
     </collision>
   </link>
   <joint name="q1_3" type="revolute">
-    <origin xyz="0 13e-3 -250e-3"/>
+    <origin xyz="0 13e-3 -250e-3" rpy="0 ${0.5*pi} 0"/>
     <parent link="left_upperarm"/>
     <child link="left_elbow"/>
     <axis xyz="0 1 0"/>
     <dynamics damping="0.7" friction="0.4"/>
-    <limit effort="5000.0" lower="${-0.5*pi}" upper="${0.5*pi}" velocity="1"/>
+    <limit effort="5000.0" lower="${-pi}" upper="0" velocity="1"/>
   </joint>
 
   <link name="left_forearm">
@@ -352,12 +352,12 @@
     </collision>
   </link>
   <joint name="q2_3" type="revolute">
-    <origin xyz="0 -13e-3 -250e-3"/>
+    <origin xyz="0 -13e-3 -250e-3" rpy="0 ${0.5*pi} 0"/>
     <parent link="right_upperarm"/>
     <child link="right_elbow"/>
     <axis xyz="0 1 0"/>
     <dynamics damping="0.7" friction="0.4"/>
-    <limit effort="5000.0" lower="${-0.5*pi}" upper="${0.5*pi}" velocity="1"/>
+    <limit effort="5000.0" lower="${-pi}" upper="0" velocity="1"/>
   </joint>
 
   <link name="right_forearm">
