@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <!-- Transmission macro -->
+  <xacro:macro name="qside_x_transmission" params="side x">
+    <transmission name="t_${side}_${x}">
+      <type>transmission_interface/SimpleTransmission</type>
+      <joint name="q${side}_${x}">
+        <hardwareInterface>EffortJointInterface</hardwareInterface>
+      </joint>
+      <actuator name="m_${side}_${x}">
+        <hardwareInterface>EffortJointInterface</hardwareInterface>
+        <mechanicalReduction>1</mechanicalReduction>
+      </actuator>
+    </transmission>
+  </xacro:macro>
+
+  <!-- Left arm -->
+  <qside_x_transmission side="1" x="1"/>
+  <qside_x_transmission side="1" x="2"/>
+  <qside_x_transmission side="1" x="3"/>
+  <qside_x_transmission side="1" x="4"/>
+
+  <!-- Right arm -->
+  <qside_x_transmission side="2" x="1"/>
+  <qside_x_transmission side="2" x="2"/>
+  <qside_x_transmission side="2" x="3"/>
+  <qside_x_transmission side="2" x="4"/>
+
+</robot>

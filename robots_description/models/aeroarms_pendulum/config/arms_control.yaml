@@ -1,0 +1,49 @@
+aeroarms:
+
+  # Joint State Controller
+  joint_state_controller:
+    type: joint_state_controller/JointStateController
+    publish_rate: 20
+
+  # Position Controllers
+  # Left arm
+  q1_1_position_controller:
+    type: effort_controllers/JointPositionController
+    joint: q1_1
+    pid: {p: 1.0, i: 0.5, d: 0.0, i_clamp: 2.0}
+
+  q1_2_position_controller:
+    type: effort_controllers/JointPositionController
+    joint: q1_2
+    pid: {p: 1.0, i: 0.5, d: 0.0, i_clamp: 2.0}
+
+  q1_3_position_controller:
+    type: effort_controllers/JointPositionController
+    joint: q1_3
+    pid: {p: 1.0, i: 0.5, d: 0.0, i_clamp: 2.0}
+
+  q1_4_position_controller:
+    type: effort_controllers/JointPositionController
+    joint: q1_4
+    pid: {p: 0.25, i: 0.1, d: 0.0, i_clamp: 1.0}
+
+  # Right arm
+  q2_1_position_controller:
+    type: effort_controllers/JointPositionController
+    joint: q2_1
+    pid: {p: 1.0, i: 0.5, d: 0.0, i_clamp: 2.0}
+
+  q2_2_position_controller:
+    type: effort_controllers/JointPositionController
+    joint: q2_2
+    pid: {p: 1.0, i: 0.5, d: 0.0, i_clamp: 2.0}
+
+  q2_3_position_controller:
+    type: effort_controllers/JointPositionController
+    joint: q2_3
+    pid: {p: 1.0, i: 0.5, d: 0.0, i_clamp: 2.0}
+
+  q2_4_position_controller:
+    type: effort_controllers/JointPositionController
+    joint: q2_4
+    pid: {p: 0.25, i: 0.1, d: 0.0, i_clamp: 1.0}
