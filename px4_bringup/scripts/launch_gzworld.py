@@ -17,6 +17,8 @@ def main():
     parser.add_argument('-physics', type=str, default='ode', help="Gazebo physics engine to use")
     parser.add_argument('-world', type=str, default='worlds/empty.world',
                         help="World file name with respect to GAZEBO_RESOURCE_PATH")
+    parser.add_argument('-add_model_path', type=str, default='',
+                        help="Path to add to GAZEBO_MODEL_PATH")
     args, unknown = parser.parse_known_args()
     utils.check_unknown_args(unknown)
 
@@ -35,6 +37,9 @@ def main():
     gz_env['GAZEBO_MODEL_PATH'] = px4_dir + '/Tools/sitl_gazebo/models' + \
                                  ':' + description_parent_path + \
                                  ':' + current_gz_model_path
+    # TODO: add_model_path should be a list of paths?
+    if args.add_model_path:
+        gz_env['GAZEBO_MODEL_PATH'] += ':' + args.add_model_path
 
     # Get map origin lat-lon-alt from rosparam
     if rospy.has_param('/map_frame'):
