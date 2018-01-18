@@ -126,9 +126,9 @@
 
   <link name="pendulum_shoulder">
     <inertial>
-      <origin xyz="0 0 -0.80"/>
-      <mass value="0.240"/>
-      <inertia ixx="0.0667" ixy="0" ixz="0" iyy="0.066" iyz="0" izz="0.0011"/>
+      <origin xyz="0 0 -0.785"/>
+      <mass value="0.520"/>
+      <inertia ixx="0.0457" ixy="0" ixz="0" iyy="0.045" iyz="0" izz="0.0011"/>
     </inertial>
     <visual>
       <origin xyz="0 0 -0.996"/>
@@ -148,7 +148,7 @@
     <parent link="frame_pendulum_base"/>
     <child link="pendulum_shoulder"/>
     <axis xyz="0 1 0"/>
-    <dynamics damping="0.2" friction="0.1"/>
+    <dynamics damping="0.05" friction="0.05"/>
     <limit effort="5000.0" lower="${-0.5*pi}" upper="${0.5*pi}" velocity="6"/>
   </joint>
 
@@ -238,9 +238,9 @@
 
   <link name="left_forearm">
     <inertial>
-      <origin xyz="0 0 -0.125"/>
-      <mass value="0.100"/>
-      <inertia ixx="5e-04" ixy="0" ixz="0" iyy="5e-04" iyz="0" izz="5e-04"/>
+      <origin xyz="0 0 -0.085"/>
+      <mass value="0.140"/>
+      <inertia ixx="8e-04" ixy="0" ixz="0" iyy="8e-04" iyz="0" izz="5e-04"/>
     </inertial>
     <visual>
       <origin xyz="0 0 0"/>
@@ -350,9 +350,9 @@
 
   <link name="right_forearm">
     <inertial>
-      <origin xyz="0 0 -0.125"/>
-      <mass value="0.100"/>
-      <inertia ixx="5e-04" ixy="0" ixz="0" iyy="5e-04" iyz="0" izz="5e-04"/>
+      <origin xyz="0 0 -0.085"/>
+      <mass value="0.140"/>
+      <inertia ixx="8e-04" ixy="0" ixz="0" iyy="8e-04" iyz="0" izz="5e-04"/>
     </inertial>
     <visual>
       <origin xyz="0 0 0"/>

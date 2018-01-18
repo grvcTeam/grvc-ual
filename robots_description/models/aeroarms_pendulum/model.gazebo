@@ -24,7 +24,7 @@ xmlns:xacro="http://ros.org/wiki/xacro">
   </gazebo> -->
 
   <!-- Gravity at left arm -->
-  <gazebo reference="left_shoulder_roll">
+  <!--gazebo reference="left_shoulder_roll">
     <turnGravityOff>true</turnGravityOff>
   </gazebo>
   <gazebo reference="left_shoulder_yaw">
@@ -35,10 +35,10 @@ xmlns:xacro="http://ros.org/wiki/xacro">
   </gazebo>
   <gazebo reference="left_forearm">
     <turnGravityOff>true</turnGravityOff>
-  </gazebo>
+  </gazebo-->
 
   <!-- Gravity at right arm -->
-  <gazebo reference="right_shoulder_roll">
+  <!--gazebo reference="right_shoulder_roll">
     <turnGravityOff>true</turnGravityOff>
   </gazebo>
   <gazebo reference="right_shoulder_yaw">
@@ -49,7 +49,7 @@ xmlns:xacro="http://ros.org/wiki/xacro">
   </gazebo>
   <gazebo reference="right_forearm">
     <turnGravityOff>true</turnGravityOff>
-  </gazebo>
+  </gazebo-->
 
 <!-- rgbd sensor -->
 <gazebo reference="camera_depth_base_link">
