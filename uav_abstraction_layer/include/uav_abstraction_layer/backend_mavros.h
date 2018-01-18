@@ -90,7 +90,6 @@ private:
     void setFlightMode(const std::string& _flight_mode);
 
     //WaypointList path_;
-    geometry_msgs::PoseStamped home_pose_;
     geometry_msgs::PoseStamped ref_pose_;
     sensor_msgs::NavSatFix     ref_pose_global_;
     geometry_msgs::PoseStamped cur_pose_;
@@ -100,11 +99,11 @@ private:
 
     //Control
     enum class eControlMode {LOCAL_VEL, LOCAL_POSE, GLOBAL_POSE};
-    bool mavros_has_pose_ = false;
     eControlMode control_mode_ = eControlMode::LOCAL_POSE;
     grvc::utils::PidController* pid_x_;
     grvc::utils::PidController* pid_y_;
     grvc::utils::PidController* pid_z_;
+    bool mavros_has_pose_ = false;
 
     /// Ros Communication
     ros::ServiceClient flight_mode_client_;

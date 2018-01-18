@@ -243,15 +243,19 @@ bool UAL::setPositionError(const PositionError& _pos_error) {
 }
 
 bool UAL::recoverFromManual() {
-    // Check required state
-    if (state_ != FLYING) {
-        return false;
-    }
+    // Check required state. TODO: consequences of not checking it!
+    // if (state_ != FLYING) {
+    //     return false;
+    // }
     // Override any previous FLYING function
     if (!backend_->isIdle()) { backend_->abort(); }
 
     // Direct call! TODO: Check nobody explodes!
     backend_->recoverFromManual();
+
+    // Force state. TODO: ckeck consequences of doing this!
+    state_ = FLYING;
+
     return true;
 }
 

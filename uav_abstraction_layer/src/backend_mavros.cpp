@@ -186,11 +186,11 @@ void BackendMavros::takeOff(double _height) {
 
     arm();
     // Set offboard mode after saving home pose
-    home_pose_ = cur_pose_;
+    geometry_msgs::PoseStamped home_pose = cur_pose_;
     // TODO: solve frames issue!
-    local_start_pos_ -= Eigen::Vector3d(home_pose_.pose.position.x, \
-        home_pose_.pose.position.y, home_pose_.pose.position.z);
-    ref_pose_ = home_pose_;
+    local_start_pos_ -= Eigen::Vector3d(home_pose.pose.position.x, \
+        home_pose.pose.position.y, home_pose.pose.position.z);
+    ref_pose_ = home_pose;
     ref_pose_.pose.position.z += _height;
     setFlightMode("OFFBOARD");
 
