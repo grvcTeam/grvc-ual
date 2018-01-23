@@ -81,6 +81,8 @@ public:
     /// Recover from manual flight mode
     /// Use it when FLYING uav is switched to manual mode and want to go BACK to auto.
     void    recoverFromManual() override;
+    /// Set home position
+    void    setHome() override;
 
 private:
     void offboardThreadLoop();

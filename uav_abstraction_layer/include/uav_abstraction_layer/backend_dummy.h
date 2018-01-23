@@ -96,6 +96,10 @@ public:
     void    recoverFromManual() override {
         ROS_INFO("BackendDummy::recoverFromManual");
     }
+    /// Set home position
+    void    setHome() override {
+        ROS_INFO("BackendDummy::setHome");
+    }
 };
 
 }}	// namespace grvc::ual

@@ -48,6 +48,7 @@ UAL::UAL(grvc::utils::ArgumentParser& _args) {
             std::string set_velocity_srv = ual_ns + "/set_velocity";
             std::string set_position_error_srv = ual_ns + "/set_position_error";
             std::string recover_from_manual_srv = ual_ns + "/recover_from_manual";
+            std::string set_home_srv = ual_ns + "/set_home";
             std::string pose_topic = ual_ns + "/pose";
             std::string velocity_topic = ual_ns + "/velocity";
             std::string state_topic = ual_ns + "/state";
@@ -94,6 +95,12 @@ UAL::UAL(grvc::utils::ArgumentParser& _args) {
                 recover_from_manual_srv,
                 [this](std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
                 return this->recoverFromManual();
+            });
+            ros::ServiceServer set_home_service =
+                nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>(
+                set_home_srv,
+                [this](std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
+                return this->setHome();
             });
             ros::Publisher pose_pub = nh.advertise<geometry_msgs::PoseStamped>(pose_topic, 10);
             ros::Publisher velocity_pub = nh.advertise<geometry_msgs::TwistStamped>(velocity_topic, 10);
@@ -282,6 +289,16 @@ std::string UAL::state() {
             break;
     }
     return output;
+}
+
+bool UAL::setHome() {
+    // Check required state
+    if (state_ != LANDED) {
+        return false;
+    }
+    backend_->setHome();
+
+    return true;
 }
 
 }}	// namespace grvc::ual

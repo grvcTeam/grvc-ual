@@ -85,6 +85,9 @@ public:
     /// Call is blocking by definition.
     bool    recoverFromManual();
 
+    /// Set home position (Needed to fix px4 local pose drift)
+    bool    setHome();
+
 protected:
     Backend* backend_;
     std::thread running_thread_;

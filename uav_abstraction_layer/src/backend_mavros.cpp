@@ -181,16 +181,18 @@ void BackendMavros::recoverFromManual() {
     }
 }
 
+void BackendMavros::setHome() {
+    local_start_pos_ = -Eigen::Vector3d(cur_pose_.pose.position.x, \
+        cur_pose_.pose.position.y, cur_pose_.pose.position.z);
+}
+
 void BackendMavros::takeOff(double _height) {
     control_mode_ = eControlMode::LOCAL_POSE;  // Take off control is performed in position (not velocity)
 
     arm();
     // Set offboard mode after saving home pose
-    geometry_msgs::PoseStamped home_pose = cur_pose_;
-    // TODO: solve frames issue!
-    local_start_pos_ -= Eigen::Vector3d(home_pose.pose.position.x, \
-        home_pose.pose.position.y, home_pose.pose.position.z);
-    ref_pose_ = home_pose;
+    setHome();
+    ref_pose_ = cur_pose_;
     ref_pose_.pose.position.z += _height;
     setFlightMode("OFFBOARD");
 
