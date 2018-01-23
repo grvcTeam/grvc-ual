@@ -28,6 +28,7 @@
 #include <uav_abstraction_layer/Land.h>
 #include <uav_abstraction_layer/SetVelocity.h>
 #include <uav_abstraction_layer/SetPositionError.h>
+#include <std_msgs/String.h>
 #include <thread>
 
 namespace grvc { namespace ual {
@@ -94,7 +95,7 @@ protected:
     std::thread server_thread_;
 
     // TODO: public?
-    std::string state();
+    std_msgs::String state();
     enum State {
         LANDED,
         TAKING_OFF,

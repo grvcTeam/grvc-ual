@@ -23,7 +23,6 @@
 #include <ros/ros.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <std_srvs/Empty.h>
-#include <std_msgs/String.h>
 
 using namespace uav_abstraction_layer;
 
@@ -272,21 +271,23 @@ bool UAL::recoverFromManual() {
     return true;
 }
 
-std::string UAL::state() {
-    std::string output = "unknown";
+std_msgs::String UAL::state() {
+    std_msgs::String output;
     switch (state_) {
         case LANDED:
-            output = "LANDED";
+            output.data = "LANDED";
             break;
         case TAKING_OFF:
-            output = "TAKING_OFF";
+            output.data = "TAKING_OFF";
             break;
         case FLYING:
-            output = "FLYING";
+            output.data = "FLYING";
             break;
         case LANDING:
-            output = "LANDING";
+            output.data = "LANDING";
             break;
+        default:
+            output.data= "unknown";
     }
     return output;
 }
