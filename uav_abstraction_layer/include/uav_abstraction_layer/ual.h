@@ -90,7 +90,8 @@ protected:
     std::thread running_thread_;
     std::thread server_thread_;
 
-    // TODO: expose state?
+    // TODO: public?
+    std::string state();
     enum State {
         LANDED,
         TAKING_OFF,

@@ -23,6 +23,7 @@
 #include <ros/ros.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <std_srvs/Empty.h>
+#include <std_msgs/String.h>
 
 using namespace uav_abstraction_layer;
 
@@ -49,6 +50,7 @@ UAL::UAL(grvc::utils::ArgumentParser& _args) {
             std::string recover_from_manual_srv = ual_ns + "/recover_from_manual";
             std::string pose_topic = ual_ns + "/pose";
             std::string velocity_topic = ual_ns + "/velocity";
+            std::string state_topic = ual_ns + "/state";
 
             ros::NodeHandle nh;
             ros::ServiceServer take_off_service =
@@ -95,6 +97,7 @@ UAL::UAL(grvc::utils::ArgumentParser& _args) {
             });
             ros::Publisher pose_pub = nh.advertise<geometry_msgs::PoseStamped>(pose_topic, 10);
             ros::Publisher velocity_pub = nh.advertise<geometry_msgs::TwistStamped>(velocity_topic, 10);
+            ros::Publisher state_pub = nh.advertise<std_msgs::String>(state_topic, 10);
             static tf2_ros::TransformBroadcaster tf_pub;
 
             // Publish @ 10Hz
@@ -102,6 +105,7 @@ UAL::UAL(grvc::utils::ArgumentParser& _args) {
             while (ros::ok()) {
                 pose_pub.publish(this->pose());
                 velocity_pub.publish(this->velocity());
+                state_pub.publish(this->state());
                 tf_pub.sendTransform(this->transform());
                 loop_rate.sleep();
             }
@@ -257,6 +261,25 @@ bool UAL::recoverFromManual() {
     state_ = FLYING;
 
     return true;
+}
+
+std::string UAL::state() {
+    std::string output = "unknown";
+    switch (state_) {
+        case LANDED:
+            output = "LANDED";
+            break;
+        case TAKING_OFF:
+            output = "TAKING_OFF";
+            break;
+        case FLYING:
+            output = "FLYING";
+            break;
+        case LANDING:
+            output = "LANDING";
+            break;
+    }
+    return output;
 }
 
 }}	// namespace grvc::ual
