@@ -199,6 +199,8 @@ bool UAL::land(bool _blocking) {
     if (state_ != FLYING) {
         return false;
     }
+    // Override any previous FLYING function
+    if (!backend_->isIdle()) { backend_->abort(); }
     state_ = LANDING;
 
     if (_blocking) {
