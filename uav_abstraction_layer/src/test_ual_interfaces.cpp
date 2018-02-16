@@ -54,6 +54,10 @@ int main(int _argc, char** _argv) {
     waypoint.pose.position.x = +0.5*square_lenght;
     waypoint.pose.position.y = +0.5*square_lenght;
     waypoint.pose.position.z = flight_level;
+    waypoint.pose.orientation.x = 0;
+    waypoint.pose.orientation.y = 0;
+    waypoint.pose.orientation.z = 0;
+    waypoint.pose.orientation.w = 1;
     path.push_back(waypoint);
     waypoint.pose.position.x = -0.5*square_lenght;
     waypoint.pose.position.y = +0.5*square_lenght;
