@@ -35,6 +35,7 @@
 
 //Mavros messages
 #include <mavros_msgs/State.h>
+#include <mavros_msgs/ExtendedState.h>
 #include <mavros_msgs/GlobalPositionTarget.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
@@ -86,7 +87,7 @@ public:
 
 private:
     void offboardThreadLoop();
-    void arm();
+    void set_armed(bool _value);
     void initHomeFrame();
     bool referencePoseReached() const;
     void setFlightMode(const std::string& _flight_mode);
@@ -98,6 +99,7 @@ private:
     geometry_msgs::TwistStamped ref_vel_;
     geometry_msgs::TwistStamped cur_vel_;
     mavros_msgs::State mavros_state_;
+    mavros_msgs::ExtendedState mavros_extended_state_;
 
     //Control
     enum class eControlMode {LOCAL_VEL, LOCAL_POSE, GLOBAL_POSE};
@@ -116,6 +118,7 @@ private:
     ros::Subscriber mavros_cur_pose_sub_;
     ros::Subscriber mavros_cur_vel_sub_;
     ros::Subscriber mavros_cur_state_sub_;
+    ros::Subscriber mavros_cur_extended_state_sub_;
 
     unsigned int robot_id_;
     std::string pose_frame_id_;

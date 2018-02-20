@@ -57,6 +57,7 @@ BackendMavros::BackendMavros(grvc::utils::ArgumentParser& _args)
     std::string pose_topic = mavros_ns + "/local_position/pose";
     std::string vel_topic = mavros_ns + "/local_position/velocity";
     std::string state_topic = mavros_ns + "/state";
+    std::string extended_state_topic = mavros_ns + "/extended_state";
 
     flight_mode_client_ = nh.serviceClient<mavros_msgs::SetMode>(set_mode_srv.c_str());
     arming_client_ = nh.serviceClient<mavros_msgs::CommandBool>(arming_srv.c_str());
@@ -78,6 +79,10 @@ BackendMavros::BackendMavros(grvc::utils::ArgumentParser& _args)
     mavros_cur_state_sub_ = nh.subscribe<mavros_msgs::State>(state_topic.c_str(), 1, \
         [this](const mavros_msgs::State::ConstPtr& _msg) {
             this->mavros_state_ = *_msg;
+    });
+    mavros_cur_extended_state_sub_ = nh.subscribe<mavros_msgs::ExtendedState>(extended_state_topic.c_str(), 1, \
+        [this](const mavros_msgs::ExtendedState::ConstPtr& _msg) {
+            this->mavros_extended_state_ = *_msg;
     });
 
     // TODO: Check this and solve frames issue
@@ -132,17 +137,19 @@ void BackendMavros::offboardThreadLoop(){
     }
 }
 
-void BackendMavros::arm() {
+void BackendMavros::set_armed(bool _value) {
     mavros_msgs::CommandBool arming_service;
-    arming_service.request.value = true;
+    arming_service.request.value = _value;
     // Arm: unabortable?
-    while (!mavros_state_.armed && ros::ok()) {
+    while (ros::ok()) {
         if (!arming_client_.call(arming_service)) {
             ROS_ERROR("Error in arming service calling!");
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(300));
         ROS_INFO("Arming service response.success = %s", arming_service.response.success ? "true" : "false");
-        ROS_INFO("Trying to arm... mavros_state_.armed = %s", mavros_state_.armed ? "true" : "false");
+        ROS_INFO("Trying to set armed to %s... mavros_state_.armed = %s", _value ? "true" : "false", mavros_state_.armed ? "true" : "false");
+        bool armed = mavros_state_.armed;  // WATCHOUT: bug-prone ros-bool/bool comparison 
+        if (armed == _value) { break; }  // Out-of-while condition
     }
 }
 
@@ -188,7 +195,7 @@ void BackendMavros::setHome() {
 void BackendMavros::takeOff(double _height) {
     control_mode_ = eControlMode::LOCAL_POSE;  // Take off control is performed in position (not velocity)
 
-    arm();
+    set_armed(true);
     // Set offboard mode after saving home pose
     setHome();
     ref_pose_ = cur_pose_;
@@ -210,9 +217,12 @@ void BackendMavros::land() {
     ref_pose_ = cur_pose_;
     ref_pose_.pose.position.z = 0;
     // Landing is unabortable!
-    while (mavros_state_.armed && ros::ok()) {
+    while (ros::ok()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        if (mavros_extended_state_.landed_state == 
+            mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND) { break; }  // Out-of-while condition
     }
+    set_armed(false);  // Now disarm!
     ROS_INFO("Landed!");
 }
 
