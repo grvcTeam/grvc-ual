@@ -150,7 +150,7 @@ def main():
         robot_yaw = 0.0
 
     # Sleep for waiting the world to load
-    rospy.sleep(0.2)
+    rospy.sleep(0.4)
 
     # Minimum z to avoid collision with ground
     z_min = 0.3

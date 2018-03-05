@@ -74,6 +74,7 @@ def main():
                                            env=gz_env, shell=True, preexec_fn=os.setsid)
 
     # Start gazebo client
+    time.sleep(0.2)
     client_args = "rosrun gazebo_ros gzclient"
     client_out = open(temp_dir + '/gzclient.out', 'w')
     client_err = open(temp_dir + '/gzclient.err', 'w')
