@@ -1,0 +1,13 @@
+<launch>
+
+	<arg name="joy" default="js0"/>
+
+	<node name="joy_teleop" pkg="ual_teleop" type="joy_teleop.py"/>
+
+	<!-- joy node -->
+	<node respawn="true" pkg="joy" type="joy_node" name="joy" >
+		<param name="dev" type="string" value="/dev/input/$(arg joy)" />
+		<param name="autorepeat_rate" value="5" />
+	</node>
+
+</launch>
