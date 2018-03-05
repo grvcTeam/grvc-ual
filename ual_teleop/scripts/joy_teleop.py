@@ -4,7 +4,7 @@ import rospy
 import rospkg
 from sensor_msgs.msg import Joy
 from enum import Enum
-from uav_abstraction_layer.srv import *
+from uav_abstraction_layer.srv import TakeOff, Land, SetVelocity 
 from geometry_msgs.msg import TwistStamped
 from std_msgs.msg import String
 
@@ -45,10 +45,7 @@ class JoyHandle:
         self.ros_data = Joy()
         self.buttons_state = []
         with open(config_file, 'r') as config:
-            try:
-                self.layout = yaml.load(config)['joy_layout']
-            except yaml.YAMLError as error:
-                print(error)
+            self.layout = yaml.load(config)['joy_layout']
 
     def update(self, data):
         self.ros_data = data
