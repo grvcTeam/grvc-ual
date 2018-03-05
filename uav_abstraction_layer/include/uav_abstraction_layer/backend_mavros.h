@@ -25,7 +25,6 @@
 #include <Eigen/Core>
 
 #include <uav_abstraction_layer/backend.h>
-#include <argument_parser/argument_parser.h>
 #include <handy_tools/pid_controller.h>
 #include <ros/ros.h>
 
@@ -47,7 +46,7 @@ namespace grvc { namespace ual {
 class BackendMavros : public Backend {
 
 public:
-    BackendMavros(grvc::utils::ArgumentParser& _args);
+    BackendMavros();
 
     /// Backend is initialized and ready to run tasks?
     bool	         isReady() const override;
@@ -120,7 +119,7 @@ private:
     ros::Subscriber mavros_cur_state_sub_;
     ros::Subscriber mavros_cur_extended_state_sub_;
 
-    unsigned int robot_id_;
+    int robot_id_;
     std::string pose_frame_id_;
     std::string uav_home_frame_id_;
     tf2_ros::StaticTransformBroadcaster * static_tf_broadcaster_;

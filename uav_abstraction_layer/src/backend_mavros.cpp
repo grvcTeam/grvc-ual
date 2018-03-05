@@ -22,7 +22,6 @@
 #include <string>
 #include <chrono>
 #include <uav_abstraction_layer/backend_mavros.h>
-#include <argument_parser/argument_parser.h>
 #include <Eigen/Eigen>
 #include <ros/ros.h>
 #include <ros/package.h>
@@ -32,12 +31,15 @@
 
 namespace grvc { namespace ual {
 
-BackendMavros::BackendMavros(grvc::utils::ArgumentParser& _args)
-    : Backend(_args)
+BackendMavros::BackendMavros()
+    : Backend()
 {
     // Parse arguments
-    robot_id_ = _args.getArgument("uav_id", 1);
-    pose_frame_id_ = _args.getArgument<std::string>("pose_frame_id", "");
+    ros::NodeHandle pnh("~");
+    pnh.param<int>("uav_id", robot_id_, 1);
+    pnh.param<std::string>("pose_frame_id", pose_frame_id_, "");
+    std::string ns_prefix;
+    pnh.param<std::string>("ns_prefix", ns_prefix, "uav_");
 
     ROS_INFO("BackendMavros constructor with id %d",robot_id_);
 
@@ -48,7 +50,7 @@ BackendMavros::BackendMavros(grvc::utils::ArgumentParser& _args)
 
     // Init ros communications
     ros::NodeHandle nh;
-    std::string mavros_ns = _args.getArgument<std::string>("ns_prefix", "uav_") + std::to_string(this->robot_id_) + "/mavros";
+    std::string mavros_ns = ns_prefix + std::to_string(this->robot_id_) + "/mavros";
     std::string set_mode_srv = mavros_ns + "/set_mode";
     std::string arming_srv = mavros_ns + "/cmd/arming";
     std::string set_pose_topic = mavros_ns + "/setpoint_position/local";

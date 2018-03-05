@@ -28,14 +28,22 @@ using namespace uav_abstraction_layer;
 
 namespace grvc { namespace ual {
 
-UAL::UAL(grvc::utils::ArgumentParser& _args) {
+UAL::UAL(int _argc, char** _argv) {
+    // Start ROS if not initialized
+    if (!ros::isInitialized()) {
+        // Init ros node
+        ros::init(_argc, _argv, "ual");
+    }
     // Create backend first of all, inits ros node
-    backend_ = Backend::createBackend(_args);
-    robot_id_ = _args.getArgument("uav_id", 1);
-    ns_prefix_ = _args.getArgument<std::string>("ns_prefix", "uav_");
+    backend_ = Backend::createBackend();
+    // Get params
+    ros::NodeHandle pnh("~");
+    pnh.param<int>("uav_id", robot_id_, 1);
+    pnh.param<std::string>("ns_prefix", ns_prefix_, "uav_");
 
     // Start server if explicitly asked
-    std::string server_mode = _args.getArgument<std::string>("ual_server", "off");
+    std::string server_mode;
+    pnh.param<std::string>("ual_server", server_mode, "on");
     // TODO: Consider other modes?
     if (server_mode == "on") {
         server_thread_ = std::thread([this]() {

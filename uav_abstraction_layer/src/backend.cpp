@@ -25,32 +25,28 @@
 
 namespace grvc { namespace ual {
 
-Backend::Backend(grvc::utils::ArgumentParser& _args) {
-    if (!ros::isInitialized()) {
-        int robot_id = _args.getArgument("uav_id", 1);
-        // Init ros node
-        ros::init(_args.argc(), _args.argv(), "ual_" + std::to_string(robot_id));
-        // Make communications spin!
-        spin_thread_ = std::thread([this]() {
-            ros::MultiThreadedSpinner spinner(2); // Use 2 threads
-            spinner.spin();
-        });
-    }
+Backend::Backend() {
+    // Make communications spin!
+    spin_thread_ = std::thread([this]() {
+        ros::MultiThreadedSpinner spinner(2); // Use 2 threads
+        spinner.spin();
+    });
 }
 
-Backend* Backend::createBackend(grvc::utils::ArgumentParser& _args) {
+Backend* Backend::createBackend() {
     Backend* be = nullptr;
     // Decide backend from arguments:
-    // BackendMavros only available
-    std::string selected_backend = _args.getArgument<std::string>("backend", "mavros");
+    ros::NodeHandle nh("~");
+    std::string selected_backend;
+    nh.param<std::string>("backend", selected_backend, "mavros");
     if (selected_backend == "mavros") {
-        be = new BackendMavros(_args);
+        be = new BackendMavros();
     }
     else if (selected_backend == "light") {
-        be = new BackendLight(_args);
+        be = new BackendLight();
     }
     else if (selected_backend == "dummy") {
-        be = new BackendDummy(_args);
+        be = new BackendDummy();
     }
     return be;
 }

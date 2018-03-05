@@ -23,10 +23,7 @@
 
 int main(int _argc, char** _argv) {
 
-    grvc::utils::ArgumentParser args(_argc, _argv);
-    args.setArgument("ual_server", "on");
-
-    grvc::ual::UAL ual(args);
+    grvc::ual::UAL ual(_argc,_argv);
     while (!ual.isReady() && ros::ok()) {
         std::cout << "UAL not ready!" << std::endl;
         sleep(1);

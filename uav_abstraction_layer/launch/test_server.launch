@@ -13,6 +13,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     <arg name="multi" default="false"/>
     <arg name="ns_prefix" default="uav_"/>
     <arg name="mode" default="sitl"/>
+    <arg name="pose_frame_id" default=""/><!-- To publish ual/pose in other frame than local, e.g. map -->
+    <arg name="ual_server" default="on"/>
 
     <!-- Load frame transforms for map and UAVs -->
     <rosparam file="$(find px4_bringup)/config/simulation_params.yaml" command="load" />
@@ -57,13 +59,28 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     </group>
 
     <!-- Launch UAL server for uav id=1 -->
-    <node pkg="uav_abstraction_layer" type="server" name="server_1" output="screen" args="-uav_id=1 -ns_prefix=$(arg ns_prefix)"/>
+    <node pkg="uav_abstraction_layer" type="server" name="server_1" output="screen">
+        <param name="uav_id" value="1"/>
+        <param name="ns_prefix" value="$(arg ns_prefix)"/>
+        <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
+        <param name="ual_server" value="$(arg ual_server)"/>
+    </node>
 
     <group if="$(arg multi)">
         <!-- Launch UAL server for uav id=2 -->
-        <node pkg="uav_abstraction_layer" type="server" name="server_2" output="screen" args="-uav_id=2 -ns_prefix=$(arg ns_prefix)"/>
+        <node pkg="uav_abstraction_layer" type="server" name="server_2" output="screen">
+            <param name="uav_id" value="2"/>
+            <param name="ns_prefix" value="$(arg ns_prefix)"/>
+            <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
+            <param name="ual_server" value="$(arg ual_server)"/>
+        </node>
         <!-- Launch UAL server for uav id=3 -->
-        <node pkg="uav_abstraction_layer" type="server" name="server_3" output="screen" args="-uav_id=3 -ns_prefix=$(arg ns_prefix)"/>
+        <node pkg="uav_abstraction_layer" type="server" name="server_3" output="screen">
+            <param name="uav_id" value="3"/>
+            <param name="ns_prefix" value="$(arg ns_prefix)"/>
+            <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
+            <param name="ual_server" value="$(arg ual_server)"/>
+        </node>
     </group>
 
 </launch>

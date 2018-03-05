@@ -25,7 +25,6 @@
 #include <Eigen/Core>
 
 #include <uav_abstraction_layer/backend.h>
-#include <argument_parser/argument_parser.h>
 #include <ros/ros.h>
 
 #include <geometry_msgs/PoseStamped.h>
@@ -38,7 +37,7 @@ namespace grvc { namespace ual {
 class BackendLight : public Backend {
 
 public:
-    BackendLight(grvc::utils::ArgumentParser& _args);
+    BackendLight();
 
     /// Backend is initialized and ready to run tasks?
     bool	         isReady() const override;
@@ -94,7 +93,7 @@ private:
 
     //Noise
     std::default_random_engine generator_;
-    std::normal_distribution<double> distribution_;
+    std::normal_distribution<double>* distribution_;
 
     //Control
     bool flying_ = false;
@@ -108,7 +107,7 @@ private:
     float k_i_z_ = 0.05;
     float k_d_z_ = 0.0;
 
-    unsigned int robot_id_;
+    int robot_id_;
     float max_h_vel_;
     float max_v_vel_;
     float max_yaw_vel_;

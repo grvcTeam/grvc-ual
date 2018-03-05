@@ -22,7 +22,6 @@
 #define UAV_ABSTRACTION_LAYER_UAL_H
 
 #include <uav_abstraction_layer/backend.h>
-#include <argument_parser/argument_parser.h>
 #include <uav_abstraction_layer/GoToWaypoint.h>
 #include <uav_abstraction_layer/TakeOff.h>
 #include <uav_abstraction_layer/Land.h>
@@ -36,7 +35,7 @@ namespace grvc { namespace ual {
 /// UAL replicates Backend interface, with some extras
 class UAL {
 public:
-    UAL(grvc::utils::ArgumentParser& _args);
+    UAL(int _argc, char** _argv);
     ~UAL();
 
     /// Initialized and ready to run tasks?

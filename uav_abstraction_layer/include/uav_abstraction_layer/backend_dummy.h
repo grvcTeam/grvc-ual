@@ -22,7 +22,6 @@
 #define UAV_ABSTRACTION_LAYER_BACKEND_DUMMY_H
 
 #include <uav_abstraction_layer/backend.h>
-#include <argument_parser/argument_parser.h>
 #include <ros/ros.h>
 
 
@@ -31,7 +30,7 @@ namespace grvc { namespace ual {
 class BackendDummy : public Backend {
 
 public:
-    BackendDummy(grvc::utils::ArgumentParser& _args) : Backend(_args) {
+    BackendDummy() : Backend() {
         ROS_WARN("BackendDummy is only for testing porposes");
     }
 

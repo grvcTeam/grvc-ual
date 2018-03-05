@@ -22,7 +22,6 @@
 #include <string>
 #include <chrono>
 #include <uav_abstraction_layer/backend_light.h>
-#include <argument_parser/argument_parser.h>
 #include <Eigen/Eigen>
 #include <ros/ros.h>
 #include <ros/package.h>
@@ -39,27 +38,34 @@
 
 namespace grvc { namespace ual {
 
-BackendLight::BackendLight(grvc::utils::ArgumentParser& _args)
-    : Backend(_args), generator_(std::chrono::system_clock::now().time_since_epoch().count()), distribution_(0.0,_args.getArgument("noise_var", 0.0))
+BackendLight::BackendLight()
+    : Backend(), generator_(std::chrono::system_clock::now().time_since_epoch().count())
 {
     ROS_INFO("BackendLight constructor");
-
-    // Parse arguments
-    robot_id_ = _args.getArgument("uav_id", 1);
-    pose_frame_id_ = _args.getArgument<std::string>("pose_frame_id", "");
-    max_h_vel_ = _args.getArgument("max_h_vel", 1.6); // m/s
-    max_v_vel_ = _args.getArgument("max_v_vel", 1.2); // m/s
-    max_yaw_vel_ = _args.getArgument("max_yaw_vel", 1.0); // rad/s
-    max_pose_error_ = _args.getArgument("max_pose_error", 0.1); // m
-    max_orient_error_ = _args.getArgument("max_orient_error", 0.01); // rad
 
     // Init ros communications
     ros::NodeHandle nh;
 
+    // Parse arguments
+    ros::NodeHandle pnh("~");
+    pnh.param<int>("uav_id", robot_id_, 1);
+    pnh.param<std::string>("pose_frame_id", pose_frame_id_, "");
+    std::string ns_prefix;
+    pnh.param<std::string>("ns_prefix", ns_prefix, "uav_");
+    pnh.param<float>("max_h_vel", max_h_vel_, 1.6); // m/s
+    pnh.param<float>("max_v_vel", max_v_vel_, 1.2); // m/s
+    pnh.param<float>("max_yaw_vel", max_yaw_vel_, 1.0); // rad/s
+    pnh.param<float>("max_pose_error", max_pose_error_, 0.1); // m
+    pnh.param<float>("max_orient_error", max_orient_error_, 0.01); // rad
+    float noise_var;
+    pnh.param<float>("noise_var", noise_var, 0.0);
+
+    distribution_ = new std::normal_distribution<double>(0.0,noise_var);
+
     initHomeFrame();
 
-    // Create GazeboAnimatedLink object. TODO: Get model name by args
-    link_name_ = _args.getArgument("link_name", std::string("mbzirc_") + std::to_string(robot_id_) + std::string("::base_link"));
+    // Create GazeboAnimatedLink object.
+    pnh.param<std::string>( "link_name", link_name_, std::string("mbzirc_") + std::to_string(robot_id_) + std::string("::base_link") );
     ROS_INFO("Gazebo link name: %s",link_name_.c_str());
 
     std::string link_state_pub_topic = "/gazebo/set_link_state";
@@ -104,9 +110,9 @@ void BackendLight::move() {
     cur_pose_.pose.position.y += t * cur_vel_.twist.linear.y;
     cur_pose_.pose.position.z += t * cur_vel_.twist.linear.z;
 
-    cur_pose_noisy_.pose.position.x = cur_pose_.pose.position.x + distribution_(generator_);
-    cur_pose_noisy_.pose.position.y = cur_pose_.pose.position.y + distribution_(generator_);
-    cur_pose_noisy_.pose.position.z = cur_pose_.pose.position.z + distribution_(generator_);
+    cur_pose_noisy_.pose.position.x = cur_pose_.pose.position.x + distribution_->operator()(generator_);
+    cur_pose_noisy_.pose.position.y = cur_pose_.pose.position.y + distribution_->operator()(generator_);
+    cur_pose_noisy_.pose.position.z = cur_pose_.pose.position.z + distribution_->operator()(generator_);
 
     tf2::Quaternion quat1(cur_pose_.pose.orientation.x,cur_pose_.pose.orientation.y,cur_pose_.pose.orientation.z,cur_pose_.pose.orientation.w);
     tf2::Matrix3x3 m(quat1);
