@@ -58,6 +58,7 @@ class JoyHandle:
         for i, state in enumerate(self.buttons_state):
             self.buttons_state[i] = update_button_state(state, self.ros_data.buttons[i])
 
+    # TODO(franreal): Study other interface functions like is_pressed(id)
     def get_axis(self, id):
         # TODO(franreal): Check id is an axis first?
         if self.layout[id]['reversed']:
@@ -72,6 +73,20 @@ class JoyHandle:
     def get_button_state(self, id):
         # TODO(franreal): Check id is a button first?
         return self.buttons_state[self.layout[id]['index']]
+
+    def __str__(self):
+        output = '---\n'
+        for button in ['a', 'b', 'x', 'y', 
+                       'left_shoulder', 'right_shoulder',
+                       'left_trigger', 'right_trigger',
+                       'select', 'start',
+                       'left_thumb', 'right_thumb']:
+            output = output + button + ': ' + str(self.get_button_state(button)) + '\n'
+        for axis in ['left_analog_x', 'left_analog_y',
+                     'right_analog_x', 'right_analog_y',
+                     'dpad_x', 'dpad_y']:
+            output = output + axis + ': ' + str(self.get_axis(axis)) + '\n'
+        return output
 
 class JoyTeleop:
 
@@ -93,6 +108,7 @@ class JoyTeleop:
 
     def joy_callback(self, data):
         self.joy_handle.update(data)
+        # print self.joy_handle  # DEBUG
         if self.joy_handle.get_button('left_shoulder'):
             if self.joy_handle.get_button_state('x') is ButtonState.JUST_PRESSED:
                 self.take_off(2.0, False)  # TODO(franreal): takeoff height?
@@ -110,7 +126,7 @@ class JoyTeleop:
 
 def main():
     rospy.init_node('joy_teleop', anonymous=True)
-    joy_file = rospkg.RosPack().get_path('ual_teleop') + '/config/8bitdo_nes30_pro.yaml'  # TODO(franreal): argument!
+    joy_file = rospkg.RosPack().get_path('ual_teleop') + '/config/saitek_p3200.yaml'  # TODO(franreal): argument!
     robot_id = 'uav_1'  # TODO(franreal): argument!
     teleop = JoyTeleop(joy_file, robot_id)
     rospy.Subscriber(robot_id + '/ual/state', String, teleop.state_callback)
