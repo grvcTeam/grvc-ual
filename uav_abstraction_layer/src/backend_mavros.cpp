@@ -197,7 +197,7 @@ void BackendMavros::takeOff(double _height) {
 
     set_armed(true);
     // Set offboard mode after saving home pose
-    setHome();
+    // setHome();  // No, total station!
     ref_pose_ = cur_pose_;
     ref_pose_.pose.position.z += _height;
     setFlightMode("OFFBOARD");
