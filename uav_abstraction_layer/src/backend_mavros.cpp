@@ -38,6 +38,13 @@ BackendMavros::BackendMavros(grvc::utils::ArgumentParser& _args)
     // Parse arguments
     robot_id_ = _args.getArgument("uav_id", 1);
     pose_frame_id_ = _args.getArgument<std::string>("pose_frame_id", "");
+    ros::NodeHandle pnh("~");
+    float position_th_param, orientation_th_param;
+    pnh.param<float>("position_th", position_th_param, 0.33);
+    pnh.param<float>("orientation_th", orientation_th_param, 0.65);
+    position_th_ = position_th_param*position_th_param;
+    orientation_th_ = 0.5*(1 - cos(orientation_th_param));
+    ROS_INFO("%f %f",position_th_,orientation_th_);
 
     ROS_INFO("BackendMavros constructor with id %d",robot_id_);
 
@@ -384,7 +391,7 @@ bool BackendMavros::referencePoseReached() const {
     cur_pose_.pose.position.x, cur_pose_.pose.position.y, cur_pose_.pose.position.z);*/
     //ROS_INFO("pD = %f,\t oD = %f", positionD, orientationD);
 
-    if ((positionD > 0.1) || (orientationD > 0.1))  // TODO: define thresholds
+    if ((positionD > position_th_) || (orientationD > orientation_th_))  // TODO: define thresholds
         return false;
     else
         return true;

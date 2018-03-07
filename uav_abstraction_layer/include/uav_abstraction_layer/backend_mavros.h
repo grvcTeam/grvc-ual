@@ -108,6 +108,8 @@ private:
     grvc::utils::PidController* pid_y_;
     grvc::utils::PidController* pid_z_;
     bool mavros_has_pose_ = false;
+    float position_th_;
+    float orientation_th_;
 
     /// Ros Communication
     ros::ServiceClient flight_mode_client_;
