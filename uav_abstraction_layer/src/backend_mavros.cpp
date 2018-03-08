@@ -44,9 +44,9 @@ BackendMavros::BackendMavros(grvc::utils::ArgumentParser& _args)
     pnh.param<float>("orientation_th", orientation_th_param, 0.65);
     position_th_ = position_th_param*position_th_param;
     orientation_th_ = 0.5*(1 - cos(orientation_th_param));
-    ROS_INFO("%f %f",position_th_,orientation_th_);
 
     ROS_INFO("BackendMavros constructor with id %d",robot_id_);
+    // ROS_INFO("BackendMavros: thresholds = %f %f", position_th_, orientation_th_);
 
     // Init controllers  // TODO: PID? Tune!
     pid_x_ = new grvc::utils::PidController("x", 0.4, 0.07, 0.0);
@@ -95,7 +95,7 @@ BackendMavros::BackendMavros(grvc::utils::ArgumentParser& _args)
     // TODO: Check this and solve frames issue
     // Wait until we have pose
     while (!mavros_has_pose_ && ros::ok()) {
-        //ROS_INFO("Waiting for pose");
+        // ROS_INFO("BackendMavros: Waiting for pose");
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
     initHomeFrame();
@@ -108,7 +108,12 @@ BackendMavros::BackendMavros(grvc::utils::ArgumentParser& _args)
 
 void BackendMavros::offboardThreadLoop(){
     // TODO: Check this frequency
-    ros::Rate rate(10);  // [Hz]
+    offboard_thread_frequency_ = 10;  // [Hz]
+    double hold_pose_time = 3.0;  // [s]  TODO param?
+    int buffer_size = std::ceil(hold_pose_time * offboard_thread_frequency_);
+    position_error_.set_size(buffer_size);
+    orientation_error_.set_size(buffer_size);
+    ros::Rate rate(offboard_thread_frequency_);
     while (ros::ok()) {
         switch(control_mode_){
         case eControlMode::LOCAL_VEL:
@@ -140,6 +145,21 @@ void BackendMavros::offboardThreadLoop(){
             mavros_ref_pose_global_pub_.publish(msg);
             break;
         }
+        // Error history update
+        double dx = ref_pose_.pose.position.x - cur_pose_.pose.position.x;
+        double dy = ref_pose_.pose.position.y - cur_pose_.pose.position.y;
+        double dz = ref_pose_.pose.position.z - cur_pose_.pose.position.z;
+        double positionD = dx*dx + dy*dy + dz*dz; // Equals distance^2
+
+        double quatInnerProduct = ref_pose_.pose.orientation.x*cur_pose_.pose.orientation.x + \
+        ref_pose_.pose.orientation.y*cur_pose_.pose.orientation.y + \
+        ref_pose_.pose.orientation.z*cur_pose_.pose.orientation.z + \
+        ref_pose_.pose.orientation.w*cur_pose_.pose.orientation.w;
+        double orientationD = 1.0 - quatInnerProduct*quatInnerProduct;  // Equals (1-cos(rotation))/2
+
+        position_error_.update(positionD);
+        orientation_error_.update(orientationD);
+
         rate.sleep();
     }
 }
@@ -177,7 +197,7 @@ void BackendMavros::setFlightMode(const std::string& _flight_mode) {
         ROS_INFO("Set flight mode [%s] response.success = %s", _flight_mode.c_str(), \
             flight_mode_service.response.mode_sent ? "true" : "false");
 #endif
-        ROS_INFO("Trying to set offboard mode; mavros_state_.mode = %s", mavros_state_.mode.c_str());
+        ROS_INFO("Trying to set [%s] mode; mavros_state_.mode = [%s]", _flight_mode.c_str(), mavros_state_.mode.c_str());
     }
 }
 
@@ -290,6 +310,8 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
     homogen_world_pos.pose.position.z -= local_start_pos_[2];
 
     ref_pose_.pose = homogen_world_pos.pose;
+    position_error_.reset();
+    orientation_error_.reset();
 
     // Wait until we arrive: abortable
     while(!referencePoseReached() && !abort_ && ros::ok()) {
@@ -374,27 +396,25 @@ Transform BackendMavros::transform() const {
     return out;
 }
 
-bool BackendMavros::referencePoseReached() const {
-    double dx = ref_pose_.pose.position.x - cur_pose_.pose.position.x;
-    double dy = ref_pose_.pose.position.y - cur_pose_.pose.position.y;
-    double dz = ref_pose_.pose.position.z - cur_pose_.pose.position.z;
-    double positionD = dx*dx + dy*dy + dz*dz; // Equals distance^2
+bool BackendMavros::referencePoseReached() {
 
-    double quatInnerProduct = ref_pose_.pose.orientation.x*cur_pose_.pose.orientation.x + \
-    ref_pose_.pose.orientation.y*cur_pose_.pose.orientation.y + \
-    ref_pose_.pose.orientation.z*cur_pose_.pose.orientation.z + \
-    ref_pose_.pose.orientation.w*cur_pose_.pose.orientation.w;
-    double orientationD = 1 - quatInnerProduct*quatInnerProduct;  // Equals (1-cos(rotation))/2
+    double position_min, position_mean, position_max;
+    double orientation_min, orientation_mean, orientation_max;
+    if (!position_error_.metrics(position_min, position_mean, position_max)) { return false; }
+    if (!orientation_error_.metrics(orientation_min, orientation_mean, orientation_max)) { return false; }
+    
+    double position_diff = position_max - position_min;
+    double orientation_diff = orientation_max - orientation_min;
+    bool position_holds = (position_diff < position_th_) && (fabs(position_mean) < 0.5*position_th_);
+    bool orientation_holds = (orientation_diff < orientation_th_) && (fabs(orientation_mean) < 0.5*orientation_th_);
 
-    /*ROS_INFO("ref_position = [%f, %f, %f] cur_position = [%f, %f, %f]", \
-    ref_pose_.pose.position.x, ref_pose_.pose.position.y, ref_pose_.pose.position.z, \
-    cur_pose_.pose.position.x, cur_pose_.pose.position.y, cur_pose_.pose.position.z);*/
-    //ROS_INFO("pD = %f,\t oD = %f", positionD, orientationD);
+    // if (position_holds && orientation_holds) {  // DEBUG
+    //     ROS_INFO("position: %f < %f) && (%f < %f)", position_diff, position_th_, fabs(position_mean), 0.5*position_th_);
+    //     ROS_INFO("orientation: %f < %f) && (%f < %f)", orientation_diff, orientation_th_, fabs(orientation_mean), 0.5*orientation_th_);
+    //     ROS_INFO("Arrived!");
+    // }
 
-    if ((positionD > position_th_) || (orientationD > orientation_th_))  // TODO: define thresholds
-        return false;
-    else
-        return true;
+    return position_holds && orientation_holds;
 }
 
 void BackendMavros::initHomeFrame() {
