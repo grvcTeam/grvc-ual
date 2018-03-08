@@ -43,11 +43,6 @@ BackendMavros::BackendMavros()
 
     ROS_INFO("BackendMavros constructor with id %d",robot_id_);
 
-    // Init controllers  // TODO: PID? Tune!
-    pid_x_ = new grvc::utils::PidController("x", 0.4, 0.07, 0.0);
-    pid_y_ = new grvc::utils::PidController("y", 0.4, 0.07, 0.0);
-    pid_z_ = new grvc::utils::PidController("z", 0.4, 0.05, 0.0);
-
     // Init ros communications
     ros::NodeHandle nh;
     std::string mavros_ns = ns_prefix + std::to_string(this->robot_id_) + "/mavros";
@@ -232,16 +227,6 @@ void BackendMavros::setVelocity(const Velocity& _vel) {
     control_mode_ = eControlMode::LOCAL_VEL;  // Velocity control!
     // TODO: _vel world <-> body tf...
     ref_vel_ = _vel;
-}
-
-void BackendMavros::setPositionError(const PositionError& _pos_error) {
-    double dt = 0.03;  // TODO: use time in headers?
-    Velocity vel;
-    vel.twist.linear.x = pid_x_->control_signal(_pos_error.vector.x, dt);
-    vel.twist.linear.y = pid_y_->control_signal(_pos_error.vector.y, dt);
-    vel.twist.linear.z = pid_z_->control_signal(_pos_error.vector.z, dt);
-    vel.twist.angular.z  = 0.0;
-    setVelocity(vel);
 }
 
 bool BackendMavros::isReady() const {

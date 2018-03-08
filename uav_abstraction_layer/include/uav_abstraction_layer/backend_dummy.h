@@ -85,11 +85,6 @@ public:
     void    setVelocity(const Velocity& _vel) override {
         ROS_INFO("BackendDummy::setVelocity: vx = %f, vy = %f, vz = %f, wz = %f", _vel.twist.linear.x, _vel.twist.linear.y, _vel.twist.linear.z, _vel.twist.angular.z);
     }
-    /// Set position error control
-    /// \param _pos_error position error in world coordinates
-    void	setPositionError(const PositionError& _pos_error) override {
-        ROS_INFO("BackendDummy::setPositionError: ex = %f, ey = %f, ez = %f", _pos_error.vector.x, _pos_error.vector.y, _pos_error.vector.z);
-    }
     /// Recover from manual flight mode
     /// Use it when FLYING uav is switched to manual mode and want to go BACK to auto.
     void    recoverFromManual() override {

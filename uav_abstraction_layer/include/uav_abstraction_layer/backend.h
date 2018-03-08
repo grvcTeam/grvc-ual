@@ -92,9 +92,6 @@ public:
     /// Set velocities
     /// \param _vel target velocity in world coordinates
     virtual void    setVelocity(const Velocity& _vel) = 0;
-    /// Set position error control
-    /// \param _pos_error position error in world coordinates
-    virtual void	setPositionError(const PositionError& _pos_error) = 0;
     /// Recover from manual flight mode
     /// Use it when FLYING uav is switched to manual mode and want to go BACK to auto.
     virtual void    recoverFromManual() = 0;

@@ -25,7 +25,6 @@
 #include <Eigen/Core>
 
 #include <uav_abstraction_layer/backend.h>
-#include <handy_tools/pid_controller.h>
 #include <ros/ros.h>
 
 //Mavros services
@@ -75,9 +74,6 @@ public:
     /// Set velocities
     /// \param _vel target velocity in world coordinates
     void    setVelocity(const Velocity& _vel) override;
-    /// Set position error control
-    /// \param _pos_error position error in world coordinates
-    void	setPositionError(const PositionError& _pos_error) override;
     /// Recover from manual flight mode
     /// Use it when FLYING uav is switched to manual mode and want to go BACK to auto.
     void    recoverFromManual() override;
@@ -103,9 +99,6 @@ private:
     //Control
     enum class eControlMode {LOCAL_VEL, LOCAL_POSE, GLOBAL_POSE};
     eControlMode control_mode_ = eControlMode::LOCAL_POSE;
-    grvc::utils::PidController* pid_x_;
-    grvc::utils::PidController* pid_y_;
-    grvc::utils::PidController* pid_z_;
     bool mavros_has_pose_ = false;
 
     /// Ros Communication

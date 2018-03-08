@@ -76,10 +76,6 @@ public:
     /// \param _vel target velocity in world coordinates
     bool    setVelocity(const Velocity& _vel);
 
-    /// Set position error control
-    /// \param _pos_error position error in world coordinates
-    bool	setPositionError(const PositionError& _pos_error);
-
     /// Recover from manual flight mode
     /// Use it when FLYING uav is switched to manual mode and want to go BACK to auto.
     /// Call is blocking by definition.

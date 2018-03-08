@@ -91,12 +91,6 @@ UAL::UAL(int _argc, char** _argv) {
                 [this](SetVelocity::Request &req, SetVelocity::Response &res) {
                 return this->setVelocity(req.velocity);
             });
-            ros::ServiceServer set_position_error_service =
-                nh.advertiseService<SetPositionError::Request, SetPositionError::Response>(
-                set_position_error_srv,
-                [this](SetPositionError::Request &req, SetPositionError::Response &res) {
-                return this->setPositionError(req.position_error);
-            });
             ros::ServiceServer recover_from_manual_service =
                 nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>(
                 recover_from_manual_srv,
@@ -246,19 +240,6 @@ bool UAL::setVelocity(const Velocity& _vel) {
 
     // Function is non-blocking in backend TODO: non-thread-safe-call?
     backend_->threadSafeCall(&Backend::setVelocity, _vel);
-    return true;
-}
-
-bool UAL::setPositionError(const PositionError& _pos_error) {
-    // Check required state
-    if (state_ != FLYING) {
-        return false;
-    }
-    // Override any previous FLYING function
-    if (!backend_->isIdle()) { backend_->abort(); }
-
-    // Function is non-blocking in backend TODO: non-thread-safe-call?
-    backend_->threadSafeCall(&Backend::setPositionError, _pos_error);
     return true;
 }
 

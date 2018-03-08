@@ -9,7 +9,6 @@ add_definitions(-std=c++11)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   message_generation
-  handy_tools
   geometry_msgs
   mavros
   mavros_msgs

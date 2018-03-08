@@ -223,25 +223,6 @@ void BackendLight::setVelocity(const Velocity& _vel) {
     ref_vel_ = _vel;
 }
 
-void BackendLight::setPositionError(const PositionError& _pos_error) {
-    Eigen::Vector3d vector_error = {_pos_error.vector.x, _pos_error.vector.y, _pos_error.vector.z};
-    double dt = 0.03;  // TODO: use time in headers?
-    integral_control_vel_ += vector_error * dt;
-    Velocity vel;
-    // TODO: create pid util?
-    vel.twist.linear.x = p_gain_xy_ * vector_error[0] + \
-        k_i_xy_ * integral_control_vel_[0] + \
-        k_d_xy_ * (vector_error[0] - previous_error_control_vel_[0]) / dt;
-    vel.twist.linear.y = p_gain_xy_ * vector_error[1] + \
-        k_i_xy_ * integral_control_vel_[1] + \
-        k_d_xy_ * (vector_error[1] - previous_error_control_vel_[1]) / dt;
-    vel.twist.linear.z = p_gain_z_ * vector_error[2] + \
-        k_i_z_ * integral_control_vel_[2] + \
-        k_d_z_ * (vector_error[2] - previous_error_control_vel_[2]) / dt;
-    vel.twist.angular.z  = 0.0;
-    setVelocity(vel);
-}
-
 void BackendLight::goToWaypoint(const Waypoint& _world) {
     control_in_vel_ = false;  // Control in position
 
@@ -367,7 +348,6 @@ bool BackendLight::referencePoseReached() const {
 void BackendLight::initHomeFrame() {
 
     uav_home_frame_id_ = "uav_" + std::to_string(robot_id_) + "_home";
-    local_start_pos_ << 0.0, 0.0, 0.0;
 
     // Get frame from rosparam
     std::string frame_id;
