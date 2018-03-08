@@ -30,12 +30,13 @@ Backend::Backend(grvc::utils::ArgumentParser& _args) {
         int robot_id = _args.getArgument("uav_id", 1);
         // Init ros node
         ros::init(_args.argc(), _args.argv(), "ual_" + std::to_string(robot_id));
-        // Make communications spin!
-        spin_thread_ = std::thread([this]() {
-            ros::MultiThreadedSpinner spinner(2); // Use 2 threads
-            spinner.spin();
-        });
     }
+    // Make communications spin!
+    spin_thread_ = std::thread([this]() {
+        ros::MultiThreadedSpinner spinner(2); // Use 2 threads
+        spinner.spin();
+    });
+
 }
 
 Backend* Backend::createBackend(grvc::utils::ArgumentParser& _args) {
