@@ -13,6 +13,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     <arg name="multi" default="false"/>
     <arg name="backend" default="light"/>
     <arg name="ns_prefix" default="uav_"/>
+    <arg name="pose_frame_id" default="map"/><!-- To publish ual/pose in other frame than local, e.g. map -->
+    <arg name="ual_server" default="on"/>
     <arg name="noise_var" default="0.0"/>
     <arg name="max_pose_error" default="0.1"/>
 
@@ -40,16 +42,37 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     </group>
 
     <!-- Launch UAL server for uav id=1 -->
-    <node pkg="uav_abstraction_layer" type="server" name="server_1" output="screen"
-        args="-uav_id=1 -ns_prefix=$(arg ns_prefix) -backend=$(arg backend) -pose_frame_id=map -noise_var=$(arg noise_var) -max_pose_error=$(arg max_pose_error)"/>
+    <node pkg="uav_abstraction_layer" type="server" name="server_1" output="screen">
+        <param name="uav_id" value="1"/>
+        <param name="backend" value="$(arg backend)"/>
+        <param name="ns_prefix" value="$(arg ns_prefix)"/>
+        <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
+        <param name="ual_server" value="$(arg ual_server)"/>
+        <param name="noise_var" value="$(arg noise_var)"/>
+        <param name="max_pose_error" value="$(arg max_pose_error)"/>
+    </node>
 
     <group if="$(arg multi)">
         <!-- Launch UAL server for uav id=2 -->
-        <node pkg="uav_abstraction_layer" type="server" name="server_2" output="screen"
-            args="-uav_id=2 -ns_prefix=$(arg ns_prefix) -backend=$(arg backend) -pose_frame_id=map -noise_var=$(arg noise_var) -max_pose_error=$(arg max_pose_error)"/>
+        <node pkg="uav_abstraction_layer" type="server" name="server_2" output="screen">
+            <param name="uav_id" value="2"/>
+            <param name="backend" value="$(arg backend)"/>
+            <param name="ns_prefix" value="$(arg ns_prefix)"/>
+            <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
+            <param name="ual_server" value="$(arg ual_server)"/>
+            <param name="noise_var" value="$(arg noise_var)"/>
+            <param name="max_pose_error" value="$(arg max_pose_error)"/>
+        </node>
         <!-- Launch UAL server for uav id=3 -->
-        <node pkg="uav_abstraction_layer" type="server" name="server_3" output="screen"
-            args="-uav_id=3 -ns_prefix=$(arg ns_prefix) -backend=$(arg backend) -pose_frame_id=map -noise_var=$(arg noise_var) -max_pose_error=$(arg max_pose_error)"/>
+        <node pkg="uav_abstraction_layer" type="server" name="server_3" output="screen">
+            <param name="uav_id" value="3"/>
+            <param name="backend" value="$(arg backend)"/>
+            <param name="ns_prefix" value="$(arg ns_prefix)"/>
+            <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
+            <param name="ual_server" value="$(arg ual_server)"/>
+            <param name="noise_var" value="$(arg noise_var)"/>
+            <param name="max_pose_error" value="$(arg max_pose_error)"/>
+        </node>
     </group>
 
 </launch>
