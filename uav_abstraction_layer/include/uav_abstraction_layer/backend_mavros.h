@@ -22,6 +22,7 @@
 #define UAV_ABSTRACTION_LAYER_BACKEND_MAVROS_H
 
 #include <thread>
+#include <deque>
 #include <Eigen/Core>
 
 #include <uav_abstraction_layer/backend.h>
@@ -41,6 +42,48 @@
 #include <tf2_ros/static_transform_broadcaster.h>
 
 namespace grvc { namespace ual {
+
+class HistoryBuffer {  // TODO: template? utils?
+public:
+    void set_size(size_t _size) { buffer_size_ = _size; }
+
+    void reset() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        buffer_.clear();
+    }
+
+    void update(double _value) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        buffer_.push_back(_value);
+        if (buffer_.size() > buffer_size_) {
+            buffer_.pop_front();
+        }
+    }
+
+    bool metrics(double& _min, double& _mean, double& _max) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (buffer_.size() >= buffer_size_) {
+            double min_value = +std::numeric_limits<double>::max();
+            double max_value = -std::numeric_limits<double>::max();
+            double sum = 0;
+            for (int i = 0; i < buffer_.size(); i++) {
+                if (buffer_[i] < min_value) { min_value = buffer_[i]; }
+                if (buffer_[i] > max_value) { max_value = buffer_[i]; }
+                sum += buffer_[i];
+            }
+            _min = min_value;
+            _max = max_value;
+            _mean = sum / buffer_.size();
+            return true;
+        }
+        return false;
+    }
+
+protected:
+    size_t buffer_size_ = 0;
+    std::deque<double> buffer_;
+    std::mutex mutex_;
+};
 
 class BackendMavros : public Backend {
 
@@ -84,7 +127,7 @@ private:
     void offboardThreadLoop();
     void set_armed(bool _value);
     void initHomeFrame();
-    bool referencePoseReached() const;
+    bool referencePoseReached();
     void setFlightMode(const std::string& _flight_mode);
 
     //WaypointList path_;
@@ -100,6 +143,10 @@ private:
     enum class eControlMode {LOCAL_VEL, LOCAL_POSE, GLOBAL_POSE};
     eControlMode control_mode_ = eControlMode::LOCAL_POSE;
     bool mavros_has_pose_ = false;
+    float position_th_;
+    float orientation_th_;
+    HistoryBuffer position_error_;
+    HistoryBuffer orientation_error_;
 
     /// Ros Communication
     ros::ServiceClient flight_mode_client_;
@@ -120,6 +167,7 @@ private:
     Eigen::Vector3d local_start_pos_;
 
     std::thread offboard_thread_;
+    double offboard_thread_frequency_;  // TODO: param?
 };
 
 }}	// namespace grvc::ual
