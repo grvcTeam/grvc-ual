@@ -41,7 +41,7 @@ def main():
 
     # Spawn px4
     px4_src = rospack.get_path("px4")
-    px4_bin = px4_src + "/build_posix_sitl_default/src/firmware/posix/px4"
+    px4_bin = px4_src + "/build/posix_sitl_default/px4"
     px4_args = px4_bin + " " + px4_src + " " + modified_cmds
     px4_out = open(temp_dir+"/px4.out", 'w')
     px4_err = open(temp_dir+"/px4.err", 'w')

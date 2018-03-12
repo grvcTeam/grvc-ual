@@ -29,7 +29,7 @@ def main():
     # Set environment variables as in px4/Firmware/Tools/setup_gazebo.bash
     gz_env = os.environ.copy()
     current_gz_plugin_path = gz_env.get('GAZEBO_PLUGIN_PATH', '')
-    gz_env['GAZEBO_PLUGIN_PATH'] = px4_dir + '/build_posix_sitl_default/build_gazebo' + \
+    gz_env['GAZEBO_PLUGIN_PATH'] = px4_dir + '/build/posix_sitl_default/build_gazebo' + \
                                    ':' + current_gz_plugin_path
     current_gz_model_path = gz_env.get('GAZEBO_MODEL_PATH', '')
     description_parent_path = os.path.abspath(os.path.join(\
