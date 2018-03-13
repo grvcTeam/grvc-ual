@@ -125,7 +125,7 @@ public:
 
 private:
     void offboardThreadLoop();
-    void set_armed(bool _value);
+    void setArmed(bool _value);
     void initHomeFrame();
     bool referencePoseReached();
     void setFlightMode(const std::string& _flight_mode);

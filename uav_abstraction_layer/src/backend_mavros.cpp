@@ -160,7 +160,7 @@ void BackendMavros::offboardThreadLoop(){
     }
 }
 
-void BackendMavros::set_armed(bool _value) {
+void BackendMavros::setArmed(bool _value) {
     mavros_msgs::CommandBool arming_service;
     arming_service.request.value = _value;
     // Arm: unabortable?
@@ -218,9 +218,7 @@ void BackendMavros::setHome() {
 void BackendMavros::takeOff(double _height) {
     control_mode_ = eControlMode::LOCAL_POSE;  // Take off control is performed in position (not velocity)
 
-    set_armed(true);
-    // Set offboard mode after saving home pose
-    // setHome();  // No, total station!
+    setArmed(true);
     ref_pose_ = cur_pose_;
     ref_pose_.pose.position.z += _height;
     setFlightMode("OFFBOARD");
@@ -245,7 +243,7 @@ void BackendMavros::land() {
         if (mavros_extended_state_.landed_state == 
             mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND) { break; }  // Out-of-while condition
     }
-    set_armed(false);  // Now disarm!
+    setArmed(false);  // Now disarm!
     ROS_INFO("Landed!");
 }
 
