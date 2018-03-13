@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(uav_abstraction_layer)
 
+set(GRVC_UAL_VERSION 1.7)
+
 ## Add support for C++11, supported in ROS Kinetic and newer
 add_definitions(-std=c++11)
 
@@ -192,6 +194,19 @@ target_link_libraries(server
   ${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )
+
+###################
+## Documentation ##
+###################
+
+find_package(Doxygen)
+if(DOXYGEN_FOUND)
+	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile @ONLY)
+	add_custom_target(doc_grvc_ual
+	${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
+	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+	COMMENT "Generating API documentation with Doxygen" VERBATIM )
+endif(DOXYGEN_FOUND)
 
 #############
 ## Install ##
