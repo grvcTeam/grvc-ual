@@ -86,6 +86,7 @@ public:
     bool    setHome();
 
 protected:
+    void init();
     Backend* backend_;
     std::thread running_thread_;
     std::thread server_thread_;

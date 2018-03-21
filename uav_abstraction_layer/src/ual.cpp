@@ -34,7 +34,7 @@ UAL::UAL(int _argc, char** _argv) {
         // Init ros node
         ros::init(_argc, _argv, "ual");
     }
-    UAL();
+    this->init();
 }
 
 UAL::UAL() {
@@ -44,6 +44,10 @@ UAL::UAL() {
         ROS_ERROR("UAL needs ROS to be initialized. Initialize ROS before creating UAL object or use UAL(int _argc, char** _argv) constructor.");
         exit(0);
     }
+    this->init();
+}
+
+void UAL::init() {
     // Create backend first of all, inits ros node
     backend_ = Backend::createBackend();
     // Get params
