@@ -25,7 +25,6 @@
 #include <Eigen/Core>
 
 #include <uav_abstraction_layer/backend.h>
-#include <argument_parser/argument_parser.h>
 #include <ros/ros.h>
 
 #include <geometry_msgs/PoseStamped.h>
@@ -38,7 +37,7 @@ namespace grvc { namespace ual {
 class BackendLight : public Backend {
 
 public:
-    BackendLight(grvc::utils::ArgumentParser& _args);
+    BackendLight();
 
     /// Backend is initialized and ready to run tasks?
     bool	         isReady() const override;
@@ -65,9 +64,6 @@ public:
     /// Set velocities
     /// \param _vel target velocity in world coordinates
     void    setVelocity(const Velocity& _vel) override;
-    /// Set position error control
-    /// \param _pos_error position error in world coordinates
-    void	setPositionError(const PositionError& _pos_error) override;
     /// Recover from manual flight mode
     /// Use it when FLYING uav is switched to manual mode and want to go BACK to auto.
     void    recoverFromManual() override {}
@@ -94,31 +90,22 @@ private:
 
     //Noise
     std::default_random_engine generator_;
-    std::normal_distribution<double> distribution_;
+    std::normal_distribution<double>* distribution_;
 
     //Control
     bool flying_ = false;
     bool control_in_vel_ = false;
-    Eigen::Vector3d integral_control_vel_ = {0,0,0};
-    Eigen::Vector3d previous_error_control_vel_ = {0,0,0};
-    float p_gain_xy_ = 0.4;  // TODO: PID? Tune!
-    float k_i_xy_ = 0.07;
-    float k_d_xy_ = 0.0;
-    float p_gain_z_ = 0.4;  // TODO: PID? Tune!
-    float k_i_z_ = 0.05;
-    float k_d_z_ = 0.0;
-
-    unsigned int robot_id_;
     float max_h_vel_;
     float max_v_vel_;
     float max_yaw_vel_;
     float max_pose_error_;
     float max_orient_error_;
+
+    int robot_id_;
     std::string pose_frame_id_;
     std::string uav_home_frame_id_;
     tf2_ros::StaticTransformBroadcaster * static_tf_broadcaster_;
     std::map <std::string, geometry_msgs::TransformStamped> cached_transforms_;
-    Eigen::Vector3d local_start_pos_;
 
     std::thread offboard_thread_;
 };

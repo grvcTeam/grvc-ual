@@ -8,6 +8,8 @@
   <xacro:arg name='mavlink_udp_port' default='14560' />
   <xacro:arg name='visual_material' default='DarkGrey' />
   <xacro:arg name='enable_mavlink_interface' default='true' />
+  <xacro:arg name='enable_gps_plugin' default='true' />
+  <xacro:arg name='gps_noise' default='true' />
   <xacro:arg name='enable_ground_truth' default='false' />
   <xacro:arg name='enable_logging' default='false' />
 
@@ -16,6 +18,15 @@
 
   <!-- Instantiate iris "mechanics" -->
   <xacro:include filename="$(find robots_description)/models/iris/geometry.xacro" />
+
+  <xacro:if value="$(arg enable_gps_plugin)">
+    <!-- Instantiate gps plugin. -->
+    <xacro:gps_plugin_macro
+      namespace="${namespace}"
+      gps_noise="$(arg gps_noise)"
+      >
+    </xacro:gps_plugin_macro>
+  </xacro:if>
 
   <xacro:if value="$(arg enable_mavlink_interface)">
   <!-- Instantiate mavlink telemetry interface. -->

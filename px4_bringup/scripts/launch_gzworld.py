@@ -29,7 +29,7 @@ def main():
     # Set environment variables as in px4/Firmware/Tools/setup_gazebo.bash
     gz_env = os.environ.copy()
     current_gz_plugin_path = gz_env.get('GAZEBO_PLUGIN_PATH', '')
-    gz_env['GAZEBO_PLUGIN_PATH'] = px4_dir + '/build_posix_sitl_default/build_gazebo' + \
+    gz_env['GAZEBO_PLUGIN_PATH'] = px4_dir + '/build/posix_sitl_default/build_gazebo' + \
                                    ':' + current_gz_plugin_path
     current_gz_model_path = gz_env.get('GAZEBO_MODEL_PATH', '')
     description_parent_path = os.path.abspath(os.path.join(\
@@ -42,14 +42,7 @@ def main():
         gz_env['GAZEBO_MODEL_PATH'] += ':' + args.add_model_path
 
     # Get map origin lat-lon-alt from rosparam
-    if rospy.has_param('/map_frame'):
-        map_frame_dict = rospy.get_param('/map_frame')
-        if map_frame_dict['units']=='GPS':
-            latlonalt = map_frame_dict['translation']
-        else:
-            #TODO UTM to LAT-LON
-            pass
-    elif rospy.has_param('/sim_origin'):
+    if rospy.has_param('/sim_origin'):
         latlonalt = rospy.get_param('/sim_origin')
     else:
         latlonalt = [0.0, 0.0, 0.0]
@@ -74,6 +67,7 @@ def main():
                                            env=gz_env, shell=True, preexec_fn=os.setsid)
 
     # Start gazebo client
+    time.sleep(0.2)
     client_args = "rosrun gazebo_ros gzclient"
     client_out = open(temp_dir + '/gzclient.out', 'w')
     client_err = open(temp_dir + '/gzclient.err', 'w')

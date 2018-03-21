@@ -28,14 +28,36 @@ using namespace uav_abstraction_layer;
 
 namespace grvc { namespace ual {
 
-UAL::UAL(grvc::utils::ArgumentParser& _args) {
+UAL::UAL(int _argc, char** _argv) {
+    // Start ROS if not initialized
+    if (!ros::isInitialized()) {
+        // Init ros node
+        ros::init(_argc, _argv, "ual");
+    }
+    this->init();
+}
+
+UAL::UAL() {
+    // Error if ROS is not initialized
+    if (!ros::isInitialized()) {
+        // Init ros node
+        ROS_ERROR("UAL needs ROS to be initialized. Initialize ROS before creating UAL object or use UAL(int _argc, char** _argv) constructor.");
+        exit(0);
+    }
+    this->init();
+}
+
+void UAL::init() {
     // Create backend first of all, inits ros node
-    backend_ = Backend::createBackend(_args);
-    robot_id_ = _args.getArgument("uav_id", 1);
-    ns_prefix_ = _args.getArgument<std::string>("ns_prefix", "uav_");
+    backend_ = Backend::createBackend();
+    // Get params
+    ros::NodeHandle pnh("~");
+    pnh.param<int>("uav_id", robot_id_, 1);
+    pnh.param<std::string>("ns_prefix", ns_prefix_, "uav_");
 
     // Start server if explicitly asked
-    std::string server_mode = _args.getArgument<std::string>("ual_server", "off");
+    std::string server_mode;
+    pnh.param<std::string>("ual_server", server_mode, "on");
     // TODO: Consider other modes?
     if (server_mode == "on") {
         server_thread_ = std::thread([this]() {
@@ -82,12 +104,6 @@ UAL::UAL(grvc::utils::ArgumentParser& _args) {
                 set_velocity_srv,
                 [this](SetVelocity::Request &req, SetVelocity::Response &res) {
                 return this->setVelocity(req.velocity);
-            });
-            ros::ServiceServer set_position_error_service =
-                nh.advertiseService<SetPositionError::Request, SetPositionError::Response>(
-                set_position_error_srv,
-                [this](SetPositionError::Request &req, SetPositionError::Response &res) {
-                return this->setPositionError(req.position_error);
             });
             ros::ServiceServer recover_from_manual_service =
                 nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>(
@@ -238,19 +254,6 @@ bool UAL::setVelocity(const Velocity& _vel) {
 
     // Function is non-blocking in backend TODO: non-thread-safe-call?
     backend_->threadSafeCall(&Backend::setVelocity, _vel);
-    return true;
-}
-
-bool UAL::setPositionError(const PositionError& _pos_error) {
-    // Check required state
-    if (state_ != FLYING) {
-        return false;
-    }
-    // Override any previous FLYING function
-    if (!backend_->isIdle()) { backend_->abort(); }
-
-    // Function is non-blocking in backend TODO: non-thread-safe-call?
-    backend_->threadSafeCall(&Backend::setPositionError, _pos_error);
     return true;
 }
 

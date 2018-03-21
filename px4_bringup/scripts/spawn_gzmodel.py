@@ -63,6 +63,7 @@ def main():
         xacro_args = "xacro --inorder -o " + temp_urdf + " " + \
         xacro_description + \
         " enable_mavlink_interface:=true" + \
+        " enable_gps_plugin:=true" + \
         " enable_ground_truth:=false" + \
         " enable_logging:=false" + \
         " enable_camera:=false" + \
@@ -97,7 +98,7 @@ def main():
         if args.model == 'typhoon_h480':
             for plugintag in model.findall('plugin'):
                 if plugintag.get('name') == 'gimbal_controller':
-                    imutag = plugintag.find('imu')
+                    imutag = plugintag.find('gimbal_imu')
                     imutag.text = 'typhoon_h480_' + str(args.id) + '::camera_imu'
             for linktag in model.findall('link'):
                 if linktag.get('name') == 'cgo3_camera_link':
@@ -150,7 +151,7 @@ def main():
         robot_yaw = 0.0
 
     # Sleep for waiting the world to load
-    rospy.sleep(0.2)
+    rospy.sleep(0.4)
 
     # Minimum z to avoid collision with ground
     z_min = 0.3

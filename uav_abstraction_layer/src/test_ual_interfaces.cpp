@@ -23,16 +23,16 @@
 
 int main(int _argc, char** _argv) {
 
-    grvc::utils::ArgumentParser args(_argc, _argv);
-
-    grvc::ual::UAL ual(args);
+    grvc::ual::UAL ual(_argc, _argv);
     while (!ual.isReady() && ros::ok()) {
         std::cout << "UAL not ready!" << std::endl;
         sleep(1);
     }
 
     // Start server if explicitly asked:
-    std::string server_mode = args.getArgument<std::string>("ual_server", "off");
+    ros::NodeHandle pnh("~");
+    std::string server_mode;
+    pnh.param<std::string>("ual_server", server_mode, "off");
     if (server_mode == "on") {
         std::cout << "UAL server is now available" << std::endl;
         // Do nothing

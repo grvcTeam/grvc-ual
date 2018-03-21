@@ -22,7 +22,6 @@
 #define UAV_ABSTRACTION_LAYER_UAL_H
 
 #include <uav_abstraction_layer/backend.h>
-#include <argument_parser/argument_parser.h>
 #include <uav_abstraction_layer/GoToWaypoint.h>
 #include <uav_abstraction_layer/TakeOff.h>
 #include <uav_abstraction_layer/Land.h>
@@ -36,7 +35,8 @@ namespace grvc { namespace ual {
 /// UAL replicates Backend interface, with some extras
 class UAL {
 public:
-    UAL(grvc::utils::ArgumentParser& _args);
+    UAL(int _argc, char** _argv);
+    UAL();
     ~UAL();
 
     /// Initialized and ready to run tasks?
@@ -77,10 +77,6 @@ public:
     /// \param _vel target velocity in world coordinates
     bool    setVelocity(const Velocity& _vel);
 
-    /// Set position error control
-    /// \param _pos_error position error in world coordinates
-    bool	setPositionError(const PositionError& _pos_error);
-
     /// Recover from manual flight mode
     /// Use it when FLYING uav is switched to manual mode and want to go BACK to auto.
     /// Call is blocking by definition.
@@ -90,6 +86,7 @@ public:
     bool    setHome();
 
 protected:
+    void init();
     Backend* backend_;
     std::thread running_thread_;
     std::thread server_thread_;

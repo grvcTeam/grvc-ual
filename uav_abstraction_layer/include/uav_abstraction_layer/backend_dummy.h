@@ -22,7 +22,6 @@
 #define UAV_ABSTRACTION_LAYER_BACKEND_DUMMY_H
 
 #include <uav_abstraction_layer/backend.h>
-#include <argument_parser/argument_parser.h>
 #include <ros/ros.h>
 
 
@@ -31,7 +30,7 @@ namespace grvc { namespace ual {
 class BackendDummy : public Backend {
 
 public:
-    BackendDummy(grvc::utils::ArgumentParser& _args) : Backend(_args) {
+    BackendDummy() : Backend() {
         ROS_WARN("BackendDummy is only for testing porposes");
     }
 
@@ -85,11 +84,6 @@ public:
     /// \param _vel target velocity in world coordinates
     void    setVelocity(const Velocity& _vel) override {
         ROS_INFO("BackendDummy::setVelocity: vx = %f, vy = %f, vz = %f, wz = %f", _vel.twist.linear.x, _vel.twist.linear.y, _vel.twist.linear.z, _vel.twist.angular.z);
-    }
-    /// Set position error control
-    /// \param _pos_error position error in world coordinates
-    void	setPositionError(const PositionError& _pos_error) override {
-        ROS_INFO("BackendDummy::setPositionError: ex = %f, ey = %f, ez = %f", _pos_error.vector.x, _pos_error.vector.y, _pos_error.vector.z);
     }
     /// Recover from manual flight mode
     /// Use it when FLYING uav is switched to manual mode and want to go BACK to auto.
