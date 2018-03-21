@@ -1,15 +1,6 @@
 #--------------------------------------------------------------------------------------------#
-# Gazebo origin (lat-lon-alt) can be defined with 'map_frame' or with 'sim_origin' params
+# Gazebo origin (lat-lon-alt) can be defined with 'sim_origin' param
 #--------------------------------------------------------------------------------------------#
-# map frame (if we need a map to world transform)
-# map_frame:
-#   frame_id: "map"
-#   parent_frame: "world"
-#   units: "GPS"
-#   translation: [37.558542, -5.931074, 7.89]
-#   rotation: [0.0, 0.0, 0.0] # RPY
-
-# sim_origin (if we only want to define Gazebo origin)
 sim_origin: [37.558542, -5.931074, 7.89]
 
 #--------------------------------------------------------------------------------------------#

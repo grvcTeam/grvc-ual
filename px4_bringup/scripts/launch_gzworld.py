@@ -42,14 +42,7 @@ def main():
         gz_env['GAZEBO_MODEL_PATH'] += ':' + args.add_model_path
 
     # Get map origin lat-lon-alt from rosparam
-    if rospy.has_param('/map_frame'):
-        map_frame_dict = rospy.get_param('/map_frame')
-        if map_frame_dict['units']=='GPS':
-            latlonalt = map_frame_dict['translation']
-        else:
-            #TODO UTM to LAT-LON
-            pass
-    elif rospy.has_param('/sim_origin'):
+    if rospy.has_param('/sim_origin'):
         latlonalt = rospy.get_param('/sim_origin')
     else:
         latlonalt = [0.0, 0.0, 0.0]
