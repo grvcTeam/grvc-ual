@@ -161,7 +161,6 @@ add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EX
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/uav_abstraction_layer_node.cpp)
-add_executable(test_task_management src/test_task_management.cpp)
 add_executable(test_ual_interfaces src/test_ual_interfaces.cpp)
 add_executable(server src/server.cpp)
 
@@ -180,9 +179,6 @@ add_dependencies(server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TA
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
-target_link_libraries(test_task_management
-  ${catkin_LIBRARIES}
-)
 target_link_libraries(test_ual_interfaces
   ${PROJECT_NAME}
   ${catkin_LIBRARIES}
