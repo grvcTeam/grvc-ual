@@ -67,7 +67,6 @@ void UAL::init() {
             std::string go_to_waypoint_srv = ual_ns + "/go_to_waypoint";
             std::string go_to_waypoint_geo_srv = ual_ns + "/go_to_waypoint_geo";
             std::string set_velocity_srv = ual_ns + "/set_velocity";
-            std::string set_position_error_srv = ual_ns + "/set_position_error";
             std::string recover_from_manual_srv = ual_ns + "/recover_from_manual";
             std::string set_home_srv = ual_ns + "/set_home";
             std::string pose_topic = ual_ns + "/pose";

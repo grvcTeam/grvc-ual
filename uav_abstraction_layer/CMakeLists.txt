@@ -82,7 +82,6 @@ add_service_files(
   TakeOff.srv
   Land.srv
   SetVelocity.srv
-  SetPositionError.srv
 )
 
 ## Generate actions in the 'action' folder

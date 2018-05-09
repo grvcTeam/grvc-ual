@@ -26,7 +26,6 @@
 #include <uav_abstraction_layer/TakeOff.h>
 #include <uav_abstraction_layer/Land.h>
 #include <uav_abstraction_layer/SetVelocity.h>
-#include <uav_abstraction_layer/SetPositionError.h>
 #include <std_msgs/String.h>
 #include <thread>
 
