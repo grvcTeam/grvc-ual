@@ -3,6 +3,7 @@ import subprocess
 import argparse
 import utils
 import rospkg
+import time
 
 
 def main():
@@ -25,6 +26,9 @@ def main():
 
     # Get udp configuration, depending on id
     udp_config = utils.udp_config(args.id)
+
+    # Sleep for waiting the models
+    time.sleep(0.3)
 
     # Modify commands file to fit robot ports
     commands_file = rospack.get_path("robots_description") + "/models/" + args.model + "/px4cmd"

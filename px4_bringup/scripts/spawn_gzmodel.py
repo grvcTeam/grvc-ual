@@ -19,6 +19,8 @@ def main():
     parser = argparse.ArgumentParser(description='Spawn robot in Gazebo for SITL')
     parser.add_argument('-model', type=str, default="mbzirc",
                         help='robot model name, must match xacro description folder name')
+    parser.add_argument('-model_path', type=str, default="",
+                        help='model path in case it is not inside robots_description package')
     parser.add_argument('-id', type=int, default=1,
                         help='robot id, used to compute sim_port')
     parser.add_argument('-material', type=str, default="DarkGrey",
@@ -37,6 +39,11 @@ def main():
 
     # Xacro description must be in robots_description package
     description_dir = rospack.get_path("robots_description")
+
+    # Create symbolic link in case model path is outside robots_description
+    if args.model_path:
+        link_command = "ln -s " + args.model_path + " " + description_dir + "/models/" + args.model
+        subprocess.call(link_command, shell=True)
 
     # Create temporary directory for robot sitl stuff
     temp_dir = utils.temp_dir(args.id)

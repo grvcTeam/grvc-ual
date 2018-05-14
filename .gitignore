@@ -27,3 +27,11 @@
 *.exe
 *.out
 *.app
+
+# Models
+robots_description/models/*
+!robots_description/models/aeroarms/
+!robots_description/models/aeroarms_pendulum/
+!robots_description/models/iris/
+!robots_description/models/mbzirc/
+!robots_description/models/typhoon_h480/
