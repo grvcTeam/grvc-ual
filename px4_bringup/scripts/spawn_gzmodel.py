@@ -21,6 +21,8 @@ def main():
                         help='robot model name, must match xacro description folder name')
     parser.add_argument('-id', type=int, default=1,
                         help='robot id, used to compute sim_port')
+    parser.add_argument('-description_package', type=str, default="robots_description",
+                        help='robot description package, must follow robots_description file structure')
     parser.add_argument('-material', type=str, default="DarkGrey",
                         help='robot Gazebo/material; \
                         see materials/scripts/gazebo.material (at your gazebo version)')
@@ -35,8 +37,8 @@ def main():
     # Init ros node
     rospy.init_node('spawn_gzmodel_{}'.format(args.id))
 
-    # Xacro description must be in robots_description package
-    description_dir = rospack.get_path("robots_description")
+    # Xacro description must be in specified package
+    description_dir = rospack.get_path(args.description_package)
 
     # Create temporary directory for robot sitl stuff
     temp_dir = utils.temp_dir(args.id)

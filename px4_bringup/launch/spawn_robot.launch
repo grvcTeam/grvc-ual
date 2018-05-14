@@ -13,6 +13,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     <arg name="robot_model" default="mbzirc"/>
     <arg name="id" default="1"/>
     <arg name="mode" default="sitl"/>
+    <arg name="description_package" default="robots_description"/>
     <arg name="material" default="Orange"/>
     <arg name="target_ip" default="localhost"/>
     <arg name="own_ip" default="localhost"/>
@@ -21,12 +22,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     <group if="$(eval mode == 'sitl')">
         <!-- Spawn model in Gazebo -->
         <node pkg="px4_bringup" type="spawn_gzmodel.py" name="spawn_gzmodel_$(arg id)" output="screen"
-        args="-model=$(arg robot_model) -id=$(arg id) -material=$(arg material)"/>
+        args="-model=$(arg robot_model) -id=$(arg id) -description_package=$(arg description_package) -material=$(arg material)"/>
 
         <!-- Run px4 controller -->
         <!-- Important parameter cwd="node", px4 link generation may cause errors otherwise -->
         <node pkg="px4_bringup" type="run_px4sitl.py" cwd="node" name="run_px4sitl_$(arg id)" output="screen"
-        args="-model=$(arg robot_model) -id=$(arg id)"/>
+        args="-model=$(arg robot_model) -id=$(arg id) -description_package=$(arg description_package)"/>
     </group>
     
     <!-- Run mavros node -->

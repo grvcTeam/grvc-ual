@@ -1,10 +1,11 @@
 <launch>
 
 	<arg name="model_name" default="aeroarms"/>
+	<arg name="description_package" default="robots_description"/>
 
 	<!-- robot_description for rviz -->
 	<param name="robot_description"
-	       command="$(find xacro)/xacro --inorder '$(find robots_description)/models/$(arg model_name)/model.xacro'"/>
+	       command="$(eval 'xacro --inorder ' + find(description_package) + '/models/' + model_name + '/model.xacro')"/>
 
 	<node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
 		<param name="use_gui" value="true"/>

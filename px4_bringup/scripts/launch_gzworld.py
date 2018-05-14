@@ -19,6 +19,8 @@ def main():
                         help="World file name with respect to GAZEBO_RESOURCE_PATH")
     parser.add_argument('-add_model_path', type=str, default='',
                         help="Path to add to GAZEBO_MODEL_PATH")
+    parser.add_argument('-description_package', type=str, default="robots_description",
+                        help='robot description package, must follow robots_description file structure')
     args, unknown = parser.parse_known_args()
     utils.check_unknown_args(unknown)
 
@@ -32,14 +34,23 @@ def main():
     gz_env['GAZEBO_PLUGIN_PATH'] = px4_dir + '/build/posix_sitl_default/build_gazebo' + \
                                    ':' + current_gz_plugin_path
     current_gz_model_path = gz_env.get('GAZEBO_MODEL_PATH', '')
-    description_parent_path = os.path.abspath(os.path.join(\
+    # Always include robots_description parent path
+    robots_description_parent_path = os.path.abspath(os.path.join(\
                                               rospack.get_path('robots_description'), os.pardir))
     gz_env['GAZEBO_MODEL_PATH'] = px4_dir + '/Tools/sitl_gazebo/models' + \
-                                 ':' + description_parent_path + \
+                                 ':' + robots_description_parent_path + \
                                  ':' + current_gz_model_path
-    # TODO: add_model_path should be a list of paths?
+    # Include description_package parent path if it is not robots_description
+    if args.description_package is not "robots_description":
+        description_package_parent_path = os.path.abspath(os.path.join(\
+                                              rospack.get_path(args.description_package), os.pardir))
+        gz_env['GAZEBO_MODEL_PATH'] += ':' + description_package_parent_path
+
+    # TODO: add_model_path should be a list of paths? Or just a string separated by ':'?
     if args.add_model_path:
         gz_env['GAZEBO_MODEL_PATH'] += ':' + args.add_model_path
+
+    # print "gz_env['GAZEBO_MODEL_PATH'] = [%s]" % gz_env['GAZEBO_MODEL_PATH']  # debug
 
     # Get map origin lat-lon-alt from rosparam
     if rospy.has_param('/sim_origin'):

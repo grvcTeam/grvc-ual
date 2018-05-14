@@ -13,6 +13,8 @@ def main():
                         help='robot model name, must match xacro description folder name')
     parser.add_argument('-id', type=int, default=1,
                         help='robot id, used to compute udp ports')
+    parser.add_argument('-description_package', type=str, default="robots_description",
+                        help='robot description package, must follow robots_description file structure')
     args, unknown = parser.parse_known_args()
     utils.check_unknown_args(unknown)
 
@@ -27,7 +29,7 @@ def main():
     udp_config = utils.udp_config(args.id)
 
     # Modify commands file to fit robot ports
-    commands_file = rospack.get_path("robots_description") + "/models/" + args.model + "/px4cmd"
+    commands_file = rospack.get_path(args.description_package) + "/models/" + args.model + "/px4cmd"
     modified_cmds = temp_dir + "/cmds"
     with open(commands_file, 'r') as origin, open(modified_cmds, 'w') as modified:
         for line in origin:
