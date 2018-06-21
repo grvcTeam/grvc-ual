@@ -121,8 +121,10 @@ void UAL::init() {
             ros::Publisher state_pub = nh.advertise<std_msgs::String>(state_topic, 10);
             static tf2_ros::TransformBroadcaster tf_pub;
 
-            // Publish @ 10Hz
-            ros::Rate loop_rate(10);
+            // Publish @ 30Hz default
+            double ual_pub_rate;
+            ros::param::param<double>("~pub_rate", ual_pub_rate, 30.0);
+            ros::Rate loop_rate(ual_pub_rate);
             while (ros::ok()) {
                 pose_pub.publish(this->pose());
                 velocity_pub.publish(this->velocity());

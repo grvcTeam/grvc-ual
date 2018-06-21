@@ -103,8 +103,7 @@ BackendMavros::BackendMavros()
 }
 
 void BackendMavros::offboardThreadLoop(){
-    // TODO: Check this frequency
-    offboard_thread_frequency_ = 10;  // [Hz]
+    ros::param::param<double>("~mavros_offboard_rate", offboard_thread_frequency_, 30.0);
     double hold_pose_time = 3.0;  // [s]  TODO param?
     int buffer_size = std::ceil(hold_pose_time * offboard_thread_frequency_);
     position_error_.set_size(buffer_size);

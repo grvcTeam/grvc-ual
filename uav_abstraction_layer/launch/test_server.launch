@@ -15,12 +15,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     <arg name="mode" default="sitl"/>
     <arg name="pose_frame_id" default=""/><!-- To publish ual/pose in other frame than local, e.g. map -->
     <arg name="ual_server" default="on"/>
+    <arg name="ual_pub_rate" default="30.0"/>
+    <arg name="mavros_offboard_rate" default="30.0"/>
 
     <!-- Load frame transforms for map and UAVs -->
     <rosparam file="$(find px4_bringup)/config/simulation_params.yaml" command="load" />
 
     <group if="$(eval mode=='sitl')">
-        <!-- Launch Gazebo simulation TODO: world location? -->
+        <!-- Launch Gazebo simulation -->
         <node pkg="px4_bringup" type="launch_gzworld.py" name="gazebo_world" output="screen"
         args="-physics=ode -world=$(find px4_bringup)/config/empty_light.world"/>
     </group>
@@ -61,6 +63,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         <param name="ns_prefix" value="$(arg ns_prefix)"/>
         <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
         <param name="ual_server" value="$(arg ual_server)"/>
+        <param name="ual_pub_rate" value="30.0"/>
+        <param name="mavros_offboard_rate" value="30.0"/>
     </node>
 
     <group if="$(arg multi)">
@@ -70,6 +74,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             <param name="ns_prefix" value="$(arg ns_prefix)"/>
             <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
             <param name="ual_server" value="$(arg ual_server)"/>
+            <param name="ual_pub_rate" value="30.0"/>
+            <param name="mavros_offboard_rate" value="30.0"/>
         </node>
         <!-- Launch UAL server for uav id=3 -->
         <node pkg="uav_abstraction_layer" type="server" name="server_3" output="screen">
@@ -77,6 +83,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             <param name="ns_prefix" value="$(arg ns_prefix)"/>
             <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
             <param name="ual_server" value="$(arg ual_server)"/>
+            <param name="ual_pub_rate" value="30.0"/>
+            <param name="mavros_offboard_rate" value="30.0"/>
         </node>
     </group>
 
