@@ -7,6 +7,7 @@ import os
 import rospkg
 import rospy
 import tf2_ros
+import time
 import tf2_geometry_msgs
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import TransformStamped
@@ -153,7 +154,7 @@ def main():
         robot_yaw = 0.0
 
     # Sleep for waiting the world to load
-    rospy.sleep(0.4)
+    time.sleep(0.4)
 
     # Minimum z to avoid collision with ground
     z_min = 0.3
