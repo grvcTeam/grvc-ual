@@ -53,7 +53,6 @@ void UAL::init() {
     // Get params
     ros::NodeHandle pnh("~");
     pnh.param<int>("uav_id", robot_id_, 1);
-    pnh.param<std::string>("ns_prefix", ns_prefix_, "uav_");
 
     // Start server if explicitly asked
     std::string server_mode;
@@ -61,7 +60,7 @@ void UAL::init() {
     // TODO: Consider other modes?
     if (server_mode == "on") {
         server_thread_ = std::thread([this]() {
-            std::string ual_ns =  this->ns_prefix_ + std::to_string(this->robot_id_) + "/ual";
+            std::string ual_ns = "ual";
             std::string take_off_srv = ual_ns + "/take_off";
             std::string land_srv = ual_ns + "/land";
             std::string go_to_waypoint_srv = ual_ns + "/go_to_waypoint";

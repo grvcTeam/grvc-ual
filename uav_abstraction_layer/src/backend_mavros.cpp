@@ -38,8 +38,6 @@ BackendMavros::BackendMavros()
     ros::NodeHandle pnh("~");
     pnh.param<int>("uav_id", robot_id_, 1);
     pnh.param<std::string>("pose_frame_id", pose_frame_id_, "");
-    std::string ns_prefix;
-    pnh.param<std::string>("ns_prefix", ns_prefix, "uav_");
     float position_th_param, orientation_th_param;
     pnh.param<float>("position_th", position_th_param, 0.33);
     pnh.param<float>("orientation_th", orientation_th_param, 0.65);
@@ -51,7 +49,7 @@ BackendMavros::BackendMavros()
 
     // Init ros communications
     ros::NodeHandle nh;
-    std::string mavros_ns = ns_prefix + std::to_string(this->robot_id_) + "/mavros";
+    std::string mavros_ns = "mavros";
     std::string set_mode_srv = mavros_ns + "/set_mode";
     std::string arming_srv = mavros_ns + "/cmd/arming";
     std::string set_pose_topic = mavros_ns + "/setpoint_position/local";
@@ -412,7 +410,7 @@ void BackendMavros::initHomeFrame() {
     std::vector<double> translation;
     std::string uav_home_text;
 
-    uav_home_text = uav_home_frame_id_;
+    uav_home_text = "/" + uav_home_frame_id_;
 
     if ( ros::param::has(uav_home_text) ) {
         ros::param::get(uav_home_text + "/home_frame_id", frame_id);

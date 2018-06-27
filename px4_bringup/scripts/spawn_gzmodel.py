@@ -130,8 +130,8 @@ def main():
     tf_buffer = tf2_ros.Buffer(rospy.Duration(1200.0)) #tf buffer length
     tf_listener = tf2_ros.TransformListener(tf_buffer)
 
-    if rospy.has_param( 'uav_{}_home'.format(args.id) ):
-        uav_frame = rospy.get_param( 'uav_{}_home'.format(args.id) )
+    if rospy.has_param( '/uav_{}_home'.format(args.id) ):
+        uav_frame = rospy.get_param( '/uav_{}_home'.format(args.id) )
         if uav_frame['parent_frame']=='map':
             robot_home = uav_frame['translation']
             robot_yaw = uav_frame['gz_initial_yaw']

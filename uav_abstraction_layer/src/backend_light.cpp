@@ -50,8 +50,6 @@ BackendLight::BackendLight()
     ros::NodeHandle pnh("~");
     pnh.param<int>("uav_id", robot_id_, 1);
     pnh.param<std::string>("pose_frame_id", pose_frame_id_, "");
-    std::string ns_prefix;
-    pnh.param<std::string>("ns_prefix", ns_prefix, "uav_");
     pnh.param<float>("max_h_vel", max_h_vel_, 1.6); // m/s
     pnh.param<float>("max_v_vel", max_v_vel_, 1.2); // m/s
     pnh.param<float>("max_yaw_vel", max_yaw_vel_, 1.0); // rad/s
@@ -92,6 +90,8 @@ BackendLight::BackendLight()
             rate.sleep();
         }
     });
+
+    ROS_INFO("BackendLight %d running!", robot_id_);
 }
 
 bool BackendLight::isReady() const {
@@ -357,7 +357,7 @@ void BackendLight::initHomeFrame() {
     double gz_yaw;
     std::string uav_home_text;
 
-    uav_home_text = uav_home_frame_id_;
+    uav_home_text = "/" + uav_home_frame_id_;
 
     if ( ros::param::has(uav_home_text) ) {
         ros::param::get(uav_home_text + "/home_frame_id", frame_id);

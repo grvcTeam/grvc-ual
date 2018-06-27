@@ -101,7 +101,6 @@ protected:
     std::atomic<State> state_ = {LANDED};
 
     int robot_id_;
-    std::string ns_prefix_;
 };
 
 }}	// namespace grvc::ual

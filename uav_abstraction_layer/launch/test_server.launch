@@ -33,34 +33,30 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         - udp: for udp connection to px4
     -->
     <!-- Launch robot id=1 -->
-    <include file="$(find px4_bringup)/launch/spawn_robot.launch">
+    <include file="$(find px4_bringup)/launch/spawn_robot.launch" ns="$(arg ns_prefix)1">
         <arg name="id" value="1"/>
         <arg name="material" value="Orange"/>
         <arg name="mode" value="$(arg mode)"/>
-        <arg name="ns_prefix" value="$(arg ns_prefix)"/>
     </include>
 
     <group if="$(arg multi)">
         <!-- Launch robot id=2 -->
-        <include file="$(find px4_bringup)/launch/spawn_robot.launch">
+        <include file="$(find px4_bringup)/launch/spawn_robot.launch" ns="$(arg ns_prefix)2">
             <arg name="id" value="2"/>
             <arg name="material" value="Indigo"/>
             <arg name="mode" value="sitl"/>
-            <arg name="ns_prefix" value="$(arg ns_prefix)"/>
         </include>
         <!-- Launch robot id=3 -->
-        <include file="$(find px4_bringup)/launch/spawn_robot.launch">
+        <include file="$(find px4_bringup)/launch/spawn_robot.launch" ns="$(arg ns_prefix)3">
             <arg name="id" value="3"/>
             <arg name="material" value="ZincYellow"/>
             <arg name="mode" value="sitl"/>
-            <arg name="ns_prefix" value="$(arg ns_prefix)"/>
         </include>
     </group>
 
     <!-- Launch UAL server for uav id=1 -->
-    <node pkg="uav_abstraction_layer" type="server" name="server_1" output="screen">
+    <node pkg="uav_abstraction_layer" type="server" name="ual" ns="$(arg ns_prefix)1" output="screen">
         <param name="uav_id" value="1"/>
-        <param name="ns_prefix" value="$(arg ns_prefix)"/>
         <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
         <param name="ual_server" value="$(arg ual_server)"/>
         <param name="ual_pub_rate" value="30.0"/>
@@ -69,18 +65,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     <group if="$(arg multi)">
         <!-- Launch UAL server for uav id=2 -->
-        <node pkg="uav_abstraction_layer" type="server" name="server_2" output="screen">
+        <node pkg="uav_abstraction_layer" type="server" name="ual" ns="$(arg ns_prefix)2" output="screen">
             <param name="uav_id" value="2"/>
-            <param name="ns_prefix" value="$(arg ns_prefix)"/>
             <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
             <param name="ual_server" value="$(arg ual_server)"/>
             <param name="ual_pub_rate" value="30.0"/>
             <param name="mavros_offboard_rate" value="30.0"/>
         </node>
         <!-- Launch UAL server for uav id=3 -->
-        <node pkg="uav_abstraction_layer" type="server" name="server_3" output="screen">
+        <node pkg="uav_abstraction_layer" type="server" name="ual" ns="$(arg ns_prefix)3" output="screen">
             <param name="uav_id" value="3"/>
-            <param name="ns_prefix" value="$(arg ns_prefix)"/>
             <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
             <param name="ual_server" value="$(arg ual_server)"/>
             <param name="ual_pub_rate" value="30.0"/>
