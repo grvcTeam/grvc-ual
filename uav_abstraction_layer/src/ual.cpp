@@ -65,7 +65,8 @@ void UAL::init() {
             std::string land_srv = ual_ns + "/land";
             std::string go_to_waypoint_srv = ual_ns + "/go_to_waypoint";
             std::string go_to_waypoint_geo_srv = ual_ns + "/go_to_waypoint_geo";
-            std::string set_velocity_srv = ual_ns + "/set_velocity";
+            std::string set_pose_topic = ual_ns + "/set_pose";
+            std::string set_velocity_topic = ual_ns + "/set_velocity";
             std::string recover_from_manual_srv = ual_ns + "/recover_from_manual";
             std::string set_home_srv = ual_ns + "/set_home";
             std::string pose_topic = ual_ns + "/pose";
@@ -97,11 +98,17 @@ void UAL::init() {
                 [this](GoToWaypointGeo::Request &req, GoToWaypointGeo::Response &res) {
                 return this->goToWaypointGeo(req.waypoint, req.blocking);
             });
-            ros::ServiceServer set_velocity_service =
-                nh.advertiseService<SetVelocity::Request, SetVelocity::Response>(
-                set_velocity_srv,
-                [this](SetVelocity::Request &req, SetVelocity::Response &res) {
-                return this->setVelocity(req.velocity);
+            ros::Subscriber set_pose_sub =
+                nh.subscribe<geometry_msgs::PoseStamped>(
+                set_pose_topic, 1,
+                [this](const geometry_msgs::PoseStamped::ConstPtr& _msg) {
+                this->goToWaypoint(*_msg, false);
+            });
+            ros::Subscriber set_velocity_sub =
+                nh.subscribe<geometry_msgs::TwistStamped>(
+                set_velocity_topic, 1,
+                [this](const geometry_msgs::TwistStamped::ConstPtr& _msg) {
+                this->setVelocity(*_msg);
             });
             ros::ServiceServer recover_from_manual_service =
                 nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>(
