@@ -350,65 +350,49 @@ void BackendLight::initHomeFrame() {
     uav_home_frame_id_ = "uav_" + std::to_string(robot_id_) + "_home";
 
     // Get frame from rosparam
-    std::string frame_id;
     std::string parent_frame;
-    std::string units;
-    std::vector<double> translation;
-    double gz_yaw;
-    std::string uav_home_text;
+    std::vector<double> home_pose(4, 0.0);
 
-    uav_home_text = "/" + uav_home_frame_id_;
+    ros::param::get("~home_pose",home_pose);
+    ros::param::param<std::string>("~home_pose_parent_frame", parent_frame, "map");
 
-    if ( ros::param::has(uav_home_text) ) {
-        ros::param::get(uav_home_text + "/home_frame_id", frame_id);
-        ros::param::get(uav_home_text + "/parent_frame", parent_frame);
-        ros::param::get(uav_home_text + "/units", units);
-        ros::param::get(uav_home_text + "/translation",translation);
-        ros::param::get(uav_home_text + "/gz_initial_yaw",gz_yaw);
+    geometry_msgs::TransformStamped static_transformStamped;
 
-        geometry_msgs::TransformStamped static_transformStamped;
+    static_transformStamped.header.stamp = ros::Time::now();
+    static_transformStamped.header.frame_id = parent_frame;
+    static_transformStamped.child_frame_id = uav_home_frame_id_;
+    static_transformStamped.transform.translation.x = home_pose[0];
+    static_transformStamped.transform.translation.y = home_pose[1];
+    static_transformStamped.transform.translation.z = home_pose[2];
 
-        static_transformStamped.header.stamp = ros::Time::now();
-        static_transformStamped.header.frame_id = parent_frame;
-        static_transformStamped.child_frame_id = frame_id;
-        static_transformStamped.transform.translation.x = translation[0];
-        static_transformStamped.transform.translation.y = translation[1];
-        static_transformStamped.transform.translation.z = translation[2];
-
-        if(parent_frame == "map" || parent_frame == "") {
-            static_transformStamped.transform.rotation.x = 0;
-            static_transformStamped.transform.rotation.y = 0;
-            static_transformStamped.transform.rotation.z = 0;
-            static_transformStamped.transform.rotation.w = 1;
-        }
-        else {
-            tf2_ros::Buffer tfBuffer;
-            tf2_ros::TransformListener tfListener(tfBuffer);
-            geometry_msgs::TransformStamped transform_to_map;
-            transform_to_map = tfBuffer.lookupTransform(parent_frame, "map", ros::Time(0), ros::Duration(2.0));
-            static_transformStamped.transform.rotation = transform_to_map.transform.rotation;
-        }
-
-        static_tf_broadcaster_ = new tf2_ros::StaticTransformBroadcaster();
-        static_tf_broadcaster_->sendTransform(static_transformStamped);
-
-        // Set initial pose in local frame
-        cur_pose_.pose.position.x = 0.0;
-        cur_pose_.pose.position.y = 0.0;
-        cur_pose_.pose.position.z = 0.0;
-        tf2::Quaternion quat;
-        quat.setRPY(0.0,0.0,gz_yaw);
-        cur_pose_.pose.orientation.x = quat.x();
-        cur_pose_.pose.orientation.y = quat.y();
-        cur_pose_.pose.orientation.z = quat.z();
-        cur_pose_.pose.orientation.w = quat.w();
-        ref_pose_ = cur_pose_;
+    if(parent_frame == "map" || parent_frame == "") {
+        static_transformStamped.transform.rotation.x = 0;
+        static_transformStamped.transform.rotation.y = 0;
+        static_transformStamped.transform.rotation.z = 0;
+        static_transformStamped.transform.rotation.w = 1;
     }
     else {
-        // No param with local frame -> Global control
-        // TODO: Initialization of home frame based on GPS estimation
-        ROS_ERROR("No uav_%d_home_frame found in rosparam. Please define starting position with relate to a common map frame.",robot_id_);
+        tf2_ros::Buffer tfBuffer;
+        tf2_ros::TransformListener tfListener(tfBuffer);
+        geometry_msgs::TransformStamped transform_to_map;
+        transform_to_map = tfBuffer.lookupTransform(parent_frame, "map", ros::Time(0), ros::Duration(2.0));
+        static_transformStamped.transform.rotation = transform_to_map.transform.rotation;
     }
+
+    static_tf_broadcaster_ = new tf2_ros::StaticTransformBroadcaster();
+    static_tf_broadcaster_->sendTransform(static_transformStamped);
+
+    // Set initial pose in local frame
+    cur_pose_.pose.position.x = 0.0;
+    cur_pose_.pose.position.y = 0.0;
+    cur_pose_.pose.position.z = 0.0;
+    tf2::Quaternion quat;
+    quat.setRPY(0.0,0.0,home_pose[3]);
+    cur_pose_.pose.orientation.x = quat.x();
+    cur_pose_.pose.orientation.y = quat.y();
+    cur_pose_.pose.orientation.z = quat.z();
+    cur_pose_.pose.orientation.w = quat.w();
+    ref_pose_ = cur_pose_;
 }
 
 }}	// namespace grvc::ual
