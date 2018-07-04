@@ -87,12 +87,12 @@ BackendMavros::BackendMavros()
     });
 
     // TODO: Check this and solve frames issue
-    // Wait until we have pose
-    while (!mavros_has_pose_ && ros::ok()) {
-        // ROS_INFO("BackendMavros: Waiting for pose");
+    initHomeFrame();
+
+    // Wait until mavros is connected
+    while (!mavros_state_.connected && ros::ok()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
-    initHomeFrame();
 
     // Thread publishing target pose at 10Hz for offboard mode
     offboard_thread_ = std::thread(&BackendMavros::offboardThreadLoop, this);
