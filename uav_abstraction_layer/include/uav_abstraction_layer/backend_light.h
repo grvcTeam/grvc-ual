@@ -109,6 +109,7 @@ private:
     std::string uav_frame_id_;
     tf2_ros::StaticTransformBroadcaster * static_tf_broadcaster_;
     std::map <std::string, geometry_msgs::TransformStamped> cached_transforms_;
+    ros::Time last_command_time_;
 
     std::thread offboard_thread_;
 };

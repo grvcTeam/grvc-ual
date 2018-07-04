@@ -112,6 +112,9 @@ void BackendMavros::offboardThreadLoop(){
         case eControlMode::LOCAL_VEL:
             mavros_ref_vel_pub_.publish(ref_vel_);
             ref_pose_ = cur_pose_;
+            if ( ros::Time::now().toSec() - last_command_time_.toSec() >=0.5 ) {
+                control_mode_ = eControlMode::LOCAL_POSE;
+            }
             break;
         case eControlMode::LOCAL_POSE:
             mavros_ref_pose_pub_.publish(ref_pose_);
@@ -248,6 +251,7 @@ void BackendMavros::setVelocity(const Velocity& _vel) {
     control_mode_ = eControlMode::LOCAL_VEL;  // Velocity control!
     // TODO: _vel world <-> body tf...
     ref_vel_ = _vel;
+    last_command_time_ = ros::Time::now();
 }
 
 bool BackendMavros::isReady() const {

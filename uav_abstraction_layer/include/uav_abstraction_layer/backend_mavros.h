@@ -168,6 +168,7 @@ private:
     tf2_ros::StaticTransformBroadcaster * static_tf_broadcaster_;
     std::map <std::string, geometry_msgs::TransformStamped> cached_transforms_;
     Eigen::Vector3d local_start_pos_;
+    ros::Time last_command_time_;
 
     std::thread offboard_thread_;
     double offboard_thread_frequency_;  // TODO: param?

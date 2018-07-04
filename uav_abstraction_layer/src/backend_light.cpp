@@ -77,6 +77,9 @@ BackendLight::BackendLight()
         while (ros::ok()) {
             if (control_in_vel_) {
                 ref_pose_ = cur_pose_;
+                if ( ros::Time::now().toSec() - last_command_time_.toSec() >=0.5 ) {
+                    control_in_vel_ = false;
+                }
             } else {
                 ref_vel_ = calcVel(ref_pose_);
             }
@@ -222,6 +225,7 @@ void BackendLight::setVelocity(const Velocity& _vel) {
     control_in_vel_ = true;  // Velocity control!
     // TODO: _vel world <-> body tf...
     ref_vel_ = _vel;
+    last_command_time_ = ros::Time::now();
 }
 
 void BackendLight::goToWaypoint(const Waypoint& _world) {
