@@ -249,8 +249,38 @@ void BackendMavros::land() {
 
 void BackendMavros::setVelocity(const Velocity& _vel) {
     control_mode_ = eControlMode::LOCAL_VEL;  // Velocity control!
-    // TODO: _vel world <-> body tf...
-    ref_vel_ = _vel;
+
+    tf2_ros::Buffer tfBuffer;
+    tf2_ros::TransformListener tfListener(tfBuffer);
+    geometry_msgs::Vector3Stamped vel_in, vel_out;
+    vel_in.header = _vel.header;
+    vel_in.vector = _vel.twist.linear;
+    std::string vel_frame_id = tf2::getFrameId(vel_in);
+
+    if (vel_frame_id == "map" || vel_frame_id == "" || vel_frame_id == uav_home_frame_id_) {
+        // No transform is needed
+        ref_vel_ = _vel;
+    }
+    else {
+        // We need to transform
+        geometry_msgs::TransformStamped transform;
+        bool tf_exists = true;
+        try {
+            transform = tfBuffer.lookupTransform(uav_home_frame_id_, vel_frame_id, ros::Time(0), ros::Duration(0.3));
+        }
+        catch (tf2::TransformException &ex) {
+            ROS_WARN("%s",ex.what());
+            tf_exists = false;
+            ref_vel_ = _vel;
+        }
+        
+        if(tf_exists) {
+            tf2::doTransform(vel_in, vel_out, transform);
+            ref_vel_.header = vel_out.header;
+            ref_vel_.twist.linear = vel_out.vector;
+            ref_vel_.twist.angular = _vel.twist.angular;
+        }
+    }
     last_command_time_ = ros::Time::now();
 }
 
