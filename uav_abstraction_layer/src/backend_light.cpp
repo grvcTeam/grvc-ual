@@ -101,6 +101,7 @@ bool BackendLight::isReady() const {
 void BackendLight::move() {
     double t = 1 / FPS;
 
+    cur_vel_.header.frame_id = uav_home_frame_id_;
     cur_vel_.twist.linear.x = (0.2 * ref_vel_.twist.linear.x + 0.8 * cur_vel_.twist.linear.x);
     cur_vel_.twist.linear.y = (0.2 * ref_vel_.twist.linear.y + 0.8 * cur_vel_.twist.linear.y);
     cur_vel_.twist.linear.z = (0.2 * ref_vel_.twist.linear.z + 0.8 * cur_vel_.twist.linear.z);
@@ -310,11 +311,23 @@ Velocity BackendLight::velocity() const {
     return cur_vel_;
 }
 
+Odometry BackendLight::odometry() const {
+    Odometry odom;
+    
+    odom.header.stamp = ros::Time::now();
+    odom.header.frame_id = uav_home_frame_id_;
+    odom.child_frame_id = uav_frame_id_;
+    odom.pose.pose = cur_pose_.pose;
+    odom.twist.twist = cur_vel_.twist;
+
+    return odom;
+}
+
 Transform BackendLight::transform() const {
     Transform out;
     out.header.stamp = ros::Time::now();
     out.header.frame_id = uav_home_frame_id_;
-    out.child_frame_id = "uav_" + std::to_string(robot_id_);
+    out.child_frame_id = uav_frame_id_;
     out.transform.translation.x = cur_pose_.pose.position.x;
     out.transform.translation.y = cur_pose_.pose.position.y;
     out.transform.translation.z = cur_pose_.pose.position.z;
@@ -347,12 +360,11 @@ bool BackendLight::referencePoseReached() const {
 
 void BackendLight::initHomeFrame() {
 
-    uav_home_frame_id_ = "uav_" + std::to_string(robot_id_) + "_home";
-
     // Get frame from rosparam
+    ros::param::param<std::string>("~uav_frame",uav_frame_id_,"uav_" + std::to_string(robot_id_));
+    ros::param::param<std::string>("~uav_home_frame",uav_home_frame_id_, "uav_" + std::to_string(robot_id_) + "_home");
     std::string parent_frame;
     std::vector<double> home_pose(4, 0.0);
-
     ros::param::get("~home_pose",home_pose);
     ros::param::param<std::string>("~home_pose_parent_frame", parent_frame, "map");
 

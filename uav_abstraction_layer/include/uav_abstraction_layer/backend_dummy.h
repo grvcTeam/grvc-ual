@@ -40,6 +40,8 @@ public:
     virtual Pose	 pose() override { return Pose(); }  // TODO: Never moving?
     /// Latest velocity estimation of the robot
     virtual Velocity velocity() const override { return Velocity(); }  // TODO: Never moving?
+    /// Latest odometry estimation of the robot
+    virtual Odometry odometry() const override { return Odometry(); }  // TODO: Never moving?
     /// Latest transform estimation of the robot
     virtual Transform transform() const override {  // TODO: Never moving?
         Transform out;

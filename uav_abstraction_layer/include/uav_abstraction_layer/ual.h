@@ -50,6 +50,9 @@ public:
     /// Latest velocity estimation of the robot
     Velocity velocity() const { return backend_->velocity(); }
 
+    /// Latest odometry estimation of the robot
+    Odometry odometry() const { return backend_->odometry(); }
+
     /// Latest transform estimation of the robot
     Transform transform() const { return backend_->transform(); }
 

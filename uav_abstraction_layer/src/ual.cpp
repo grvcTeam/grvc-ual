@@ -71,6 +71,7 @@ void UAL::init() {
             std::string set_home_srv = ual_ns + "/set_home";
             std::string pose_topic = ual_ns + "/pose";
             std::string velocity_topic = ual_ns + "/velocity";
+            std::string odometry_topic = ual_ns + "/odom";
             std::string state_topic = ual_ns + "/state";
 
             ros::NodeHandle nh;
@@ -124,6 +125,7 @@ void UAL::init() {
             });
             ros::Publisher pose_pub = nh.advertise<geometry_msgs::PoseStamped>(pose_topic, 10);
             ros::Publisher velocity_pub = nh.advertise<geometry_msgs::TwistStamped>(velocity_topic, 10);
+            ros::Publisher odometry_pub = nh.advertise<nav_msgs::Odometry>(odometry_topic, 10);
             ros::Publisher state_pub = nh.advertise<std_msgs::String>(state_topic, 10);
             static tf2_ros::TransformBroadcaster tf_pub;
 
@@ -134,6 +136,7 @@ void UAL::init() {
             while (ros::ok()) {
                 pose_pub.publish(this->pose());
                 velocity_pub.publish(this->velocity());
+                odometry_pub.publish(this->odometry());
                 state_pub.publish(this->state());
                 tf_pub.sendTransform(this->transform());
                 loop_rate.sleep();

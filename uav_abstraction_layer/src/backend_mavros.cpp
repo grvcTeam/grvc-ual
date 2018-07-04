@@ -365,11 +365,26 @@ Velocity BackendMavros::velocity() const {
     return cur_vel_;
 }
 
+Odometry BackendMavros::odometry() const {
+    Odometry odom;
+
+    odom.header.stamp = ros::Time::now();
+    odom.header.frame_id = uav_home_frame_id_;
+    odom.child_frame_id = uav_frame_id_;
+    odom.pose.pose.position.x = cur_pose_.pose.position.x + local_start_pos_[0];
+    odom.pose.pose.position.y = cur_pose_.pose.position.y + local_start_pos_[1];
+    odom.pose.pose.position.z = cur_pose_.pose.position.z + local_start_pos_[2];
+    odom.pose.pose.orientation = cur_pose_.pose.orientation;
+    odom.twist.twist = cur_vel_.twist;
+
+    return odom;
+}
+
 Transform BackendMavros::transform() const {
     Transform out;
     out.header.stamp = ros::Time::now();
     out.header.frame_id = uav_home_frame_id_;
-    out.child_frame_id = "uav_" + std::to_string(robot_id_);
+    out.child_frame_id = uav_frame_id_;
     out.transform.translation.x = cur_pose_.pose.position.x + local_start_pos_[0];
     out.transform.translation.y = cur_pose_.pose.position.y + local_start_pos_[1];
     out.transform.translation.z = cur_pose_.pose.position.z + local_start_pos_[2];
@@ -400,13 +415,13 @@ bool BackendMavros::referencePoseReached() {
 
 void BackendMavros::initHomeFrame() {
 
-    uav_home_frame_id_ = "uav_" + std::to_string(robot_id_) + "_home";
     local_start_pos_ << 0.0, 0.0, 0.0;
 
-    // Get frame from rosparam
+    // Get frames from rosparam
+    ros::param::param<std::string>("~uav_frame",uav_frame_id_,"uav_" + std::to_string(robot_id_));
+    ros::param::param<std::string>("~uav_home_frame",uav_home_frame_id_, "uav_" + std::to_string(robot_id_) + "_home");
     std::string parent_frame;
     std::vector<double> home_pose(3, 0.0);
-
     ros::param::get("~home_pose",home_pose);
     ros::param::param<std::string>("~home_pose_parent_frame", parent_frame, "map");
 

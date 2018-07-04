@@ -45,6 +45,8 @@ public:
     virtual Pose	 pose() override;
     /// Latest velocity estimation of the robot
     virtual Velocity velocity() const override;
+    /// Latest odometry estimation of the robot
+    virtual Odometry odometry() const override;
     /// Latest transform estimation of the robot
     virtual Transform transform() const override;
 
@@ -104,6 +106,7 @@ private:
     int robot_id_;
     std::string pose_frame_id_;
     std::string uav_home_frame_id_;
+    std::string uav_frame_id_;
     tf2_ros::StaticTransformBroadcaster * static_tf_broadcaster_;
     std::map <std::string, geometry_msgs::TransformStamped> cached_transforms_;
 
