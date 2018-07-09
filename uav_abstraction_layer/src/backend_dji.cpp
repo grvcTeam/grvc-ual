@@ -68,7 +68,7 @@ BackendDji::BackendDji()
     std::string sdk_control_authority_srv = dji_ns + "/sdk_control_authority";
     std::string drone_task_control_srv = dji_ns + "/drone_task_control";
     std::string get_position_topic = dji_ns + "/local_position";
-    std::string set_position_topic = dji_ns + "/fligt_control_setpoint_ENUposition_yaw";
+    std::string set_position_topic = dji_ns + "/flight_control_setpoint_ENUposition_yaw";
 
     activation_client_ = nh.serviceClient<dji_sdk::Activation>(activation_srv.c_str());
     set_local_pos_ref_client_ = nh.serviceClient<dji_sdk::SetLocalPosRef>(set_local_pos_ref_srv.c_str());
