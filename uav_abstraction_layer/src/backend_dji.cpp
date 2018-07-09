@@ -28,6 +28,7 @@
 #include <dji_sdk/SetLocalPosRef.h>
 #include <dji_sdk/SDKControlAuthority.h>
 #include <dji_sdk/DroneTaskControl.h>
+#include <sensor_msgs/Joy.h>
 // #include <ros/package.h>
 // #include <tf2_ros/transform_listener.h>
 // #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
@@ -75,7 +76,7 @@ BackendDji::BackendDji()
     sdk_control_authority_client_ = nh.serviceClient<dji_sdk::SDKControlAuthority>(sdk_control_authority_srv.c_str());
     drone_task_control_client_ = nh.serviceClient<dji_sdk::DroneTaskControl>(drone_task_control_srv.c_str());
 
-    reference_position_pub_ = nh.advertise<geometry_msgs::PointStamped>(set_position_topic.c_str(), 1);
+    reference_position_pub_ = nh.advertise<sensor_msgs::Joy>(set_position_topic.c_str(), 1);
 
     position_sub_ = nh.subscribe<geometry_msgs::PointStamped>(get_position_topic.c_str(), 1, \
         [this](const geometry_msgs::PointStamped::ConstPtr& _msg) {
@@ -129,6 +130,7 @@ void BackendDji::controlThread() {
 //     orientation_error_.set_size(buffer_size);
     ros::Rate rate(control_thread_frequency_);
     while (ros::ok()) {
+        sensor_msgs::Joy reference_joy;
         switch(control_mode_) {
         case eControlMode::IDLE:
             break;
@@ -137,7 +139,11 @@ void BackendDji::controlThread() {
             // ref_pose_ = cur_pose_;
             break;
         case eControlMode::LOCAL_POSE:
-            reference_position_pub_.publish(reference_pose_.pose.position);
+            reference_joy.axes.push_back(reference_pose_.pose.position.x - current_position_.point.x);
+            reference_joy.axes.push_back(reference_pose_.pose.position.y - current_position_.point.y);
+            reference_joy.axes.push_back(reference_pose_.pose.position.z);
+            reference_joy.axes.push_back(0.0);  // TODO: calculate desired yaw
+            reference_position_pub_.publish(reference_joy);
             // mavros_ref_pose_pub_.publish(ref_pose_);
             // ref_vel_.twist.linear.x = 0;
             // ref_vel_.twist.linear.y = 0;
