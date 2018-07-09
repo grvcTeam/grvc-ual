@@ -12,29 +12,40 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     <arg name="multi" default="false"/>
 
-    <!-- Load frame transforms for map and UAVs -->
-    <rosparam file="$(find px4_bringup)/config/simulation_params.yaml" command="load" />
-
     <!-- Launch Gazebo simulation TODO: world location? -->
     <node pkg="px4_bringup" type="launch_gzworld.py" name="gazebo_world" output="screen"
-    args="-physics=ode -world=$(find px4_bringup)/config/empty_light.world"/>
+        args="-physics=ode -world=$(find px4_bringup)/config/empty_light.world">
+        <rosparam param="sim_origin">[37.558542, -5.931074, 7.89]</rosparam><!-- [lat,lon,alt] -->
+    </node>
 
     <!-- Launch robot id=1 -->
-    <include file="$(find px4_bringup)/launch/spawn_robot.launch">
+    <include file="$(find px4_bringup)/launch/spawn_robot.launch" ns="uav_1">
         <arg name="id" value="1"/>
         <arg name="material" value="Orange"/>
+        <arg name="x" default="0"/>
+        <arg name="y" default="0"/>
+        <arg name="z" default="0"/>
+        <arg name="yaw" default="0"/>
     </include>
 
     <group if="$(arg multi)">
         <!-- Launch robot id=2 -->
-        <include file="$(find px4_bringup)/launch/spawn_robot.launch">
+        <include file="$(find px4_bringup)/launch/spawn_robot.launch" ns="uav_2">
             <arg name="id" value="2"/>
             <arg name="material" value="Indigo"/>
+            <arg name="x" default="-10"/>
+            <arg name="y" default="10"/>
+            <arg name="z" default="0"/>
+            <arg name="yaw" default="0"/>
         </include>
         <!-- Launch robot id=3 -->
-        <include file="$(find px4_bringup)/launch/spawn_robot.launch">
+        <include file="$(find px4_bringup)/launch/spawn_robot.launch" ns="uav_3">
             <arg name="id" value="3"/>
             <arg name="material" value="ZincYellow"/>
+            <arg name="x" default="10"/>
+            <arg name="y" default="10"/>
+            <arg name="z" default="0"/>
+            <arg name="yaw" default="0"/>
         </include>
     </group>
 
