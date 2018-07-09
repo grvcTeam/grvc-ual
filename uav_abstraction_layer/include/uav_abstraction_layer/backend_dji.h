@@ -96,6 +96,8 @@ public:
     virtual Pose	 pose() override;
     /// Latest velocity estimation of the robot
     virtual Velocity velocity() const override;
+    /// Latest odometry estimation of the robot
+    virtual Odometry odometry() const override;
     /// Latest transform estimation of the robot
     virtual Transform transform() const override;
 

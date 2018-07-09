@@ -393,6 +393,8 @@ Velocity BackendDji::velocity() const {
     // return cur_vel_;
 }
 
+Odometry BackendDji::odometry() const {}
+
 Transform BackendDji::transform() const {
     // Transform out;
     // out.header.stamp = ros::Time::now();
