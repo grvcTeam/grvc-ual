@@ -22,6 +22,7 @@
 #include <uav_abstraction_layer/backend_mavros.h>
 #include <uav_abstraction_layer/backend_light.h>
 #include <uav_abstraction_layer/backend_dummy.h>
+#include <uav_abstraction_layer/backend_dji.h>
 
 namespace grvc { namespace ual {
 
@@ -47,6 +48,9 @@ Backend* Backend::createBackend() {
     }
     else if (selected_backend == "dummy") {
         be = new BackendDummy();
+    }
+    else if (selected_backend == "dji") {
+        be = new BackendDji();
     }
     return be;
 }
