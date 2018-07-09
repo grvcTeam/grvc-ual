@@ -41,6 +41,8 @@
 // #include <geometry_msgs/TransformStamped.h>
 // #include <tf2_ros/static_transform_broadcaster.h>
 
+#include <geometry_msgs/PointStamped.h>
+
 namespace grvc { namespace ual {
 
 // class HistoryBuffer {  // TODO: template? utils?
@@ -126,14 +128,13 @@ public:
     void    setHome() override;
 
 private:
-    // void offboardThreadLoop();
+    void controlThread();
     // void setArmed(bool _value);
     // void initHomeFrame();
     // bool referencePoseReached();
     // void setFlightMode(const std::string& _flight_mode);
 
-    // //WaypointList path_;
-    // geometry_msgs::PoseStamped ref_pose_;
+    geometry_msgs::PoseStamped reference_pose_;
     // sensor_msgs::NavSatFix     ref_pose_global_;
     // geometry_msgs::PoseStamped cur_pose_;
     // geometry_msgs::TwistStamped ref_vel_;
@@ -141,9 +142,11 @@ private:
     // mavros_msgs::State mavros_state_;
     // mavros_msgs::ExtendedState mavros_extended_state_;
 
-    // //Control
-    // enum class eControlMode {LOCAL_VEL, LOCAL_POSE, GLOBAL_POSE};
-    // eControlMode control_mode_ = eControlMode::LOCAL_POSE;
+    geometry_msgs::PointStamped current_position_;
+
+    // Control
+    enum class eControlMode { IDLE, LOCAL_VEL, LOCAL_POSE, GLOBAL_POSE };
+    eControlMode control_mode_ = eControlMode::IDLE;
     // bool mavros_has_pose_ = false;
     // float position_th_;
     // float orientation_th_;
@@ -158,6 +161,10 @@ private:
     ros::ServiceClient set_local_pos_ref_client_;
     ros::ServiceClient sdk_control_authority_client_;
     ros::ServiceClient drone_task_control_client_;
+
+    ros::Publisher reference_position_pub_;
+
+    ros::Subscriber position_sub_;
 
     // ros::Publisher mavros_ref_pose_pub_;
     // ros::Publisher mavros_ref_pose_global_pub_;
@@ -174,8 +181,8 @@ private:
     // std::map <std::string, geometry_msgs::TransformStamped> cached_transforms_;
     // Eigen::Vector3d local_start_pos_;
 
-    // std::thread offboard_thread_;
-    // double offboard_thread_frequency_;  // TODO: param?
+    std::thread control_thread_;
+    double control_thread_frequency_;
 };
 
 }}	// namespace grvc::ual

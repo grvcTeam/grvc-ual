@@ -67,11 +67,20 @@ BackendDji::BackendDji()
     std::string set_local_pos_ref_srv = dji_ns + "/set_local_pos_ref";
     std::string sdk_control_authority_srv = dji_ns + "/sdk_control_authority";
     std::string drone_task_control_srv = dji_ns + "/drone_task_control";
+    std::string get_position_topic = dji_ns + "/local_position";
+    std::string set_position_topic = dji_ns + "/fligt_control_setpoint_ENUposition_yaw";
 
     activation_client_ = nh.serviceClient<dji_sdk::Activation>(activation_srv.c_str());
     set_local_pos_ref_client_ = nh.serviceClient<dji_sdk::SetLocalPosRef>(set_local_pos_ref_srv.c_str());
     sdk_control_authority_client_ = nh.serviceClient<dji_sdk::SDKControlAuthority>(sdk_control_authority_srv.c_str());
     drone_task_control_client_ = nh.serviceClient<dji_sdk::DroneTaskControl>(drone_task_control_srv.c_str());
+
+    reference_position_pub_ = nh.advertise<geometry_msgs::PointStamped>(set_position_topic.c_str(), 1);
+
+    position_sub_ = nh.subscribe<geometry_msgs::PointStamped>(get_position_topic.c_str(), 1, \
+        [this](const geometry_msgs::PointStamped::ConstPtr& _msg) {
+            this->current_position_ = *_msg;
+    });
 
     // flight_mode_client_ = nh.serviceClient<mavros_msgs::SetMode>(set_mode_srv.c_str());
     // arming_client_ = nh.serviceClient<mavros_msgs::CommandBool>(arming_srv.c_str());
@@ -107,68 +116,70 @@ BackendDji::BackendDji()
     // }
     // initHomeFrame();
 
-    // // Thread publishing target pose at 10Hz for offboard mode
-    // offboard_thread_ = std::thread(&BackendDji::offboardThreadLoop, this);
+    control_thread_ = std::thread(&BackendDji::controlThread, this);
 
-    ROS_INFO("BackendDji %d running!",robot_id_);
+    ROS_INFO("BackendDji %d running!", robot_id_);
 }
 
-// void BackendDji::offboardThreadLoop(){
-//     ros::param::param<double>("~mavros_offboard_rate", offboard_thread_frequency_, 30.0);
+void BackendDji::controlThread() {
+    ros::param::param<double>("~mavros_offboard_rate", control_thread_frequency_, 30.0);
 //     double hold_pose_time = 3.0;  // [s]  TODO param?
 //     int buffer_size = std::ceil(hold_pose_time * offboard_thread_frequency_);
 //     position_error_.set_size(buffer_size);
 //     orientation_error_.set_size(buffer_size);
-//     ros::Rate rate(offboard_thread_frequency_);
-//     while (ros::ok()) {
-//         switch(control_mode_){
-//         case eControlMode::LOCAL_VEL:
-//             mavros_ref_vel_pub_.publish(ref_vel_);
-//             ref_pose_ = cur_pose_;
-//             break;
-//         case eControlMode::LOCAL_POSE:
-//             mavros_ref_pose_pub_.publish(ref_pose_);
-//             ref_vel_.twist.linear.x = 0;
-//             ref_vel_.twist.linear.y = 0;
-//             ref_vel_.twist.linear.z = 0;
-//             ref_vel_.twist.angular.z = 0;
-//             break;
-//         case eControlMode::GLOBAL_POSE:
-//             ref_vel_.twist.linear.x = 0;
-//             ref_vel_.twist.linear.y = 0;
-//             ref_vel_.twist.linear.z = 0;
-//             ref_vel_.twist.angular.z = 0;
-//             ref_pose_ = cur_pose_;
+    ros::Rate rate(control_thread_frequency_);
+    while (ros::ok()) {
+        switch(control_mode_) {
+        case eControlMode::IDLE:
+            break;
+        case eControlMode::LOCAL_VEL:
+            // mavros_ref_vel_pub_.publish(ref_vel_);
+            // ref_pose_ = cur_pose_;
+            break;
+        case eControlMode::LOCAL_POSE:
+            reference_position_pub_.publish(reference_pose_.pose.position);
+            // mavros_ref_pose_pub_.publish(ref_pose_);
+            // ref_vel_.twist.linear.x = 0;
+            // ref_vel_.twist.linear.y = 0;
+            // ref_vel_.twist.linear.z = 0;
+            // ref_vel_.twist.angular.z = 0;
+            break;
+        case eControlMode::GLOBAL_POSE:
+            // ref_vel_.twist.linear.x = 0;
+            // ref_vel_.twist.linear.y = 0;
+            // ref_vel_.twist.linear.z = 0;
+            // ref_vel_.twist.angular.z = 0;
+            // ref_pose_ = cur_pose_;
 
-//             mavros_msgs::GlobalPositionTarget msg;    
-//             msg.latitude = ref_pose_global_.latitude;
-//             msg.longitude = ref_pose_global_.longitude;
-//             msg.altitude = ref_pose_global_.altitude;
-//             msg.header.stamp = ros::Time::now();
-//             msg.coordinate_frame = mavros_msgs::GlobalPositionTarget::FRAME_GLOBAL_REL_ALT;
-//             msg.type_mask = 4088; //((4095^1)^2)^4;
+            // mavros_msgs::GlobalPositionTarget msg;    
+            // msg.latitude = ref_pose_global_.latitude;
+            // msg.longitude = ref_pose_global_.longitude;
+            // msg.altitude = ref_pose_global_.altitude;
+            // msg.header.stamp = ros::Time::now();
+            // msg.coordinate_frame = mavros_msgs::GlobalPositionTarget::FRAME_GLOBAL_REL_ALT;
+            // msg.type_mask = 4088; //((4095^1)^2)^4;
 
-//             mavros_ref_pose_global_pub_.publish(msg);
-//             break;
-//         }
-//         // Error history update
-//         double dx = ref_pose_.pose.position.x - cur_pose_.pose.position.x;
-//         double dy = ref_pose_.pose.position.y - cur_pose_.pose.position.y;
-//         double dz = ref_pose_.pose.position.z - cur_pose_.pose.position.z;
-//         double positionD = dx*dx + dy*dy + dz*dz; // Equals distance^2
+            // mavros_ref_pose_global_pub_.publish(msg);
+            break;
+        }
+        // // Error history update
+        // double dx = ref_pose_.pose.position.x - cur_pose_.pose.position.x;
+        // double dy = ref_pose_.pose.position.y - cur_pose_.pose.position.y;
+        // double dz = ref_pose_.pose.position.z - cur_pose_.pose.position.z;
+        // double positionD = dx*dx + dy*dy + dz*dz; // Equals distance^2
 
-//         double quatInnerProduct = ref_pose_.pose.orientation.x*cur_pose_.pose.orientation.x + \
-//         ref_pose_.pose.orientation.y*cur_pose_.pose.orientation.y + \
-//         ref_pose_.pose.orientation.z*cur_pose_.pose.orientation.z + \
-//         ref_pose_.pose.orientation.w*cur_pose_.pose.orientation.w;
-//         double orientationD = 1.0 - quatInnerProduct*quatInnerProduct;  // Equals (1-cos(rotation))/2
+        // double quatInnerProduct = ref_pose_.pose.orientation.x*cur_pose_.pose.orientation.x + \
+        // ref_pose_.pose.orientation.y*cur_pose_.pose.orientation.y + \
+        // ref_pose_.pose.orientation.z*cur_pose_.pose.orientation.z + \
+        // ref_pose_.pose.orientation.w*cur_pose_.pose.orientation.w;
+        // double orientationD = 1.0 - quatInnerProduct*quatInnerProduct;  // Equals (1-cos(rotation))/2
 
-//         position_error_.update(positionD);
-//         orientation_error_.update(orientationD);
+        // position_error_.update(positionD);
+        // orientation_error_.update(orientationD);
 
-//         rate.sleep();
-//     }
-// }
+        rate.sleep();
+    }
+}
 
 // void BackendDji::setArmed(bool _value) {
 //     mavros_msgs::CommandBool arming_service;
@@ -252,7 +263,7 @@ void BackendDji::takeOff(double _height) {
     // while (!referencePoseReached() && ros::ok()) {
     //     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     // }
-    // ROS_INFO("Flying!");
+    ROS_INFO("Flying!");
 }
 
 void BackendDji::land() {
@@ -283,6 +294,10 @@ bool BackendDji::isReady() const {
 }
 
 void BackendDji::goToWaypoint(const Waypoint& _world) {
+
+    control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
+    reference_pose_ = _world;
+
 //     control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
 
 //     geometry_msgs::PoseStamped homogen_world_pos;
