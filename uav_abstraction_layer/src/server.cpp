@@ -24,10 +24,15 @@
 int main(int _argc, char** _argv) {
 
     grvc::ual::UAL ual(_argc,_argv);
+
+    int uav_id;
+    ros::param::param<int>("~uav_id", uav_id, 1);
+
     while (!ual.isReady() && ros::ok()) {
-        std::cout << "UAL not ready!" << std::endl;
+        ROS_WARN("UAL %d not ready!", uav_id);
         sleep(1);
     }
+    ROS_INFO("UAL %d ready!", uav_id);
     while (ros::ok()) { sleep(1); }
 
     return 0;

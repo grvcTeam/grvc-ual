@@ -36,10 +36,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         <arg name="id" value="1"/>
         <arg name="material" value="Orange"/>
         <arg name="mode" value="$(arg mode)"/>
-        <arg name="x" default="0"/>
-        <arg name="y" default="0"/>
-        <arg name="z" default="0"/>
-        <arg name="yaw" default="0"/>
+        <arg name="x" value="0"/>
+        <arg name="y" value="0"/>
+        <arg name="z" value="0"/>
+        <arg name="yaw" value="0"/>
     </include>
 
     <group if="$(arg multi)">
@@ -48,20 +48,20 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             <arg name="id" value="2"/>
             <arg name="material" value="Indigo"/>
             <arg name="mode" value="sitl"/>
-            <arg name="x" default="-10"/>
-            <arg name="y" default="10"/>
-            <arg name="z" default="0"/>
-            <arg name="yaw" default="0"/>
+            <arg name="x" value="-10"/>
+            <arg name="y" value="10"/>
+            <arg name="z" value="0"/>
+            <arg name="yaw" value="0"/>
         </include>
         <!-- Launch robot id=3 -->
         <include file="$(find px4_bringup)/launch/spawn_robot.launch" ns="$(arg ns_prefix)3">
             <arg name="id" value="3"/>
             <arg name="material" value="ZincYellow"/>
             <arg name="mode" value="sitl"/>
-            <arg name="x" default="10"/>
-            <arg name="y" default="10"/>
-            <arg name="z" default="0"/>
-            <arg name="yaw" default="0"/>
+            <arg name="x" value="10"/>
+            <arg name="y" value="10"/>
+            <arg name="z" value="0"/>
+            <arg name="yaw" value="0"/>
         </include>
     </group>
 
@@ -70,8 +70,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         <param name="uav_id" value="1"/>
         <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
         <param name="ual_server" value="$(arg ual_server)"/>
-        <param name="ual_pub_rate" value="30.0"/>
-        <param name="mavros_offboard_rate" value="30.0"/>
+        <param name="ual_pub_rate" value="$(arg ual_pub_rate)"/>
+        <param name="mavros_offboard_rate" value="$(arg mavros_offboard_rate)"/>
         <rosparam param="home_pose">[0, 0, 0]</rosparam><!-- [x,y,z] -->
         <param name="home_pose_parent_frame" value="map"/><!-- default= map -->
     </node>
@@ -82,8 +82,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             <param name="uav_id" value="2"/>
             <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
             <param name="ual_server" value="$(arg ual_server)"/>
-            <param name="ual_pub_rate" value="30.0"/>
-            <param name="mavros_offboard_rate" value="30.0"/>
+            <param name="ual_pub_rate" value="$(arg ual_pub_rate)"/>
+            <param name="mavros_offboard_rate" value="$(arg mavros_offboard_rate)"/>
             <rosparam param="home_pose">[-10, 10, 0]</rosparam><!-- [x,y,z] -->
             <param name="home_pose_parent_frame" value="map"/><!-- default= map -->
         </node>
@@ -92,8 +92,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             <param name="uav_id" value="3"/>
             <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
             <param name="ual_server" value="$(arg ual_server)"/>
-            <param name="ual_pub_rate" value="30.0"/>
-            <param name="mavros_offboard_rate" value="30.0"/>
+            <param name="ual_pub_rate" value="$(arg ual_pub_rate)"/>
+            <param name="mavros_offboard_rate" value="$(arg mavros_offboard_rate)"/>
             <rosparam param="home_pose">[10, 10, 0]</rosparam><!-- [x,y,z] -->
             <param name="home_pose_parent_frame" value="map"/><!-- default= map -->
         </node>
