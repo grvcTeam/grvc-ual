@@ -54,6 +54,34 @@ void UAL::init() {
     ros::NodeHandle pnh("~");
     pnh.param<int>("uav_id", robot_id_, 1);
 
+    // Assure id uniqueness
+    id_is_unique_ = true;
+    std::vector<int> ual_ids;
+    if (ros::param::has("/ual_ids")) {
+        ros::param::get("/ual_ids", ual_ids);
+        for (auto id: ual_ids) {
+            if (id == robot_id_) {
+                id_is_unique_ = false;
+            }
+        }
+        if (!id_is_unique_) {
+            ROS_ERROR("Another ual with id [%d] is already running!", robot_id_);
+            throw std::runtime_error("Id is not unique, already found in /ual_ids");
+        }
+    }
+    if (id_is_unique_) {
+        ual_ids.push_back(robot_id_);
+    }
+    ros::param::set("/ual_ids", ual_ids);
+
+    // TODO(franreal): check if it's possible to assure id uniqueness with topic names
+    // ros::master::V_TopicInfo master_topics;
+    // ros::master::getTopics(master_topics);
+    // for (ros::master::V_TopicInfo::iterator it = master_topics.begin() ; it != master_topics.end(); it++) {
+    //     const ros::master::TopicInfo& info = *it;
+    //     std::cout << "topic_" << it - master_topics.begin() << ": " << info.name << std::endl;
+    // }
+
     // Start server if explicitly asked
     std::string server_mode;
     pnh.param<std::string>("ual_server", server_mode, "on");
@@ -149,6 +177,19 @@ UAL::~UAL() {
     if (!backend_->isIdle()) { backend_->abort(); }
     if (running_thread_.joinable()) { running_thread_.join(); }
     if (server_thread_.joinable()) { server_thread_.join(); }
+
+    if (id_is_unique_) {
+        // Remove id from /ual_ids
+        std::vector<int> ual_ids;
+        ros::param::get("/ual_ids", ual_ids);
+        std::vector<int> new_ual_ids;
+        for (auto id: ual_ids) {
+            if (id != robot_id_) {
+                new_ual_ids.push_back(id);
+            }
+        }
+        ros::param::set("/ual_ids", new_ual_ids);
+    }
 }
 
 bool UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {
