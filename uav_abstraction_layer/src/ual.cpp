@@ -165,6 +165,9 @@ void UAL::init() {
                 pose_pub.publish(this->pose());
                 velocity_pub.publish(this->velocity());
                 odometry_pub.publish(this->odometry());
+                if (this->state_ == UNINITIALIZED && this->isReady()) {
+                    this->state_ = LANDED;
+                }
                 state_pub.publish(this->state());
                 tf_pub.sendTransform(this->transform());
                 loop_rate.sleep();
@@ -328,6 +331,9 @@ bool UAL::recoverFromManual() {
 std_msgs::String UAL::state() {
     std_msgs::String output;
     switch (state_) {
+        case UNINITIALIZED:
+            output.data = "UNINITIALIZED";
+            break;
         case LANDED:
             output.data = "LANDED";
             break;
