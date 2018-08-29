@@ -30,6 +30,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         - sitl: for software in the loop simulation
         - serial: for serial connection to px4
         - udp: for udp connection to px4
+        - custom: to fully customize fcu and gcs urls
     -->
     <!-- Launch robot id=1 -->
     <include file="$(find px4_bringup)/launch/spawn_robot.launch" ns="$(arg ns_prefix)1">
