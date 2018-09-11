@@ -294,21 +294,16 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
     homogen_world_pos.pose.position.z -= local_start_pos_[2];
 
     // TODO(franreal): test this here and think a better place for implementation
-    Pose final_pose = homogen_world_pos;
-    Pose initial_pose = cur_pose_;
-    double v_x = final_pose.pose.position.x - initial_pose.pose.position.x;
-    double v_y = final_pose.pose.position.y - initial_pose.pose.position.y;
-    double v_z = final_pose.pose.position.z - initial_pose.pose.position.z;
+    geometry_msgs::Point final_position = homogen_world_pos.pose.position;
+    geometry_msgs::Point initial_position = cur_pose_.pose.position;
+    double v_x = final_position.x - initial_position.x;
+    double v_y = final_position.y - initial_position.y;
+    double v_z = final_position.z - initial_position.z;
 
-    // Eigen::Quaterniond final_orientation = Eigen::Quaterniond(homogen_world_pos.pose.orientation.w, 
-    //     homogen_world_pos.pose.orientation.x, homogen_world_pos.pose.orientation.y, homogen_world_pos.pose.orientation.z);
-    // void quaternionEigenToMsg(const Eigen::Quaterniond &e, geometry_msgs::Quaternion &m)
-    // {
-    //   m.x = e.x();
-    //   m.y = e.y();
-    //   m.z = e.z();
-    //   m.w = e.w();
-    // }
+    Eigen::Quaterniond final_orientation = Eigen::Quaterniond(homogen_world_pos.pose.orientation.w, 
+        homogen_world_pos.pose.orientation.x, homogen_world_pos.pose.orientation.y, homogen_world_pos.pose.orientation.z);
+    Eigen::Quaterniond initial_orientation = Eigen::Quaterniond(cur_pose_.pose.orientation.w, 
+        cur_pose_.pose.orientation.x, cur_pose_.pose.orientation.y, cur_pose_.pose.orientation.z);
 
     double distance = sqrt(v_x*v_x + v_y*v_y + v_z*v_z);
     if (distance > sqrt(position_th_)) {
@@ -316,14 +311,18 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
         float frequency = 10;
         double t_step = mean_speed / (distance*frequency);
         ROS_INFO("distance = %f, t_step = %f", distance, t_step);
-        double t = t_step;  // TODO(franreal): Other than linear progression? Previous wp?
+        double t = 0;
         ros::Rate rate(frequency);
         while ((t <= 1.0) && !abort_ && ros::ok()) {
             Waypoint wp_i;
-            wp_i.pose.position.x = initial_pose.pose.position.x + v_x * t;
-            wp_i.pose.position.y = initial_pose.pose.position.y + v_y * t;
-            wp_i.pose.position.z = initial_pose.pose.position.z + v_z * t;
-            wp_i.pose.orientation = final_pose.pose.orientation;  // TODO(franreal): interpolate too!
+            wp_i.pose.position.x = initial_position.x + v_x * t;
+            wp_i.pose.position.y = initial_position.y + v_y * t;
+            wp_i.pose.position.z = initial_position.z + v_z * t;
+            Eigen::Quaterniond q_i = initial_orientation.slerp(t, final_orientation);
+            wp_i.pose.orientation.w = q_i.w();
+            wp_i.pose.orientation.x = q_i.x();
+            wp_i.pose.orientation.y = q_i.y();
+            wp_i.pose.orientation.z = q_i.z();
             ref_pose_.pose = wp_i.pose;
             ROS_INFO("t = %f, wp_i = [%f, %f, %f][%f, %f, %f, %f]", t, wp_i.pose.position.x, wp_i.pose.position.y, wp_i.pose.position.z,
                 wp_i.pose.orientation.x, wp_i.pose.orientation.y, wp_i.pose.orientation.z, wp_i.pose.orientation.w);
