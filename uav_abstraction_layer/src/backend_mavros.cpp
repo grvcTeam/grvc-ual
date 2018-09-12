@@ -257,28 +257,7 @@ bool BackendMavros::isReady() const {
     return mavros_has_pose_;  // TODO: Other condition?
 }
 
-double doublePolynomialSigmoid (double x, int n) {
-    double y = 0;
-    if (n%2 == 0) {
-        // even polynomial
-        if (x <= 0.5) {
-            y = pow(2.0*x, n) / 2.0;
-        } else {
-            y = 1.0 - pow(2*(x-1), n) / 2.0;
-        }
-    } else {
-        // odd polynomial
-        if (x <= 0.5) {
-            y = pow(2.0*x, n) / 2.0;
-        } else {
-            y = 1.0 + pow(2.0*(x-1), n) / 2.0;
-        }
-    }
-
-    return y;
-}
-
-double polySigmoid2(double x) {
+double polySigmoid(double x) {
     double y = 0;
     if (x <= 0.5) {
         y = 2.0*x*x;
@@ -362,10 +341,11 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
             wp_i.pose.orientation.y = q_i.y();
             wp_i.pose.orientation.z = q_i.z();
             ref_pose_.pose = wp_i.pose;
-            ROS_INFO("t = %f, t_shape = %f, wp_i = [%f, %f, %f][%f, %f, %f, %f]", t, t_shape, wp_i.pose.position.x, wp_i.pose.position.y, wp_i.pose.position.z,
-                wp_i.pose.orientation.x, wp_i.pose.orientation.y, wp_i.pose.orientation.z, wp_i.pose.orientation.w);
-            t += t_step;  // TODO(franreal): Other than linear progression? Previous wp?
-            t_shape = 1 / (1 + exp(-10*(t-0.5)));  // Test logistic curve...
+            float speed = sqrt(cur_vel_.twist.linear.x*cur_vel_.twist.linear.x + cur_vel_.twist.linear.y*cur_vel_.twist.linear.y + cur_vel_.twist.linear.z*cur_vel_.twist.linear.z);
+            ROS_INFO("t = %f, t_shape = %f, wp_i = [%f, %f, %f][%f, %f, %f, %f], speed = %f", t, t_shape, wp_i.pose.position.x, wp_i.pose.position.y, wp_i.pose.position.z,
+                wp_i.pose.orientation.x, wp_i.pose.orientation.y, wp_i.pose.orientation.z, wp_i.pose.orientation.w, speed);
+            t += t_step;  // TODO(franreal): Previous wp?
+            t_shape = polySigmoid(t);
             rate.sleep();
         }
     }
