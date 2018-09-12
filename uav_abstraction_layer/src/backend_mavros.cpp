@@ -257,6 +257,37 @@ bool BackendMavros::isReady() const {
     return mavros_has_pose_;  // TODO: Other condition?
 }
 
+double doublePolynomialSigmoid (double x, int n) {
+    double y = 0;
+    if (n%2 == 0) {
+        // even polynomial
+        if (x <= 0.5) {
+            y = pow(2.0*x, n) / 2.0;
+        } else {
+            y = 1.0 - pow(2*(x-1), n) / 2.0;
+        }
+    } else {
+        // odd polynomial
+        if (x <= 0.5) {
+            y = pow(2.0*x, n) / 2.0;
+        } else {
+            y = 1.0 + pow(2.0*(x-1), n) / 2.0;
+        }
+    }
+
+    return y;
+}
+
+double polySigmoid2(double x) {
+    double y = 0;
+    if (x <= 0.5) {
+        y = 2.0*x*x;
+    } else {
+        y = -2.0*x*x + 4.0*x - 1.0;
+    }
+    return y;
+}
+
 void BackendMavros::goToWaypoint(const Waypoint& _world) {
     control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
 
@@ -308,7 +339,7 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
     double linear_distance  = sqrt(v_x*v_x + v_y*v_y + v_z*v_z);
     double angular_distance = final_orientation.angularDistance(initial_orientation);
     if (linear_distance > sqrt(position_th_) || angular_distance > 0.1) {  // TODO(franreal): Check thresholds!
-        float mean_speed = 2.0;  // TODO(franreal): As a parameter?
+        float mean_speed = 0.5;  // TODO(franreal): As a parameter?
         float frequency = 10;
         double t_linear_step = mean_speed / (linear_distance*frequency);
         float mean_yawrate = 0.25;  // TODO(franreal): As a parameter?
@@ -318,21 +349,23 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
         ROS_INFO("angular_distance = %f, t_angular_step = %f", angular_distance, t_angular_step);
         ROS_INFO("t_step = min(t_linear_step, t_angular_step) = %f", t_step);
         double t = 0;
+        double t_shape = t;  // Non linear t shape
         ros::Rate rate(frequency);
         while ((t <= 1.0) && !abort_ && ros::ok()) {
             Waypoint wp_i;
-            wp_i.pose.position.x = initial_position.x + v_x * t;
-            wp_i.pose.position.y = initial_position.y + v_y * t;
-            wp_i.pose.position.z = initial_position.z + v_z * t;
-            Eigen::Quaterniond q_i = initial_orientation.slerp(t, final_orientation);
+            wp_i.pose.position.x = initial_position.x + v_x * t_shape;
+            wp_i.pose.position.y = initial_position.y + v_y * t_shape;
+            wp_i.pose.position.z = initial_position.z + v_z * t_shape;
+            Eigen::Quaterniond q_i = initial_orientation.slerp(t_shape, final_orientation);
             wp_i.pose.orientation.w = q_i.w();
             wp_i.pose.orientation.x = q_i.x();
             wp_i.pose.orientation.y = q_i.y();
             wp_i.pose.orientation.z = q_i.z();
             ref_pose_.pose = wp_i.pose;
-            ROS_INFO("t = %f, wp_i = [%f, %f, %f][%f, %f, %f, %f]", t, wp_i.pose.position.x, wp_i.pose.position.y, wp_i.pose.position.z,
+            ROS_INFO("t = %f, t_shape = %f, wp_i = [%f, %f, %f][%f, %f, %f, %f]", t, t_shape, wp_i.pose.position.x, wp_i.pose.position.y, wp_i.pose.position.z,
                 wp_i.pose.orientation.x, wp_i.pose.orientation.y, wp_i.pose.orientation.z, wp_i.pose.orientation.w);
             t += t_step;  // TODO(franreal): Other than linear progression? Previous wp?
+            t_shape = 1 / (1 + exp(-10*(t-0.5)));  // Test logistic curve...
             rate.sleep();
         }
     }
