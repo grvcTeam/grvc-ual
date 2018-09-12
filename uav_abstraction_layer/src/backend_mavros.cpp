@@ -305,12 +305,18 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
     Eigen::Quaterniond initial_orientation = Eigen::Quaterniond(cur_pose_.pose.orientation.w, 
         cur_pose_.pose.orientation.x, cur_pose_.pose.orientation.y, cur_pose_.pose.orientation.z);
 
-    double distance = sqrt(v_x*v_x + v_y*v_y + v_z*v_z);
-    if (distance > sqrt(position_th_)) {
+    double linear_distance  = sqrt(v_x*v_x + v_y*v_y + v_z*v_z);
+    double angular_distance = final_orientation.angularDistance(initial_orientation);
+    if (linear_distance > sqrt(position_th_) || angular_distance > 0.1) {  // TODO(franreal): Check thresholds!
         float mean_speed = 2.0;  // TODO(franreal): As a parameter?
         float frequency = 10;
-        double t_step = mean_speed / (distance*frequency);
-        ROS_INFO("distance = %f, t_step = %f", distance, t_step);
+        double t_linear_step = mean_speed / (linear_distance*frequency);
+        float mean_yawrate = 0.25;  // TODO(franreal): As a parameter?
+        double t_angular_step = mean_yawrate / (angular_distance*frequency);
+        double t_step = std::min(t_linear_step, t_angular_step);
+        ROS_INFO("linear_distance = %f, t_linear_step = %f", linear_distance, t_linear_step);
+        ROS_INFO("angular_distance = %f, t_angular_step = %f", angular_distance, t_angular_step);
+        ROS_INFO("t_step = min(t_linear_step, t_angular_step) = %f", t_step);
         double t = 0;
         ros::Rate rate(frequency);
         while ((t <= 1.0) && !abort_ && ros::ok()) {
