@@ -212,7 +212,7 @@ void BackendMavros::recoverFromManual() {
 
 void BackendMavros::setHome() {
     local_start_pos_ = -Eigen::Vector3d(cur_pose_.pose.position.x, \
-        cur_pose_.pose.position.y, cur_pose_.pose.position.z);
+        cur_pose_.pose.position.y, 0.0);
 }
 
 void BackendMavros::takeOff(double _height) {
