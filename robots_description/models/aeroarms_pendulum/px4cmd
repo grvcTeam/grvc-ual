@@ -43,6 +43,8 @@ param set MPC_XY_VEL_MAX 2.00
 param set EKF2_GBIAS_INIT 0.01
 param set EKF2_ANGERR_INIT 0.01
 param set EKF2_MAG_TYPE 1
+param set EKF2_AID_MASK 8
+param set EKF2_HGT_MODE 3
 replay tryapplyparams
 simulator start -s -u _SIMPORT_
 rgbledsim start
