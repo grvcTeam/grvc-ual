@@ -2,13 +2,18 @@
 import yaml
 import rospy
 import rospkg
+import math
 from sensor_msgs.msg import Joy
 from enum import Enum
 from uav_abstraction_layer.srv import TakeOff, Land, SetVelocity 
 from geometry_msgs.msg import TwistStamped
+from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import String
+import PyKDL
+from tf_conversions import posemath
 
 ButtonState = Enum('ButtonState', 'UNKNOWN JUST_PRESSED PRESSED JUST_RELEASED RELEASED')
+gains = [0.5, 0.8, 1.0, 1.3, 1.8, 2.1, 2.5]
 
 def update_button_state(prev_state, value):
     if prev_state is ButtonState.UNKNOWN:
@@ -99,26 +104,59 @@ class JoyTeleop:
         self.land     = rospy.ServiceProxy(land_url,     Land)
         self.velocity = rospy.ServiceProxy(velocity_url, SetVelocity)
         self.ual_state = String()
+        self.headless = True
+        self.ual_yaw = 0.0
+        self.gain_value = 2
 
     def state_callback(self, data):
         self.ual_state = data
+
+    def motion_callback(self, data):
+        rot = PyKDL.Rotation.Quaternion(data.pose.orientation.x, data.pose.orientation.y, data.pose.orientation.z, data.pose.orientation.w)
+        self.ual_yaw = rot.GetRPY()[2]
+        #print "Yaw = " + str(self.ual_yaw) # DEBUG
 
     def joy_callback(self, data):
         self.joy_handle.update(data)
         # print self.joy_handle  # DEBUG
         if self.joy_handle.get_button('left_shoulder'):
-            if self.joy_handle.get_button_state('x') is ButtonState.JUST_PRESSED:
+            if self.joy_handle.get_button_state('x') is ButtonState.JUST_PRESSED and self.ual_state.data == 'LANDED':
+                print "TAKING OFF"
                 self.take_off(2.0, False)  # TODO(franreal): takeoff height?
-            if self.joy_handle.get_button_state('b') is ButtonState.JUST_PRESSED:
+            if self.joy_handle.get_button_state('b') is ButtonState.JUST_PRESSED and self.ual_state.data == 'FLYING':
+                print "LANDING"
                 self.land(False)
+        
+        if self.headless == True and (self.joy_handle.get_button_state('right_shoulder') is ButtonState.JUST_PRESSED):
+            print "EXITING \"HEADLESS\" MODE"
+            self.headless = False
+        elif self.headless == False and (self.joy_handle.get_button_state('right_shoulder') is ButtonState.JUST_PRESSED):
+            print "ENTERING \"HEADLESS\" MODE"
+            self.headless = True
+
+        if self.joy_handle.get_button_state('left_trigger') is ButtonState.JUST_PRESSED:
+            self.gain_value = self.gain_value - 1 if self.gain_value > 0 else 0
+            print "SPEED LEVEL: " + str(self.gain_value)
+        if self.joy_handle.get_button_state('right_trigger') is ButtonState.JUST_PRESSED:
+            self.gain_value = self.gain_value + 1 if self.gain_value < 6 else 6
+            print "SPEED LEVEL: " + str(self.gain_value)
+            
         if self.ual_state.data == 'FLYING':
             vel_cmd = TwistStamped()
             vel_cmd.header.stamp = rospy.Time.now()
             vel_cmd.header.frame_id = 'map'
-            vel_cmd.twist.linear.x = 0.5 * self.joy_handle.get_axis('right_analog_x')  # TODO(franreal): gain
-            vel_cmd.twist.linear.y = 0.5 * self.joy_handle.get_axis('right_analog_y')  # TODO(franreal): gain
-            vel_cmd.twist.linear.z = 0.2 * self.joy_handle.get_axis('left_analog_y')   # TODO(franreal): gain
-            vel_cmd.twist.angular.z =     -self.joy_handle.get_axis('left_analog_x')   # TODO(franreal): gain
+            if self.headless == True:
+                vel_cmd.twist.linear.x = 0.5 * gains[self.gain_value] * self.joy_handle.get_axis('right_analog_x') #NOTE: For ds4 controller X axis must be inverted
+                vel_cmd.twist.linear.y = 0.5 * gains[self.gain_value] * self.joy_handle.get_axis('right_analog_y')
+                vel_cmd.twist.linear.z = 0.2 * gains[self.gain_value] * self.joy_handle.get_axis('left_analog_y')
+                vel_cmd.twist.angular.z =     -self.joy_handle.get_axis('left_analog_x')
+            else:
+                x = 0.5 * gains[self.gain_value] * self.joy_handle.get_axis('right_analog_x') #NOTE: For ds4 controller X axis must be inverted
+                y = 0.5 * gains[self.gain_value] * self.joy_handle.get_axis('right_analog_y')
+                vel_cmd.twist.linear.x = (x*math.cos(self.ual_yaw) - y*math.sin(self.ual_yaw))
+                vel_cmd.twist.linear.y = (x*math.sin(self.ual_yaw) + y*math.cos(self.ual_yaw))
+                vel_cmd.twist.linear.z = 0.2 * gains[self.gain_value] * self.joy_handle.get_axis('left_analog_y')
+                vel_cmd.twist.angular.z =     -self.joy_handle.get_axis('left_analog_x')
             self.velocity(vel_cmd)
 
 def main():
@@ -127,6 +165,7 @@ def main():
     robot_id = 'uav_1'  # TODO(franreal): argument!
     teleop = JoyTeleop(joy_file, robot_id)
     rospy.Subscriber(robot_id + '/ual/state', String, teleop.state_callback)
+    rospy.Subscriber(robot_id + '/ual/pose', PoseStamped, teleop.motion_callback) #TODO: Use ground truth
     rospy.Subscriber('joy', Joy, teleop.joy_callback)
     rospy.spin()
 
