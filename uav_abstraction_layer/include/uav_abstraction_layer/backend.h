@@ -30,6 +30,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <sensor_msgs/NavSatFix.h>
+#include <nav_msgs/Odometry.h>
 // #include <nav_msgs/Path.h>
 
 namespace grvc { namespace ual {
@@ -38,7 +39,7 @@ typedef geometry_msgs::PoseStamped      Pose;
 typedef geometry_msgs::PoseStamped      Waypoint;
 typedef sensor_msgs::NavSatFix          WaypointGeo;
 typedef geometry_msgs::TwistStamped     Velocity;
-typedef geometry_msgs::Vector3Stamped   PositionError;
+typedef nav_msgs::Odometry              Odometry;
 typedef geometry_msgs::TransformStamped Transform;
 
 /// Common interface for back-end implementations of ual
@@ -71,6 +72,8 @@ public:
     virtual Pose     pose() = 0;
     /// Latest velocity estimation of the robot
     virtual Velocity velocity() const = 0;
+    /// Latest odometry estimation of the robot
+    virtual Odometry odometry() const = 0;
     /// Latest transform estimation of the robot
     virtual Transform transform() const = 0;
 

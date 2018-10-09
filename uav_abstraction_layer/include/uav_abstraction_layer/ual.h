@@ -50,6 +50,9 @@ public:
     /// Latest velocity estimation of the robot
     Velocity velocity() const { return backend_->velocity(); }
 
+    /// Latest odometry estimation of the robot
+    Odometry odometry() const { return backend_->odometry(); }
+
     /// Latest transform estimation of the robot
     Transform transform() const { return backend_->transform(); }
 
@@ -93,15 +96,16 @@ protected:
     // TODO: public?
     std_msgs::String state();
     enum State {
+        UNINITIALIZED,
         LANDED,
         TAKING_OFF,
         FLYING,
         LANDING
     };
-    std::atomic<State> state_ = {LANDED};
+    std::atomic<State> state_ = {UNINITIALIZED};
 
     int robot_id_;
-    std::string ns_prefix_;
+    bool id_is_unique_;
 };
 
 }}	// namespace grvc::ual

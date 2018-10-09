@@ -18,8 +18,10 @@ def main():
                         help='IP address of the device running px4, used to set proper fcu_url')
     parser.add_argument('-own_ip', type=str, default="localhost",
                         help='IP address of this device, used to set proper fcu_url')
-    parser.add_argument('-ns_prefix', type=str, default="uav_",
-                        help='namespace prefix')
+    parser.add_argument('-fcu_url', type=str, default="udp://:14550@localhost:14556",
+                        help='set fcu_url manually in custom mode')
+    parser.add_argument('-gcs_url', type=str, default="udp://@localhost",
+                        help='set gcs_url manually in custom mode')
     args, unknown = parser.parse_known_args()
     utils.check_unknown_args(unknown)
 
@@ -30,15 +32,12 @@ def main():
     temp_dir = utils.temp_dir(args.id)
     subprocess.call("mkdir -p " + temp_dir, shell=True)
 
-    # Set a param to tell the system current spawn mode
-    run_ns = "run_mavros/" + args.ns_prefix + str(args.id)
-    subprocess.call("rosparam set " + run_ns + "/mode " + args.mode, shell=True)
+    # Namespace  
+    ns = rospy.get_namespace()
 
-    # Namespace
-    if rospy.get_namespace()=="/":
-        ns = args.ns_prefix + str(args.id)
-    else:
-        ns = rospy.get_namespace() + "/" + args.ns_prefix + str(args.id)
+    # Set a param to tell the system current spawn mode
+    run_ns = ns + "/run_mavros"
+    subprocess.call("rosparam set " + run_ns + "/mode " + args.mode, shell=True)
 
     # Get udp configuration, depending on id
     udp_config = utils.udp_config(args.id)
@@ -59,6 +58,11 @@ def main():
         fcu_url = "udp://:14550@{}:14556".format(args.target_ip)
         subprocess.call("rosparam set " + node_name + "/fcu_url " + fcu_url, shell=True)
         subprocess.call("rosparam set " + node_name + "/gcs_url " + "udp://@{}".format(args.own_ip), shell=True)
+    elif args.mode =="custom":
+        fcu_url = "{}".format(args.fcu_url)
+        gcs_url = "{}".format(args.gcs_url)
+        subprocess.call("rosparam set " + node_name + "/fcu_url " + fcu_url, shell=True)
+        subprocess.call("rosparam set " + node_name + "/gcs_url " + gcs_url, shell=True)
 
     # ...and load blacklist, config (as seen in mavros node.launch)
     yaml_path = rospack.get_path("px4_bringup") + "/config/"

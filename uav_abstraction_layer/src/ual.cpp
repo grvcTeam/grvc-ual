@@ -53,7 +53,34 @@ void UAL::init() {
     // Get params
     ros::NodeHandle pnh("~");
     pnh.param<int>("uav_id", robot_id_, 1);
-    pnh.param<std::string>("ns_prefix", ns_prefix_, "uav_");
+
+    // Assure id uniqueness
+    id_is_unique_ = true;
+    std::vector<int> ual_ids;
+    if (ros::param::has("/ual_ids")) {
+        ros::param::get("/ual_ids", ual_ids);
+        for (auto id: ual_ids) {
+            if (id == robot_id_) {
+                id_is_unique_ = false;
+            }
+        }
+        if (!id_is_unique_) {
+            ROS_ERROR("Another ual with id [%d] is already running!", robot_id_);
+            throw std::runtime_error("Id is not unique, already found in /ual_ids");
+        }
+    }
+    if (id_is_unique_) {
+        ual_ids.push_back(robot_id_);
+    }
+    ros::param::set("/ual_ids", ual_ids);
+
+    // TODO(franreal): check if it's possible to assure id uniqueness with topic names
+    // ros::master::V_TopicInfo master_topics;
+    // ros::master::getTopics(master_topics);
+    // for (ros::master::V_TopicInfo::iterator it = master_topics.begin() ; it != master_topics.end(); it++) {
+    //     const ros::master::TopicInfo& info = *it;
+    //     std::cout << "topic_" << it - master_topics.begin() << ": " << info.name << std::endl;
+    // }
 
     // Start server if explicitly asked
     std::string server_mode;
@@ -61,16 +88,18 @@ void UAL::init() {
     // TODO: Consider other modes?
     if (server_mode == "on") {
         server_thread_ = std::thread([this]() {
-            std::string ual_ns =  this->ns_prefix_ + std::to_string(this->robot_id_) + "/ual";
+            std::string ual_ns = "ual";
             std::string take_off_srv = ual_ns + "/take_off";
             std::string land_srv = ual_ns + "/land";
             std::string go_to_waypoint_srv = ual_ns + "/go_to_waypoint";
             std::string go_to_waypoint_geo_srv = ual_ns + "/go_to_waypoint_geo";
-            std::string set_velocity_srv = ual_ns + "/set_velocity";
+            std::string set_pose_topic = ual_ns + "/set_pose";
+            std::string set_velocity_topic = ual_ns + "/set_velocity";
             std::string recover_from_manual_srv = ual_ns + "/recover_from_manual";
             std::string set_home_srv = ual_ns + "/set_home";
             std::string pose_topic = ual_ns + "/pose";
             std::string velocity_topic = ual_ns + "/velocity";
+            std::string odometry_topic = ual_ns + "/odom";
             std::string state_topic = ual_ns + "/state";
 
             ros::NodeHandle nh;
@@ -98,11 +127,17 @@ void UAL::init() {
                 [this](GoToWaypointGeo::Request &req, GoToWaypointGeo::Response &res) {
                 return this->goToWaypointGeo(req.waypoint, req.blocking);
             });
-            ros::ServiceServer set_velocity_service =
-                nh.advertiseService<SetVelocity::Request, SetVelocity::Response>(
-                set_velocity_srv,
-                [this](SetVelocity::Request &req, SetVelocity::Response &res) {
-                return this->setVelocity(req.velocity);
+            ros::Subscriber set_pose_sub =
+                nh.subscribe<geometry_msgs::PoseStamped>(
+                set_pose_topic, 1,
+                [this](const geometry_msgs::PoseStamped::ConstPtr& _msg) {
+                this->goToWaypoint(*_msg, false);
+            });
+            ros::Subscriber set_velocity_sub =
+                nh.subscribe<geometry_msgs::TwistStamped>(
+                set_velocity_topic, 1,
+                [this](const geometry_msgs::TwistStamped::ConstPtr& _msg) {
+                this->setVelocity(*_msg);
             });
             ros::ServiceServer recover_from_manual_service =
                 nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>(
@@ -118,14 +153,21 @@ void UAL::init() {
             });
             ros::Publisher pose_pub = nh.advertise<geometry_msgs::PoseStamped>(pose_topic, 10);
             ros::Publisher velocity_pub = nh.advertise<geometry_msgs::TwistStamped>(velocity_topic, 10);
+            ros::Publisher odometry_pub = nh.advertise<nav_msgs::Odometry>(odometry_topic, 10);
             ros::Publisher state_pub = nh.advertise<std_msgs::String>(state_topic, 10);
             static tf2_ros::TransformBroadcaster tf_pub;
 
-            // Publish @ 10Hz
-            ros::Rate loop_rate(10);
+            // Publish @ 30Hz default
+            double ual_pub_rate;
+            ros::param::param<double>("~pub_rate", ual_pub_rate, 30.0);
+            ros::Rate loop_rate(ual_pub_rate);
             while (ros::ok()) {
                 pose_pub.publish(this->pose());
                 velocity_pub.publish(this->velocity());
+                odometry_pub.publish(this->odometry());
+                if (this->state_ == UNINITIALIZED && this->isReady()) {
+                    this->state_ = LANDED;
+                }
                 state_pub.publish(this->state());
                 tf_pub.sendTransform(this->transform());
                 loop_rate.sleep();
@@ -138,6 +180,19 @@ UAL::~UAL() {
     if (!backend_->isIdle()) { backend_->abort(); }
     if (running_thread_.joinable()) { running_thread_.join(); }
     if (server_thread_.joinable()) { server_thread_.join(); }
+
+    if (id_is_unique_) {
+        // Remove id from /ual_ids
+        std::vector<int> ual_ids;
+        ros::param::get("/ual_ids", ual_ids);
+        std::vector<int> new_ual_ids;
+        for (auto id: ual_ids) {
+            if (id != robot_id_) {
+                new_ual_ids.push_back(id);
+            }
+        }
+        ros::param::set("/ual_ids", new_ual_ids);
+    }
 }
 
 bool UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {
@@ -276,6 +331,9 @@ bool UAL::recoverFromManual() {
 std_msgs::String UAL::state() {
     std_msgs::String output;
     switch (state_) {
+        case UNINITIALIZED:
+            output.data = "UNINITIALIZED";
+            break;
         case LANDED:
             output.data = "LANDED";
             break;

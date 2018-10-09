@@ -38,8 +38,6 @@ BackendMavros::BackendMavros()
     ros::NodeHandle pnh("~");
     pnh.param<int>("uav_id", robot_id_, 1);
     pnh.param<std::string>("pose_frame_id", pose_frame_id_, "");
-    std::string ns_prefix;
-    pnh.param<std::string>("ns_prefix", ns_prefix, "uav_");
     float position_th_param, orientation_th_param;
     pnh.param<float>("position_th", position_th_param, 0.33);
     pnh.param<float>("orientation_th", orientation_th_param, 0.65);
@@ -51,7 +49,7 @@ BackendMavros::BackendMavros()
 
     // Init ros communications
     ros::NodeHandle nh;
-    std::string mavros_ns = ns_prefix + std::to_string(this->robot_id_) + "/mavros";
+    std::string mavros_ns = "mavros";
     std::string set_mode_srv = mavros_ns + "/set_mode";
     std::string arming_srv = mavros_ns + "/cmd/arming";
     std::string set_pose_topic = mavros_ns + "/setpoint_position/local";
@@ -89,12 +87,12 @@ BackendMavros::BackendMavros()
     });
 
     // TODO: Check this and solve frames issue
-    // Wait until we have pose
-    while (!mavros_has_pose_ && ros::ok()) {
-        // ROS_INFO("BackendMavros: Waiting for pose");
+    initHomeFrame();
+
+    // Wait until mavros is connected
+    while (!mavros_state_.connected && ros::ok()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
-    initHomeFrame();
 
     // Thread publishing target pose at 10Hz for offboard mode
     offboard_thread_ = std::thread(&BackendMavros::offboardThreadLoop, this);
@@ -103,8 +101,7 @@ BackendMavros::BackendMavros()
 }
 
 void BackendMavros::offboardThreadLoop(){
-    // TODO: Check this frequency
-    offboard_thread_frequency_ = 10;  // [Hz]
+    ros::param::param<double>("~mavros_offboard_rate", offboard_thread_frequency_, 30.0);
     double hold_pose_time = 3.0;  // [s]  TODO param?
     int buffer_size = std::ceil(hold_pose_time * offboard_thread_frequency_);
     position_error_.set_size(buffer_size);
@@ -115,6 +112,9 @@ void BackendMavros::offboardThreadLoop(){
         case eControlMode::LOCAL_VEL:
             mavros_ref_vel_pub_.publish(ref_vel_);
             ref_pose_ = cur_pose_;
+            if ( ros::Time::now().toSec() - last_command_time_.toSec() >=0.5 ) {
+                control_mode_ = eControlMode::LOCAL_POSE;
+            }
             break;
         case eControlMode::LOCAL_POSE:
             mavros_ref_pose_pub_.publish(ref_pose_);
@@ -249,8 +249,39 @@ void BackendMavros::land() {
 
 void BackendMavros::setVelocity(const Velocity& _vel) {
     control_mode_ = eControlMode::LOCAL_VEL;  // Velocity control!
-    // TODO: _vel world <-> body tf...
-    ref_vel_ = _vel;
+
+    tf2_ros::Buffer tfBuffer;
+    tf2_ros::TransformListener tfListener(tfBuffer);
+    geometry_msgs::Vector3Stamped vel_in, vel_out;
+    vel_in.header = _vel.header;
+    vel_in.vector = _vel.twist.linear;
+    std::string vel_frame_id = tf2::getFrameId(vel_in);
+
+    if (vel_frame_id == "map" || vel_frame_id == "" || vel_frame_id == uav_home_frame_id_) {
+        // No transform is needed
+        ref_vel_ = _vel;
+    }
+    else {
+        // We need to transform
+        geometry_msgs::TransformStamped transform;
+        bool tf_exists = true;
+        try {
+            transform = tfBuffer.lookupTransform(uav_home_frame_id_, vel_frame_id, ros::Time(0), ros::Duration(0.3));
+        }
+        catch (tf2::TransformException &ex) {
+            ROS_WARN("%s",ex.what());
+            tf_exists = false;
+            ref_vel_ = _vel;
+        }
+        
+        if(tf_exists) {
+            tf2::doTransform(vel_in, vel_out, transform);
+            ref_vel_.header = vel_out.header;
+            ref_vel_.twist.linear = vel_out.vector;
+            ref_vel_.twist.angular = _vel.twist.angular;
+        }
+    }
+    last_command_time_ = ros::Time::now();
 }
 
 bool BackendMavros::isReady() const {
@@ -368,11 +399,26 @@ Velocity BackendMavros::velocity() const {
     return cur_vel_;
 }
 
+Odometry BackendMavros::odometry() const {
+    Odometry odom;
+
+    odom.header.stamp = ros::Time::now();
+    odom.header.frame_id = uav_home_frame_id_;
+    odom.child_frame_id = uav_frame_id_;
+    odom.pose.pose.position.x = cur_pose_.pose.position.x + local_start_pos_[0];
+    odom.pose.pose.position.y = cur_pose_.pose.position.y + local_start_pos_[1];
+    odom.pose.pose.position.z = cur_pose_.pose.position.z + local_start_pos_[2];
+    odom.pose.pose.orientation = cur_pose_.pose.orientation;
+    odom.twist.twist = cur_vel_.twist;
+
+    return odom;
+}
+
 Transform BackendMavros::transform() const {
     Transform out;
     out.header.stamp = ros::Time::now();
     out.header.frame_id = uav_home_frame_id_;
-    out.child_frame_id = "uav_" + std::to_string(robot_id_);
+    out.child_frame_id = uav_frame_id_;
     out.transform.translation.x = cur_pose_.pose.position.x + local_start_pos_[0];
     out.transform.translation.y = cur_pose_.pose.position.y + local_start_pos_[1];
     out.transform.translation.z = cur_pose_.pose.position.z + local_start_pos_[2];
@@ -403,55 +449,41 @@ bool BackendMavros::referencePoseReached() {
 
 void BackendMavros::initHomeFrame() {
 
-    uav_home_frame_id_ = "uav_" + std::to_string(robot_id_) + "_home";
     local_start_pos_ << 0.0, 0.0, 0.0;
 
-    // Get frame from rosparam
-    std::string frame_id;
+    // Get frames from rosparam
+    ros::param::param<std::string>("~uav_frame",uav_frame_id_,"uav_" + std::to_string(robot_id_));
+    ros::param::param<std::string>("~uav_home_frame",uav_home_frame_id_, "uav_" + std::to_string(robot_id_) + "_home");
     std::string parent_frame;
-    std::string units;
-    std::vector<double> translation;
-    std::string uav_home_text;
+    std::vector<double> home_pose(3, 0.0);
+    ros::param::get("~home_pose",home_pose);
+    ros::param::param<std::string>("~home_pose_parent_frame", parent_frame, "map");
 
-    uav_home_text = uav_home_frame_id_;
+    geometry_msgs::TransformStamped static_transformStamped;
 
-    if ( ros::param::has(uav_home_text) ) {
-        ros::param::get(uav_home_text + "/home_frame_id", frame_id);
-        ros::param::get(uav_home_text + "/parent_frame", parent_frame);
-        ros::param::get(uav_home_text + "/units", units);
-        ros::param::get(uav_home_text + "/translation",translation);
+    static_transformStamped.header.stamp = ros::Time::now();
+    static_transformStamped.header.frame_id = parent_frame;
+    static_transformStamped.child_frame_id = uav_home_frame_id_;
+    static_transformStamped.transform.translation.x = home_pose[0];
+    static_transformStamped.transform.translation.y = home_pose[1];
+    static_transformStamped.transform.translation.z = home_pose[2];
 
-        geometry_msgs::TransformStamped static_transformStamped;
-
-        static_transformStamped.header.stamp = ros::Time::now();
-        static_transformStamped.header.frame_id = parent_frame;
-        static_transformStamped.child_frame_id = frame_id;
-        static_transformStamped.transform.translation.x = translation[0];
-        static_transformStamped.transform.translation.y = translation[1];
-        static_transformStamped.transform.translation.z = translation[2];
-
-        if(parent_frame == "map" || parent_frame == "") {
-            static_transformStamped.transform.rotation.x = 0;
-            static_transformStamped.transform.rotation.y = 0;
-            static_transformStamped.transform.rotation.z = 0;
-            static_transformStamped.transform.rotation.w = 1;
-        }
-        else {
-            tf2_ros::Buffer tfBuffer;
-            tf2_ros::TransformListener tfListener(tfBuffer);
-            geometry_msgs::TransformStamped transform_to_map;
-            transform_to_map = tfBuffer.lookupTransform(parent_frame, "map", ros::Time(0), ros::Duration(2.0));
-            static_transformStamped.transform.rotation = transform_to_map.transform.rotation;
-        }
-
-        static_tf_broadcaster_ = new tf2_ros::StaticTransformBroadcaster();
-        static_tf_broadcaster_->sendTransform(static_transformStamped);
+    if(parent_frame == "map" || parent_frame == "") {
+        static_transformStamped.transform.rotation.x = 0;
+        static_transformStamped.transform.rotation.y = 0;
+        static_transformStamped.transform.rotation.z = 0;
+        static_transformStamped.transform.rotation.w = 1;
     }
     else {
-        // No param with local frame -> Global control
-        // TODO: Initialization of home frame based on GPS estimation
-        ROS_ERROR("No uav_%d_home_frame found in rosparam. Please define starting position with relate to a common map frame.",robot_id_);
+        tf2_ros::Buffer tfBuffer;
+        tf2_ros::TransformListener tfListener(tfBuffer);
+        geometry_msgs::TransformStamped transform_to_map;
+        transform_to_map = tfBuffer.lookupTransform(parent_frame, "map", ros::Time(0), ros::Duration(2.0));
+        static_transformStamped.transform.rotation = transform_to_map.transform.rotation;
     }
+
+    static_tf_broadcaster_ = new tf2_ros::StaticTransformBroadcaster();
+    static_tf_broadcaster_->sendTransform(static_transformStamped);
 }
 
 }}	// namespace grvc::ual

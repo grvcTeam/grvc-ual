@@ -6,11 +6,7 @@ import numpy
 import os
 import rospkg
 import rospy
-import tf2_ros
 import time
-import tf2_geometry_msgs
-from geometry_msgs.msg import PoseStamped
-from geometry_msgs.msg import TransformStamped
 import xml.etree.ElementTree as ET
 
 
@@ -22,6 +18,14 @@ def main():
                         help='robot model name, must match xacro description folder name')
     parser.add_argument('-id', type=int, default=1,
                         help='robot id, used to compute sim_port')
+    parser.add_argument('-x', type=float, default=0.0,
+                        help='initial x position')
+    parser.add_argument('-y', type=float, default=0.0,
+                        help='initial y position')
+    parser.add_argument('-z', type=float, default=0.0,
+                        help='initial z position')
+    parser.add_argument('-Y', type=float, default=0.0,
+                        help='initial yaw angle')
     parser.add_argument('-description_package', type=str, default="robots_description",
                         help='robot description package, must follow robots_description file structure')
     parser.add_argument('-material', type=str, default="DarkGrey",
@@ -127,32 +131,6 @@ def main():
             gravitytag.text = '0'
         tree.write(temp_sdf)
 
-    # Get robot home position from rosparam
-    tf_buffer = tf2_ros.Buffer(rospy.Duration(1200.0)) #tf buffer length
-    tf_listener = tf2_ros.TransformListener(tf_buffer)
-
-    if rospy.has_param( 'uav_{}_home'.format(args.id) ):
-        uav_frame = rospy.get_param( 'uav_{}_home'.format(args.id) )
-        if uav_frame['parent_frame']=='map':
-            robot_home = uav_frame['translation']
-            robot_yaw = uav_frame['gz_initial_yaw']
-        elif uav_frame['parent_frame']=='game':
-            transform = tf_buffer.lookup_transform('map', 'game', rospy.Time(0), rospy.Duration(3.0))
-            pose_stamped = PoseStamped()
-            pose_stamped.header.frame_id = 'game'
-            pose_stamped.pose.position.x = uav_frame['translation'][0]
-            pose_stamped.pose.position.y = uav_frame['translation'][1]
-            pose_stamped.pose.position.z = uav_frame['translation'][2]
-            pose_transformed = tf2_geometry_msgs.do_transform_pose(pose_stamped, transform)
-            robot_home = [pose_transformed.pose.position.x,pose_transformed.pose.position.y, pose_transformed.pose.position.z]
-            robot_yaw = uav_frame['gz_initial_yaw']
-        else:
-            robot_home = [0.0, 0.0, 0.0]
-            robot_yaw = 0.0
-    else:
-        robot_home = [0.0, 0.0, 0.0]
-        robot_yaw = 0.0
-
     # Sleep for waiting the world to load
     rospy.wait_for_service('/gazebo/spawn_sdf_model')
     time.sleep(0.4)
@@ -163,10 +141,10 @@ def main():
     # Spawn robot sdf in gazebo
     gzmodel_args = "gz model -f " + temp_sdf + \
     " -m " + args.model + "_" + str(args.id) + \
-    " -x " + str(robot_home[0]) + \
-    " -y " + str(robot_home[1]) + \
-    " -z " + str(robot_home[2]+z_min) + \
-    " -Y " + str(robot_yaw)
+    " -x " + str(args.x) + \
+    " -y " + str(args.y) + \
+    " -z " + str(args.z+z_min) + \
+    " -Y " + str(args.Y)
     subprocess.call(gzmodel_args, shell=True)
 
 if __name__ == "__main__":

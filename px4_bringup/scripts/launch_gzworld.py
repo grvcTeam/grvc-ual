@@ -53,8 +53,9 @@ def main():
     # print "gz_env['GAZEBO_MODEL_PATH'] = [%s]" % gz_env['GAZEBO_MODEL_PATH']  # debug
 
     # Get map origin lat-lon-alt from rosparam
-    if rospy.has_param('/sim_origin'):
-        latlonalt = rospy.get_param('/sim_origin')
+    rospy.init_node('gazebo_world')
+    if rospy.has_param('~sim_origin'):
+        latlonalt = rospy.get_param('~sim_origin')
     else:
         latlonalt = [0.0, 0.0, 0.0]
 
@@ -63,7 +64,7 @@ def main():
     gz_env['PX4_HOME_LON'] = str(latlonalt[1])
     gz_env['PX4_HOME_ALT'] = str(latlonalt[2])
 
-    # Set set use_sim_time flag to true
+    # Set use_sim_time flag to true
     subprocess.call("rosparam set /use_sim_time true", shell=True)
 
     # Create temporary directory for robot sitl stuff (id=None)
@@ -85,22 +86,18 @@ def main():
     client = subprocess.Popen(client_args, stdout=client_out, stderr=client_err, cwd=temp_dir, \
                                            env=gz_env, shell=True, preexec_fn=os.setsid)
 
-    # Wait for server and client
-    try:
-        client.wait()
-        server.wait()
-    except KeyboardInterrupt:
-        time.sleep(1)
-        if server.poll() is None:
-            os.killpg(os.getpgid(server.pid), signal.SIGTERM)
-        if client.poll() is None:
-            os.killpg(os.getpgid(client.pid), signal.SIGTERM)
-    finally:
-        # Clean up
-        client_out.close()
-        client_err.close()
-        server_out.close()
-        server_err.close()
+    rospy.spin()  # Now I'm a ros node, jus wait
+
+    # Kill'em all
+    if client.poll() is None:
+        os.killpg(os.getpgid(client.pid), signal.SIGTERM)  # TODO: SIGKILL?
+    if server.poll() is None:
+        os.killpg(os.getpgid(server.pid), signal.SIGTERM)  # TODO: SIGKILL?
+    # Close log files
+    client_out.close()
+    client_err.close()
+    server_out.close()
+    server_err.close()
 
 
 if __name__ == '__main__':
