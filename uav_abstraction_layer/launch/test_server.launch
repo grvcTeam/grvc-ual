@@ -73,8 +73,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         <param name="ual_server" value="$(arg ual_server)"/>
         <param name="ual_pub_rate" value="$(arg ual_pub_rate)"/>
         <param name="mavros_offboard_rate" value="$(arg mavros_offboard_rate)"/>
-        <rosparam param="home_pose">[0, 0, 0]</rosparam><!-- [x,y,z] -->
+        
         <param name="home_pose_parent_frame" value="map"/><!-- default= map -->
+        <rosparam param="map_origin_geo">[37.558542, -5.931074, 7.89]</rosparam><!-- [lat,lon,alt] -->
     </node>
 
     <group if="$(arg multi)">
@@ -85,8 +86,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             <param name="ual_server" value="$(arg ual_server)"/>
             <param name="ual_pub_rate" value="$(arg ual_pub_rate)"/>
             <param name="mavros_offboard_rate" value="$(arg mavros_offboard_rate)"/>
-            <rosparam param="home_pose">[-10, 10, 0]</rosparam><!-- [x,y,z] -->
             <param name="home_pose_parent_frame" value="map"/><!-- default= map -->
+            <!-- Define home pose relative to global map frame -->
+            <rosparam param="home_pose">[-10, 10, 0]</rosparam><!-- [x,y,z] -->
+            <!-- Define the global map frame geo position and let the UAL estimate the relative home pose -->
+            <rosparam param="map_origin_geo">[37.558542, -5.931074, 7.89]</rosparam><!-- [lat,lon,alt] -->
         </node>
         <!-- Launch UAL server for uav id=3 -->
         <node pkg="uav_abstraction_layer" type="server" name="ual" ns="$(arg ns_prefix)3" output="screen">
@@ -97,6 +101,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             <param name="mavros_offboard_rate" value="$(arg mavros_offboard_rate)"/>
             <rosparam param="home_pose">[10, 10, 0]</rosparam><!-- [x,y,z] -->
             <param name="home_pose_parent_frame" value="map"/><!-- default= map -->
+            <rosparam param="map_origin_geo">[37.558542, -5.931074, 7.89]</rosparam><!-- [lat,lon,alt] -->
         </node>
     </group>
 

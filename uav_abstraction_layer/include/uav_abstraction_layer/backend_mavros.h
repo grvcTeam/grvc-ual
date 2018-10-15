@@ -40,6 +40,7 @@
 #include <geometry_msgs/TwistStamped.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <tf2_ros/static_transform_broadcaster.h>
+#include <sensor_msgs/NavSatFix.h>
 
 namespace grvc { namespace ual {
 
@@ -74,6 +75,24 @@ public:
             _min = min_value;
             _max = max_value;
             _mean = sum / buffer_.size();
+            return true;
+        }
+        return false;
+    }
+
+    bool get_variance(double& _var) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (buffer_.size() >= buffer_size_) {
+            double mean = 0;
+            double sum = 0;
+            _var = 0;
+            for (int i = 0; i < buffer_.size(); i++) {
+                sum += buffer_[i];
+            }
+            mean = sum / buffer_.size();
+            for (int i = 0; i < buffer_.size(); i++) {
+                _var += (buffer_[i]-mean)*(buffer_[i]-mean);
+            }
             return true;
         }
         return false;
@@ -133,18 +152,21 @@ private:
     void setFlightMode(const std::string& _flight_mode);
 
     //WaypointList path_;
-    geometry_msgs::PoseStamped ref_pose_;
-    sensor_msgs::NavSatFix     ref_pose_global_;
-    geometry_msgs::PoseStamped cur_pose_;
+    geometry_msgs::PoseStamped  ref_pose_;
+    sensor_msgs::NavSatFix      ref_pose_global_;
+    geometry_msgs::PoseStamped  cur_pose_;
+    sensor_msgs::NavSatFix      cur_geo_pose_;
     geometry_msgs::TwistStamped ref_vel_;
     geometry_msgs::TwistStamped cur_vel_;
-    mavros_msgs::State mavros_state_;
-    mavros_msgs::ExtendedState mavros_extended_state_;
+    mavros_msgs::State          mavros_state_;
+    mavros_msgs::ExtendedState  mavros_extended_state_;
 
     //Control
     enum class eControlMode {LOCAL_VEL, LOCAL_POSE, GLOBAL_POSE};
     eControlMode control_mode_ = eControlMode::LOCAL_POSE;
     bool mavros_has_pose_ = false;
+    bool mavros_has_geo_pose_ = false;
+    HistoryBuffer geo_pose_error_;
     float position_th_;
     float orientation_th_;
     HistoryBuffer position_error_;
@@ -157,6 +179,7 @@ private:
     ros::Publisher mavros_ref_pose_global_pub_;
     ros::Publisher mavros_ref_vel_pub_;
     ros::Subscriber mavros_cur_pose_sub_;
+    ros::Subscriber mavros_cur_geo_pose_sub_;
     ros::Subscriber mavros_cur_vel_sub_;
     ros::Subscriber mavros_cur_state_sub_;
     ros::Subscriber mavros_cur_extended_state_sub_;

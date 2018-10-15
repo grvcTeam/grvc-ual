@@ -19,6 +19,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   gazebo_msgs
   sensor_msgs
+  geodesy
 )
 
 ## System dependencies are found with CMake's conventions
@@ -129,7 +130,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES uav_abstraction_layer
-  CATKIN_DEPENDS message_runtime geometry_msgs mavros mavros_msgs roscpp std_msgs tf2_ros gazebo_msgs sensor_msgs
+  CATKIN_DEPENDS message_runtime geometry_msgs mavros mavros_msgs roscpp std_msgs tf2_ros gazebo_msgs sensor_msgs geodesy
 #  DEPENDS system_lib
 )
 
