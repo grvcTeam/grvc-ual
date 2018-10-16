@@ -79,21 +79,13 @@ BackendMavros::BackendMavros()
             this->cur_vel_ = *_msg;
             this->cur_vel_.header.frame_id = this->uav_home_frame_id_;
     });
-    geo_pose_error_.set_size(50*3); // 3 seconds at 50Hz
     mavros_cur_geo_pose_sub_ = nh.subscribe<sensor_msgs::NavSatFix>(geo_pose_topic.c_str(), 1, \
         [this](const sensor_msgs::NavSatFix::ConstPtr& _msg) {
             this->cur_geo_pose_ = *_msg;
             if (!this->mavros_has_geo_pose_) {
-                geographic_msgs::GeoPoint geo_pose;
-                geo_pose.latitude = _msg->latitude;
-                geo_pose.longitude = _msg->longitude;
-                geo_pose.altitude = _msg->altitude;
-                geodesy::UTMPoint geo_pose_UTM(geo_pose);
-                geo_pose_error_.update(geo_pose_UTM.northing);
-                double geo_pose_var;
-                if (geo_pose_error_.get_variance(geo_pose_var) && geo_pose_var < 0.2*0.2) {
+                if (_msg->position_covariance[0] < 1.2 && _msg->position_covariance[0] > 0 && _msg->header.seq > 100) {
                     this->mavros_has_geo_pose_ = true;
-                    ROS_INFO("Has Geo Pose! %f",geo_pose_var);
+                    // ROS_INFO("Has Geo Pose! %f",_msg->position_covariance[0]);
                 }
             }
     });
@@ -487,6 +479,7 @@ void BackendMavros::initHomeFrame() {
         ros::param::get("~home_pose",home_pose);
     }
     else if (ros::param::has("~map_origin_geo")) {
+        ROS_WARN("Be careful, you should only use this mode with RTK GPS!");
         while (!this->mavros_has_geo_pose_) {
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
         }
@@ -499,6 +492,9 @@ void BackendMavros::initHomeFrame() {
         actual_coordinate_geo.latitude = cur_geo_pose_.latitude;
         actual_coordinate_geo.longitude = cur_geo_pose_.longitude;
         actual_coordinate_geo.altitude = 0; //cur_geo_pose_.altitude;
+        if(map_origin_geo[0]==0 && map_origin_geo[1]==0) {
+            ROS_WARN("Map origin is set to 0. Define map_origin_geo param by a vector in format [lat,lon,alt].");
+        }
         geometry_msgs::Point32 map_origin_cartesian = geographic_to_cartesian (actual_coordinate_geo, origin_geo);
 
         home_pose[0] = map_origin_cartesian.x;

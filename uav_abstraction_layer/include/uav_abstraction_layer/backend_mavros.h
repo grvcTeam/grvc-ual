@@ -166,7 +166,6 @@ private:
     eControlMode control_mode_ = eControlMode::LOCAL_POSE;
     bool mavros_has_pose_ = false;
     bool mavros_has_geo_pose_ = false;
-    HistoryBuffer geo_pose_error_;
     float position_th_;
     float orientation_th_;
     HistoryBuffer position_error_;
@@ -194,7 +193,7 @@ private:
     ros::Time last_command_time_;
 
     std::thread offboard_thread_;
-    double offboard_thread_frequency_;  // TODO: param?
+    double offboard_thread_frequency_;
 };
 
 }}	// namespace grvc::ual
