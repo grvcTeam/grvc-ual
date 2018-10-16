@@ -218,7 +218,7 @@ void BackendMavros::setHome() {
 void BackendMavros::takeOff(double _height) {
     control_mode_ = eControlMode::LOCAL_POSE;  // Take off control is performed in position (not velocity)
 
-    setArmed(true);
+    // setArmed(true);  // Disabled for safety reasons!
     ref_pose_ = cur_pose_;
     ref_pose_.pose.position.z += _height;
     setFlightMode("OFFBOARD");

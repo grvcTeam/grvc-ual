@@ -33,6 +33,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         <!-- Important parameter cwd="node", px4 link generation may cause errors otherwise -->
         <node pkg="px4_bringup" type="run_px4sitl.py" cwd="node" name="run_px4sitl_$(arg id)" output="screen"
         args="-model=$(arg robot_model) -id=$(arg id) -description_package=$(arg description_package)"/>
+
+        <!-- Run safety pilot simulator -->
+        <!-- WARNING: Run only in simulation! -->
+        <node pkg="px4_bringup" type="simulate_safety_pilot.py" name="safety_pilot" output="screen"
+        args="-id=$(arg id)"/>
     </group>
     
     <!-- Run mavros node -->
