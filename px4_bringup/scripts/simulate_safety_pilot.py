@@ -46,10 +46,13 @@ def main():
         if not mavros_state.armed and mavros_state.connected:
             try:
                 rospy.loginfo("Safety pilot simulator for robot id [%d]: arming [%s]", args.id, ns + arming_url)
-                arming_response = arming_proxy(True)
+                arming_proxy(True)
             except rospy.ServiceException as exc:
                 rospy.logerr("Service did not process request: %s", str(exc))
-        rate.sleep()
+        try:
+            rate.sleep()
+        except KeyboardInterrupt:
+            pass
 
     return
 
