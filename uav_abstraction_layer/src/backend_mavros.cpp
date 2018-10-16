@@ -28,6 +28,7 @@
 #include <tf2_ros/transform_listener.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2/LinearMath/Quaternion.h>
+#include <uav_abstraction_layer/geographic_to_cartesian.h>
 
 namespace grvc { namespace ual {
 
@@ -56,6 +57,7 @@ BackendMavros::BackendMavros()
     std::string set_pose_global_topic = mavros_ns + "/setpoint_raw/global";
     std::string set_vel_topic = mavros_ns + "/setpoint_velocity/cmd_vel";
     std::string pose_topic = mavros_ns + "/local_position/pose";
+    std::string geo_pose_topic = mavros_ns + "/global_position/global";
     std::string vel_topic = mavros_ns + "/local_position/velocity";
     std::string state_topic = mavros_ns + "/state";
     std::string extended_state_topic = mavros_ns + "/extended_state";
@@ -77,6 +79,16 @@ BackendMavros::BackendMavros()
             this->cur_vel_ = *_msg;
             this->cur_vel_.header.frame_id = this->uav_home_frame_id_;
     });
+    mavros_cur_geo_pose_sub_ = nh.subscribe<sensor_msgs::NavSatFix>(geo_pose_topic.c_str(), 1, \
+        [this](const sensor_msgs::NavSatFix::ConstPtr& _msg) {
+            this->cur_geo_pose_ = *_msg;
+            if (!this->mavros_has_geo_pose_) {
+                if (_msg->position_covariance[0] < 1.2 && _msg->position_covariance[0] > 0 && _msg->header.seq > 100) {
+                    this->mavros_has_geo_pose_ = true;
+                    // ROS_INFO("Has Geo Pose! %f",_msg->position_covariance[0]);
+                }
+            }
+    });
     mavros_cur_state_sub_ = nh.subscribe<mavros_msgs::State>(state_topic.c_str(), 1, \
         [this](const mavros_msgs::State::ConstPtr& _msg) {
             this->mavros_state_ = *_msg;
@@ -86,13 +98,13 @@ BackendMavros::BackendMavros()
             this->mavros_extended_state_ = *_msg;
     });
 
-    // TODO: Check this and solve frames issue
-    initHomeFrame();
-
     // Wait until mavros is connected
     while (!mavros_state_.connected && ros::ok()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
+
+    // TODO: Check this and solve frames issue
+    initHomeFrame();
 
     // Thread publishing target pose at 10Hz for offboard mode
     offboard_thread_ = std::thread(&BackendMavros::offboardThreadLoop, this);
@@ -285,7 +297,12 @@ void BackendMavros::setVelocity(const Velocity& _vel) {
 }
 
 bool BackendMavros::isReady() const {
-    return mavros_has_pose_;  // TODO: Other condition?
+    if (ros::param::has("~map_origin_geo")) {
+        return mavros_has_geo_pose_;
+    }
+    else {
+        return mavros_has_pose_;
+    }
 }
 
 void BackendMavros::goToWaypoint(const Waypoint& _world) {
@@ -456,9 +473,38 @@ void BackendMavros::initHomeFrame() {
     ros::param::param<std::string>("~uav_frame",uav_frame_id_,"uav_" + std::to_string(robot_id_));
     ros::param::param<std::string>("~uav_home_frame",uav_home_frame_id_, "uav_" + std::to_string(robot_id_) + "_home");
     std::string parent_frame;
-    std::vector<double> home_pose(3, 0.0);
-    ros::param::get("~home_pose",home_pose);
     ros::param::param<std::string>("~home_pose_parent_frame", parent_frame, "map");
+    
+    std::vector<double> home_pose(3, 0.0);
+    if (ros::param::has("~home_pose")) {
+        ros::param::get("~home_pose",home_pose);
+    }
+    else if (ros::param::has("~map_origin_geo")) {
+        ROS_WARN("Be careful, you should only use this mode with RTK GPS!");
+        while (!this->mavros_has_geo_pose_) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        }
+        std::vector<double> map_origin_geo(3, 0.0);
+        ros::param::get("~map_origin_geo",map_origin_geo);
+        geographic_msgs::GeoPoint origin_geo, actual_coordinate_geo;
+        origin_geo.latitude = map_origin_geo[0];
+        origin_geo.longitude = map_origin_geo[1];
+        origin_geo.altitude = 0; //map_origin_geo[2];
+        actual_coordinate_geo.latitude = cur_geo_pose_.latitude;
+        actual_coordinate_geo.longitude = cur_geo_pose_.longitude;
+        actual_coordinate_geo.altitude = 0; //cur_geo_pose_.altitude;
+        if(map_origin_geo[0]==0 && map_origin_geo[1]==0) {
+            ROS_WARN("Map origin is set to 0. Define map_origin_geo param by a vector in format [lat,lon,alt].");
+        }
+        geometry_msgs::Point32 map_origin_cartesian = geographic_to_cartesian (actual_coordinate_geo, origin_geo);
+
+        home_pose[0] = map_origin_cartesian.x;
+        home_pose[1] = map_origin_cartesian.y;
+        home_pose[2] = map_origin_cartesian.z;
+    }
+    else {
+        ROS_WARN("No home pose or map origin was defined. Home frame will be equal to map.");
+    }
 
     geometry_msgs::TransformStamped static_transformStamped;
 
