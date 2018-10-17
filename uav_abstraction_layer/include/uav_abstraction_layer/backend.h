@@ -61,6 +61,16 @@ public:
         }
     }
 
+    /// Possible backend states
+    enum State {
+        UNINITIALIZED,
+        LANDED_DISARMED,
+        LANDED_ARMED,
+        TAKING_OFF,
+        FLYING,
+        LANDING
+    };
+
     /// Constructor inits node
     Backend();
 
@@ -76,6 +86,8 @@ public:
     virtual Odometry odometry() const = 0;
     /// Latest transform estimation of the robot
     virtual Transform transform() const = 0;
+    /// Current robot state
+    inline State state() { return this->state_; }
 
     /// Go to the specified waypoint, following a straight line
     /// \param _wp goal waypoint
@@ -131,6 +143,8 @@ protected:
 
     // Ros spinning thread
     std::thread spin_thread_;
+
+    std::atomic<State> state_ = {UNINITIALIZED};
 };
 
 }}	// namespace grvc::ual

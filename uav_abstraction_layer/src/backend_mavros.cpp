@@ -168,6 +168,32 @@ void BackendMavros::offboardThreadLoop(){
         position_error_.update(positionD);
         orientation_error_.update(orientationD);
 
+        // State update
+        switch (this->state_) {
+            case UNINITIALIZED:
+                if (this->isReady() && !this->mavros_state_.armed) { this->state_ = LANDED_DISARMED; }
+                if (this->isReady() &&  this->mavros_state_.armed) { this->state_ = LANDED_ARMED; }
+                break;
+            case LANDED_DISARMED:
+                if (this->mavros_state_.armed) { this->state_ = LANDED_ARMED; }
+                break;
+            case LANDED_ARMED:
+                if (!this->mavros_state_.armed) { this->state_ = LANDED_DISARMED; }
+                break;
+            case TAKING_OFF:
+                // if (this->mavros_extended_state_.landed_state == mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND) { this->state_ = LANDED_ARMED; }  // Don't trust extended state latency
+                if (!this->mavros_state_.armed) { this->state_ = LANDED_DISARMED; }
+                break;
+            case FLYING:
+                if (this->mavros_extended_state_.landed_state == mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND) { this->state_ = LANDED_ARMED; }
+                if (!this->mavros_state_.armed) { this->state_ = LANDED_DISARMED; }
+                break;
+            case LANDING:
+                if (this->mavros_extended_state_.landed_state == mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND) { this->state_ = LANDED_ARMED; }
+                if (!this->mavros_state_.armed) { this->state_ = LANDED_DISARMED; }
+                break;
+        }
+
         rate.sleep();
     }
 }
@@ -210,16 +236,25 @@ void BackendMavros::setFlightMode(const std::string& _flight_mode) {
 }
 
 void BackendMavros::recoverFromManual() {
-    if (mavros_state_.mode == "POSCTL" ||
-        mavros_state_.mode == "ALTCTL" ||
-        mavros_state_.mode == "STABILIZED") {
-        control_mode_ = eControlMode::LOCAL_POSE;
-        ref_pose_ = cur_pose_;
-        setFlightMode("OFFBOARD");
-        ROS_INFO("Recovered from manual mode!");
-    } else {
-        ROS_WARN("Unable to recover from manual mode (not in manual!)");
+    if (!mavros_state_.armed || mavros_extended_state_.landed_state != 
+        mavros_msgs::ExtendedState::LANDED_STATE_IN_AIR) {
+        ROS_WARN("Unable to recover from manual mode (not flying!)");
+        return;
     }
+
+    if (mavros_state_.mode != "POSCTL" &&
+        mavros_state_.mode != "ALTCTL" &&
+        mavros_state_.mode != "STABILIZED") {
+        ROS_WARN("Unable to recover from manual mode (not in manual!)");
+        return;
+    }
+
+    // Set mode to OFFBOARD and state to FLYING
+    ref_pose_ = cur_pose_;
+    control_mode_ = eControlMode::LOCAL_POSE;
+    setFlightMode("OFFBOARD");
+    ROS_INFO("Recovered from manual mode!");
+    this->state_ = FLYING;
 }
 
 void BackendMavros::setHome() {
@@ -228,6 +263,8 @@ void BackendMavros::setHome() {
 }
 
 void BackendMavros::takeOff(double _height) {
+    this->state_ = TAKING_OFF;
+
     control_mode_ = eControlMode::LOCAL_POSE;  // Take off control is performed in position (not velocity)
 
     // setArmed(true);  // Disabled for safety reasons!
@@ -240,9 +277,12 @@ void BackendMavros::takeOff(double _height) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     ROS_INFO("Flying!");
+    this->state_ = FLYING;
 }
 
 void BackendMavros::land() {
+    this->state_ = LANDING;
+
     control_mode_ = eControlMode::LOCAL_POSE;  // Back to control in position (just in case)
     // Set land mode
     setFlightMode("AUTO.LAND");
@@ -255,8 +295,10 @@ void BackendMavros::land() {
         if (mavros_extended_state_.landed_state == 
             mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND) { break; }  // Out-of-while condition
     }
+    this->state_ = LANDED_ARMED;
     setArmed(false);  // Now disarm!
     ROS_INFO("Landed!");
+    this->state_ = LANDED_DISARMED;
 }
 
 void BackendMavros::setVelocity(const Velocity& _vel) {
@@ -355,7 +397,7 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
     }
 }
 
-void	BackendMavros::goToWaypointGeo(const WaypointGeo& _wp){
+void BackendMavros::goToWaypointGeo(const WaypointGeo& _wp) {
     control_mode_ = eControlMode::GLOBAL_POSE; // Control in position
     
     ref_pose_global_.latitude = _wp.latitude;

@@ -95,14 +95,6 @@ protected:
 
     // TODO: public?
     std_msgs::String state();
-    enum State {
-        UNINITIALIZED,
-        LANDED,
-        TAKING_OFF,
-        FLYING,
-        LANDING
-    };
-    std::atomic<State> state_ = {UNINITIALIZED};
 
     int robot_id_;
     bool id_is_unique_;

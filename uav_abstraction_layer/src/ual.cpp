@@ -165,9 +165,6 @@ void UAL::init() {
                 pose_pub.publish(this->pose());
                 velocity_pub.publish(this->velocity());
                 odometry_pub.publish(this->odometry());
-                if (this->state_ == UNINITIALIZED && this->isReady()) {
-                    this->state_ = LANDED;
-                }
                 state_pub.publish(this->state());
                 tf_pub.sendTransform(this->transform());
                 loop_rate.sleep();
@@ -197,7 +194,8 @@ UAL::~UAL() {
 
 bool UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {
     // Check required state
-    if (state_ != FLYING) {
+    if (backend_->state() != Backend::State::FLYING) {
+        ROS_ERROR("Unable to goToWaypoint: not FLYING!");
         return false;
     }
     // Override any previous FLYING function
@@ -221,7 +219,8 @@ bool UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {
 }
 bool UAL::goToWaypointGeo(const WaypointGeo& _wp, bool _blocking) {
     // Check required state
-    if (state_ != FLYING) {
+    if (backend_->state() != Backend::State::FLYING) {
+        ROS_ERROR("Unable to goToWaypointGeo: not FLYING!");
         return false;
     }
     // Override any previous FLYING function
@@ -246,17 +245,16 @@ bool UAL::goToWaypointGeo(const WaypointGeo& _wp, bool _blocking) {
 
 bool UAL::takeOff(double _height, bool _blocking) {
     // Check required state
-    if (state_ != LANDED) {
+    if (backend_->state() != Backend::State::LANDED_ARMED) {
+        ROS_ERROR("Unable to takeOff: not LANDED_ARMED!");
         return false;
     }
-    state_ = TAKING_OFF;
 
     if (_blocking) {
         if (!backend_->threadSafeCall(&Backend::takeOff, _height)) {
             ROS_INFO("Blocking takeOff rejected!");
             return false;
         }
-        state_ = FLYING;
     } else {
         if (running_thread_.joinable()) running_thread_.join();
         // Call function on a thread:
@@ -264,7 +262,6 @@ bool UAL::takeOff(double _height, bool _blocking) {
             if (!this->backend_->threadSafeCall(&Backend::takeOff, _height)) {
                 ROS_INFO("Non-blocking takeOff rejected!");
             }
-            this->state_ = FLYING;
         });
     }
     return true;
@@ -272,19 +269,18 @@ bool UAL::takeOff(double _height, bool _blocking) {
 
 bool UAL::land(bool _blocking) {
     // Check required state
-    if (state_ != FLYING) {
+    if (backend_->state() != Backend::State::FLYING) {
+        ROS_ERROR("Unable to land: not FLYING!");
         return false;
     }
     // Override any previous FLYING function
     if (!backend_->isIdle()) { backend_->abort(); }
-    state_ = LANDING;
 
     if (_blocking) {
         if (!backend_->threadSafeCall(&Backend::land)) {
             ROS_INFO("Blocking land rejected!");
             return false;
         }
-        state_ = LANDED;
     } else {
         if (running_thread_.joinable()) running_thread_.join();
         // Call function on a thread:
@@ -292,7 +288,6 @@ bool UAL::land(bool _blocking) {
             if (!this->backend_->threadSafeCall(&Backend::land)) {
                 ROS_INFO("Non-blocking land rejected!");
             }
-            this->state_ = LANDED;
         });
     }
     return true;
@@ -300,7 +295,8 @@ bool UAL::land(bool _blocking) {
 
 bool UAL::setVelocity(const Velocity& _vel) {
     // Check required state
-    if (state_ != FLYING) {
+    if (backend_->state() != Backend::State::FLYING) {
+        ROS_ERROR("Unable to setVelocity: not FLYING!");
         return false;
     }
     // Override any previous FLYING function
@@ -322,28 +318,28 @@ bool UAL::recoverFromManual() {
     // Direct call! TODO: Check nobody explodes!
     backend_->recoverFromManual();
 
-    // Force state. TODO: ckeck consequences of doing this!
-    state_ = FLYING;
-
     return true;
 }
 
 std_msgs::String UAL::state() {
     std_msgs::String output;
-    switch (state_) {
-        case UNINITIALIZED:
+    switch (backend_->state()) {
+        case Backend::State::UNINITIALIZED:
             output.data = "UNINITIALIZED";
             break;
-        case LANDED:
-            output.data = "LANDED";
+        case Backend::State::LANDED_DISARMED:
+            output.data = "LANDED_DISARMED";
             break;
-        case TAKING_OFF:
+        case Backend::State::LANDED_ARMED:
+            output.data = "LANDED_ARMED";
+            break;
+        case Backend::State::TAKING_OFF:
             output.data = "TAKING_OFF";
             break;
-        case FLYING:
+        case Backend::State::FLYING:
             output.data = "FLYING";
             break;
-        case LANDING:
+        case Backend::State::LANDING:
             output.data = "LANDING";
             break;
         default:
@@ -354,7 +350,8 @@ std_msgs::String UAL::state() {
 
 bool UAL::setHome() {
     // Check required state
-    if (state_ != LANDED) {
+    if (backend_->state() != Backend::State::LANDED_DISARMED) {
+        ROS_ERROR("Unable to setHome: not LANDED_DISARMED!");
         return false;
     }
     backend_->setHome();
