@@ -1,7 +1,10 @@
 #!/usr/bin/env python
+import argparse
 import yaml
 import rospy
 import rospkg
+from mavros_msgs.msg import State
+from mavros_msgs.srv import CommandBool
 from mavros_msgs.msg import OverrideRCIn
 from sensor_msgs.msg import Joy
 from enum import Enum
@@ -86,8 +89,7 @@ class JoyHandle:
 # TODO: ... to here in ual_teleop/scripts/joy_teleop.py!
 
 class RCSimulation:
-    def __init__(self, robot_id='uav_1'):
-        rc_topic = robot_id + '/mavros/rc/override'
+    def __init__(self, rc_topic):
         self.pub = rospy.Publisher(rc_topic, OverrideRCIn, queue_size=1)
 
         centered_pwm = 1500
@@ -120,13 +122,42 @@ class RCSimulation:
     def update_callback(self, event):
         self.pub.publish(self.rc_in)
 
-class RCJoy:
-    def __init__(self, joy_file, robot_id='uav_1'):
+class SafetyPilot:
+    def __init__(self, joy_file, id=1):
+        self.id = id
+        self.ns = rospy.get_namespace()
+        self.state_url = 'mavros/state'
+        self.arming_url = 'mavros/cmd/arming'
+        self.rc_url = 'mavros/rc/override'
+        self.mavros_state = State()
+        self.joy_is_connected = False
         self.joy_handle = JoyHandle(joy_file)
-        self.rc_simulation = RCSimulation(robot_id)
-        self.sub = rospy.Subscriber('joy', Joy, self.joy_callback)
+        self.rc_simulation = RCSimulation(self.rc_url)
+        self.sub_joy = rospy.Subscriber('/joy', Joy, self.joy_callback)
+        self.sub_state = rospy.Subscriber(self.state_url, State, self.state_callback)
+        rospy.wait_for_service(self.arming_url)  # TODO(franreal): wait here?
+        self.arming_proxy = rospy.ServiceProxy(self.arming_url, CommandBool)
+        rospy.Timer(rospy.Duration(1), self.arming_callback)  # 1Hz
+
+    def arming_callback(self, event):
+        if self.joy_is_connected:  # Disable auto-arming
+            return
+
+        if not self.mavros_state.armed and self.mavros_state.connected:
+            try:
+                rospy.loginfo("Safety pilot simulator for robot id [%d]: arming [%s]", self.id, self.ns + self.arming_url)
+                self.arming_proxy(True)
+            except rospy.ServiceException as exc:
+                rospy.logerr("Service did not process request: %s", str(exc))
+
+    def state_callback(self, data):
+        self.mavros_state = data
 
     def joy_callback(self, data):
+        if not self.joy_is_connected:
+            rospy.loginfo("Joystick detected, RC simulation is now enabled (and auto-arming disabled)")
+            self.joy_is_connected = True
+
         self.joy_handle.update(data)
         # print self.joy_handle  # DEBUG
         self.rc_simulation.set_channel(1, 1500 + 600*self.joy_handle.get_axis('left_analog_y'))   # throttle
@@ -144,10 +175,30 @@ class RCJoy:
             self.rc_simulation.set_channel(5, fltmode_pwm)                                        # fltmode
 
 def main():
-    rospy.init_node('rc_simulation', anonymous=True)
-    joy_file = rospkg.RosPack().get_path('ual_teleop') + '/config/saitek_p3200.yaml'  # TODO(franreal): argument!
-    robot_id = 'uav_1'  # TODO(franreal): argument!
-    rc_joy = RCJoy(joy_file, robot_id)
+    # Parse arguments
+    parser = argparse.ArgumentParser(description='Simulate safety pilot. WARNING: use only in simulation!')
+    parser.add_argument('-joy_file', type=str, default=None,
+                        help='Configuration yaml file describing joystick buttons mapping')
+    parser.add_argument('-id', type=int, default=1,
+                        help='robot id')
+    args, unknown = parser.parse_known_args()
+    # utils.check_unknown_args(unknown)
+
+    # Init ros node
+    rospy.init_node('simulate_safety_pilot_{}'.format(args.id))
+
+    # Check we are in a simulation
+    is_sim = rospy.get_param('/use_sim_time', False)
+    if not is_sim:
+        rospy.logerr("Param /use_sim_time is false: Use safety pilot simulation only in simulation!")
+        return
+
+    if args.joy_file is None:
+        default_joy_file = rospkg.RosPack().get_path('ual_teleop') + '/config/saitek_p3200.yaml'
+        rospy.loginfo("Using default joy map file [%s]", default_joy_file)
+        args.joy_file = default_joy_file
+
+    safety_pilot = SafetyPilot(args.joy_file, args.id)
     rospy.spin()
 
 if __name__ == '__main__':
