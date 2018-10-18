@@ -150,6 +150,7 @@ private:
     void initHomeFrame();
     bool referencePoseReached();
     void setFlightMode(const std::string& _flight_mode);
+    State guessState();
 
     //WaypointList path_;
     geometry_msgs::PoseStamped  ref_pose_;
@@ -194,6 +195,9 @@ private:
 
     std::thread offboard_thread_;
     double offboard_thread_frequency_;
+
+    bool calling_takeoff = false;
+    bool calling_land = false;
 };
 
 }}	// namespace grvc::ual

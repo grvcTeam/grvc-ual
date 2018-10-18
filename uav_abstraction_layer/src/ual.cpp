@@ -194,8 +194,8 @@ UAL::~UAL() {
 
 bool UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {
     // Check required state
-    if (backend_->state() != Backend::State::FLYING) {
-        ROS_ERROR("Unable to goToWaypoint: not FLYING!");
+    if (backend_->state() != Backend::State::FLYING_AUTO) {
+        ROS_ERROR("Unable to goToWaypoint: not FLYING_AUTO!");
         return false;
     }
     // Override any previous FLYING function
@@ -219,8 +219,8 @@ bool UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {
 }
 bool UAL::goToWaypointGeo(const WaypointGeo& _wp, bool _blocking) {
     // Check required state
-    if (backend_->state() != Backend::State::FLYING) {
-        ROS_ERROR("Unable to goToWaypointGeo: not FLYING!");
+    if (backend_->state() != Backend::State::FLYING_AUTO) {
+        ROS_ERROR("Unable to goToWaypointGeo: not FLYING_AUTO!");
         return false;
     }
     // Override any previous FLYING function
@@ -269,8 +269,8 @@ bool UAL::takeOff(double _height, bool _blocking) {
 
 bool UAL::land(bool _blocking) {
     // Check required state
-    if (backend_->state() != Backend::State::FLYING) {
-        ROS_ERROR("Unable to land: not FLYING!");
+    if (backend_->state() != Backend::State::FLYING_AUTO) {
+        ROS_ERROR("Unable to land: not FLYING_AUTO!");
         return false;
     }
     // Override any previous FLYING function
@@ -295,8 +295,8 @@ bool UAL::land(bool _blocking) {
 
 bool UAL::setVelocity(const Velocity& _vel) {
     // Check required state
-    if (backend_->state() != Backend::State::FLYING) {
-        ROS_ERROR("Unable to setVelocity: not FLYING!");
+    if (backend_->state() != Backend::State::FLYING_AUTO) {
+        ROS_ERROR("Unable to setVelocity: not FLYING_AUTO!");
         return false;
     }
     // Override any previous FLYING function
@@ -336,8 +336,11 @@ std_msgs::String UAL::state() {
         case Backend::State::TAKING_OFF:
             output.data = "TAKING_OFF";
             break;
-        case Backend::State::FLYING:
-            output.data = "FLYING";
+        case Backend::State::FLYING_AUTO:
+            output.data = "FLYING_AUTO";
+            break;
+        case Backend::State::FLYING_MANUAL:
+            output.data = "FLYING_MANUAL";
             break;
         case Backend::State::LANDING:
             output.data = "LANDING";

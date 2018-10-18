@@ -67,7 +67,8 @@ public:
         LANDED_DISARMED,
         LANDED_ARMED,
         TAKING_OFF,
-        FLYING,
+        FLYING_AUTO,
+        FLYING_MANUAL,
         LANDING
     };
 

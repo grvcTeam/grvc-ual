@@ -169,33 +169,21 @@ void BackendMavros::offboardThreadLoop(){
         orientation_error_.update(orientationD);
 
         // State update
-        switch (this->state_) {
-            case UNINITIALIZED:
-                if (this->isReady() && !this->mavros_state_.armed) { this->state_ = LANDED_DISARMED; }
-                if (this->isReady() &&  this->mavros_state_.armed) { this->state_ = LANDED_ARMED; }
-                break;
-            case LANDED_DISARMED:
-                if (this->mavros_state_.armed) { this->state_ = LANDED_ARMED; }
-                break;
-            case LANDED_ARMED:
-                if (!this->mavros_state_.armed) { this->state_ = LANDED_DISARMED; }
-                break;
-            case TAKING_OFF:
-                // if (this->mavros_extended_state_.landed_state == mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND) { this->state_ = LANDED_ARMED; }  // Don't trust extended state latency
-                if (!this->mavros_state_.armed) { this->state_ = LANDED_DISARMED; }
-                break;
-            case FLYING:
-                if (this->mavros_extended_state_.landed_state == mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND) { this->state_ = LANDED_ARMED; }
-                if (!this->mavros_state_.armed) { this->state_ = LANDED_DISARMED; }
-                break;
-            case LANDING:
-                if (this->mavros_extended_state_.landed_state == mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND) { this->state_ = LANDED_ARMED; }
-                if (!this->mavros_state_.armed) { this->state_ = LANDED_DISARMED; }
-                break;
-        }
+        this->state_ = guessState();
 
         rate.sleep();
     }
+}
+
+Backend::State BackendMavros::guessState() {
+    // Sequentially checks allow state deduction
+    if (!this->isReady()) { return UNINITIALIZED; }
+    if (!this->mavros_state_.armed) { return LANDED_DISARMED; }
+    if (this->mavros_extended_state_.landed_state == mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND) { return LANDED_ARMED; }  // TODO(franreal): Use LANDED_STATE_IN_AIR instead?
+    if (this->calling_takeoff) { return TAKING_OFF; }
+    if (this->calling_land) { return LANDING; }
+    if (this->mavros_state_.mode == "OFFBOARD") { return FLYING_AUTO; }
+    return FLYING_MANUAL;
 }
 
 void BackendMavros::setArmed(bool _value) {
@@ -254,7 +242,6 @@ void BackendMavros::recoverFromManual() {
     control_mode_ = eControlMode::LOCAL_POSE;
     setFlightMode("OFFBOARD");
     ROS_INFO("Recovered from manual mode!");
-    this->state_ = FLYING;
 }
 
 void BackendMavros::setHome() {
@@ -263,7 +250,7 @@ void BackendMavros::setHome() {
 }
 
 void BackendMavros::takeOff(double _height) {
-    this->state_ = TAKING_OFF;
+    calling_takeoff = true;
 
     control_mode_ = eControlMode::LOCAL_POSE;  // Take off control is performed in position (not velocity)
 
@@ -273,15 +260,15 @@ void BackendMavros::takeOff(double _height) {
     setFlightMode("OFFBOARD");
 
     // Wait until take off: unabortable!
-    while (!referencePoseReached() && ros::ok()) {
+    while (!referencePoseReached() && (this->mavros_state_.mode == "OFFBOARD") && ros::ok()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     ROS_INFO("Flying!");
-    this->state_ = FLYING;
+    calling_takeoff = false;
 }
 
 void BackendMavros::land() {
-    this->state_ = LANDING;
+    calling_land = true;
 
     control_mode_ = eControlMode::LOCAL_POSE;  // Back to control in position (just in case)
     // Set land mode
@@ -290,15 +277,14 @@ void BackendMavros::land() {
     ref_pose_ = cur_pose_;
     ref_pose_.pose.position.z = 0;
     // Landing is unabortable!
-    while (ros::ok()) {
+    while ((this->mavros_state_.mode == "AUTO.LAND") && ros::ok()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         if (mavros_extended_state_.landed_state == 
             mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND) { break; }  // Out-of-while condition
     }
-    this->state_ = LANDED_ARMED;
-    setArmed(false);  // Now disarm!
+    setArmed(false);  // Now disarm! TODO(franreal): Do not disarm for symmetry? (AND SAFETY!)
     ROS_INFO("Landed!");
-    this->state_ = LANDED_DISARMED;
+    calling_land = false;
 }
 
 void BackendMavros::setVelocity(const Velocity& _vel) {
