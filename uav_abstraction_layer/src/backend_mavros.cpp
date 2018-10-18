@@ -186,22 +186,6 @@ Backend::State BackendMavros::guessState() {
     return FLYING_MANUAL;
 }
 
-void BackendMavros::setArmed(bool _value) {
-    mavros_msgs::CommandBool arming_service;
-    arming_service.request.value = _value;
-    // Arm: unabortable?
-    while (ros::ok()) {
-        if (!arming_client_.call(arming_service)) {
-            ROS_ERROR("Error in arming service calling!");
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(300));
-        ROS_INFO("Arming service response.success = %s", arming_service.response.success ? "true" : "false");
-        ROS_INFO("Trying to set armed to %s... mavros_state_.armed = %s", _value ? "true" : "false", mavros_state_.armed ? "true" : "false");
-        bool armed = mavros_state_.armed;  // WATCHOUT: bug-prone ros-bool/bool comparison 
-        if (armed == _value) { break; }  // Out-of-while condition
-    }
-}
-
 void BackendMavros::setFlightMode(const std::string& _flight_mode) {
     mavros_msgs::SetMode flight_mode_service;
     flight_mode_service.request.base_mode = 0;
@@ -279,11 +263,12 @@ void BackendMavros::land() {
     // Landing is unabortable!
     while ((this->mavros_state_.mode == "AUTO.LAND") && ros::ok()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        if (mavros_extended_state_.landed_state == 
-            mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND) { break; }  // Out-of-while condition
+        if (mavros_extended_state_.landed_state == mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND) {
+            // setArmed(false);  // Disabled for safety and symmetry
+            ROS_INFO("Landed!");
+            break;  // Out-of-while condition
+        }  
     }
-    setArmed(false);  // Now disarm! TODO(franreal): Do not disarm for symmetry? (AND SAFETY!)
-    ROS_INFO("Landed!");
     calling_land = false;
 }
 
