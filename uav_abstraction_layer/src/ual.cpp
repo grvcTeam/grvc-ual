@@ -308,14 +308,15 @@ bool UAL::setVelocity(const Velocity& _vel) {
 }
 
 bool UAL::recoverFromManual() {
-    // Check required state. TODO: consequences of not checking it!
-    // if (state_ != FLYING) {
-    //     return false;
-    // }
+    // Check required state
+    if (backend_->state() != Backend::State::FLYING_MANUAL) {
+        ROS_ERROR("Unable to recoverFromManual: not FLYING_MANUAL!");
+        return false;
+    }
     // Override any previous FLYING function
     if (!backend_->isIdle()) { backend_->abort(); }
 
-    // Direct call! TODO: Check nobody explodes!
+    // Direct call! TODO: threadSafeCall?
     backend_->recoverFromManual();
 
     return true;
