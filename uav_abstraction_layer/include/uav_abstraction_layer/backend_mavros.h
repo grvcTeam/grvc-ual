@@ -22,7 +22,7 @@
 #define UAV_ABSTRACTION_LAYER_BACKEND_MAVROS_H
 
 #include <thread>
-#include <deque>
+#include <vector>
 #include <Eigen/Core>
 
 #include <uav_abstraction_layer/backend.h>
@@ -46,22 +46,30 @@ namespace grvc { namespace ual {
 
 class HistoryBuffer {  // TODO: template? utils?
 public:
-    void set_size(size_t _size) { buffer_size_ = _size; }
+    void set_size(size_t _size) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        buffer_size_ = _size;
+        buffer_.clear();
+        current_ = 0;
+    }
 
     void reset() {
         std::lock_guard<std::mutex> lock(mutex_);
         buffer_.clear();
+        current_ = 0;
     }
 
     void update(double _value) {
         std::lock_guard<std::mutex> lock(mutex_);
-        buffer_.push_back(_value);
-        if (buffer_.size() > buffer_size_) {
-            buffer_.pop_front();
+        if (buffer_.size() < buffer_size_) {
+            buffer_.push_back(_value);
+        } else {
+            buffer_[current_] = _value;
+            current_ = (current_ + 1) % buffer_size_;
         }
     }
 
-    bool metrics(double& _min, double& _mean, double& _max) {
+    bool get_stats(double& _min, double& _mean, double& _max) {
         std::lock_guard<std::mutex> lock(mutex_);
         if (buffer_.size() >= buffer_size_) {
             double min_value = +std::numeric_limits<double>::max();
@@ -100,7 +108,8 @@ public:
 
 protected:
     size_t buffer_size_ = 0;
-    std::deque<double> buffer_;
+    unsigned int current_ = 0;
+    std::vector<double> buffer_;
     std::mutex mutex_;
 };
 

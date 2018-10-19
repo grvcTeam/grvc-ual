@@ -461,8 +461,8 @@ bool BackendMavros::referencePoseReached() {
 
     double position_min, position_mean, position_max;
     double orientation_min, orientation_mean, orientation_max;
-    if (!position_error_.metrics(position_min, position_mean, position_max)) { return false; }
-    if (!orientation_error_.metrics(orientation_min, orientation_mean, orientation_max)) { return false; }
+    if (!position_error_.get_stats(position_min, position_mean, position_max)) { return false; }
+    if (!orientation_error_.get_stats(orientation_min, orientation_mean, orientation_max)) { return false; }
     
     double position_diff = position_max - position_min;
     double orientation_diff = orientation_max - orientation_min;
