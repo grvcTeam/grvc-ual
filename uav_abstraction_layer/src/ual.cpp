@@ -323,39 +323,33 @@ bool UAL::recoverFromManual() {
     return true;
 }
 
+// TODO: Collapse ual and backend state?
 uav_abstraction_layer::State UAL::state() {
     uav_abstraction_layer::State output;
     switch (backend_->state()) {
         case Backend::State::UNINITIALIZED:
             output.as_int = uav_abstraction_layer::State::UNINITIALIZED;
-            output.as_string = "UNINITIALIZED";
             break;
         case Backend::State::LANDED_DISARMED:
             output.as_int = uav_abstraction_layer::State::LANDED_DISARMED;
-            output.as_string = "LANDED_DISARMED";
             break;
         case Backend::State::LANDED_ARMED:
             output.as_int = uav_abstraction_layer::State::LANDED_ARMED;
-            output.as_string = "LANDED_ARMED";
             break;
         case Backend::State::TAKING_OFF:
             output.as_int = uav_abstraction_layer::State::TAKING_OFF;
-            output.as_string = "TAKING_OFF";
             break;
         case Backend::State::FLYING_AUTO:
             output.as_int = uav_abstraction_layer::State::FLYING_AUTO;
-            output.as_string = "FLYING_AUTO";
             break;
         case Backend::State::FLYING_MANUAL:
             output.as_int = uav_abstraction_layer::State::FLYING_MANUAL;
-            output.as_string = "FLYING_MANUAL";
             break;
         case Backend::State::LANDING:
             output.as_int = uav_abstraction_layer::State::LANDING;
-            output.as_string = "LANDING";
             break;
         default:
-            output.as_string= "unknown";
+            ROS_ERROR("Unexpected Backend::State!");
     }
     return output;
 }

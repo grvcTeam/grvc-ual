@@ -5,10 +5,10 @@ import rospkg
 import math
 from joy_handle import JoyHandle, ButtonState
 from sensor_msgs.msg import Joy
-from uav_abstraction_layer.srv import TakeOff, Land, SetVelocity 
+from uav_abstraction_layer.srv import TakeOff, Land, SetVelocity
+from uav_abstraction_layer.msg import State
 from geometry_msgs.msg import TwistStamped
 from geometry_msgs.msg import PoseStamped
-from std_msgs.msg import String
 
 class JoyTeleop:
 
@@ -22,7 +22,7 @@ class JoyTeleop:
         self.take_off = rospy.ServiceProxy(take_off_url, TakeOff)
         self.land     = rospy.ServiceProxy(land_url,     Land)
         self.velocity_pub = rospy.Publisher(velocity_url, TwistStamped, queue_size=1)
-        self.ual_state = String()
+        self.ual_state = State()
         self.headless = True
         self.uav_yaw = 0.0
         self.gains_table = [0.5, 0.8, 1.0, 1.3, 1.8, 2.1, 2.5]
@@ -38,10 +38,10 @@ class JoyTeleop:
         self.joy_handle.update(data)
         # print self.joy_handle  # DEBUG
         if self.joy_handle.get_button('left_shoulder'):
-            if self.joy_handle.get_button_state('x') is ButtonState.JUST_PRESSED and self.ual_state.data == 'LANDED_ARMED':
+            if self.joy_handle.get_button_state('x') is ButtonState.JUST_PRESSED and self.ual_state.as_int == State.LANDED_ARMED:
                 rospy.loginfo("Taking off")
                 self.take_off(2.0, False)  # TODO(franreal): takeoff height?
-            if self.joy_handle.get_button_state('b') is ButtonState.JUST_PRESSED and self.ual_state.data == 'FLYING_AUTO':
+            if self.joy_handle.get_button_state('b') is ButtonState.JUST_PRESSED and self.ual_state.as_int == State.FLYING_AUTO:
                 rospy.loginfo("Landing")
                 self.land(False)
 
@@ -60,7 +60,7 @@ class JoyTeleop:
             self.gain_index = self.gain_index + 1 if self.gain_index < max_index else max_index
             rospy.loginfo("Speed level: %d", self.gain_index)
             
-        if self.ual_state.data == 'FLYING_AUTO':
+        if self.ual_state.as_int == State.FLYING_AUTO:
             vel_cmd = TwistStamped()
             vel_cmd.header.stamp = rospy.Time.now()
             # TODO: Use frame_id = 'uav_1' in not-headless mode?
@@ -95,7 +95,7 @@ def main():
         args.joy_file = default_joy_file
     teleop = JoyTeleop(args.joy_file)
 
-    rospy.Subscriber('ual/state', String, teleop.state_callback)
+    rospy.Subscriber('ual/state', State, teleop.state_callback)
     rospy.Subscriber('ual/pose', PoseStamped, teleop.pose_callback)  # TODO: Use ground truth
     rospy.Subscriber('ual_teleop/joy', Joy, teleop.joy_callback)
     rospy.spin()
