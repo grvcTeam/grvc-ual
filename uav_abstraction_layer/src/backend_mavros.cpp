@@ -408,7 +408,6 @@ Pose BackendMavros::pose() {
         out.pose.position.y = cur_pose_.pose.position.y + local_start_pos_[1];
         out.pose.position.z = cur_pose_.pose.position.z + local_start_pos_[2];
         out.pose.orientation = cur_pose_.pose.orientation;
-        out.header.stamp = cur_pose_.header.stamp;
 
         if (pose_frame_id_ == "") {
             // Default: local pose
@@ -435,6 +434,7 @@ Pose BackendMavros::pose() {
             out.header.frame_id = pose_frame_id_;
         }
 
+        out.header.stamp = cur_pose_.header.stamp;
         return out;
 }
 
