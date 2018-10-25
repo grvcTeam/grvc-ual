@@ -24,23 +24,13 @@
 int main(int _argc, char** _argv) {
 
     grvc::ual::UAL ual(_argc, _argv);
-    while (!ual.isReady() && ros::ok()) {
+    while ((ual.state().as_int != uav_abstraction_layer::State::LANDED_ARMED) && ros::ok()) {
         std::cout << "UAL not ready!" << std::endl;
         sleep(1);
     }
 
-    // Start server if explicitly asked:
-    ros::NodeHandle pnh("~");
-    std::string server_mode;
-    pnh.param<std::string>("ual_server", server_mode, "off");
-    if (server_mode == "on") {
-        std::cout << "UAL server is now available" << std::endl;
-        // Do nothing
-        while (ros::ok()) { sleep(1); }
-        return 0;
-    }
-
-    // Else, use class interface to perform a simple mission:
+    // TODO(franreal): rename file to test_ual_class?
+    // Use class interface to perform a simple mission:
     std::cout << "Mission using UAL object" << std::endl;
     // Define flight level and take off
 	double flight_level = 10.0;
