@@ -112,6 +112,10 @@ BackendMavros::BackendMavros()
     ROS_INFO("BackendMavros %d running!",robot_id_);
 }
 
+BackendMavros::~BackendMavros() {
+    if (offboard_thread_.joinable()) { offboard_thread_.join(); }
+}
+
 void BackendMavros::offboardThreadLoop(){
     ros::param::param<double>("~mavros_offboard_rate", offboard_thread_frequency_, 30.0);
     double hold_pose_time = 3.0;  // [s]  TODO param?
@@ -242,6 +246,9 @@ void BackendMavros::takeOff(double _height) {
     ref_pose_ = cur_pose_;
     ref_pose_.pose.position.z += _height;
     setFlightMode("OFFBOARD");
+    // setFlightMode("AUTO.TAKEOFF");  // TODO(franreal): Use this mode instead?
+    position_error_.reset();
+    orientation_error_.reset();
 
     // Wait until take off: unabortable!
     while (!referencePoseReached() && (this->mavros_state_.mode == "OFFBOARD") && ros::ok()) {
@@ -249,6 +256,9 @@ void BackendMavros::takeOff(double _height) {
     }
     ROS_INFO("Flying!");
     calling_takeoff = false;
+
+    // Update state right now!
+    this->state_ = guessState();
 }
 
 void BackendMavros::land() {
@@ -270,6 +280,9 @@ void BackendMavros::land() {
         }  
     }
     calling_land = false;
+
+    // Update state right now!
+    this->state_ = guessState();
 }
 
 void BackendMavros::setVelocity(const Velocity& _vel) {
@@ -312,9 +325,8 @@ void BackendMavros::setVelocity(const Velocity& _vel) {
 bool BackendMavros::isReady() const {
     if (ros::param::has("~map_origin_geo")) {
         return mavros_has_geo_pose_;
-    }
-    else {
-        return mavros_has_pose_;
+    } else {
+        return mavros_has_pose_ && (fabs(this->cur_pose_.pose.position.y) > 1e-8);  // Means the filter has converged!
     }
 }
 

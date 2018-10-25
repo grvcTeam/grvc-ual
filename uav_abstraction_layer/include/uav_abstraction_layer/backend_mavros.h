@@ -117,6 +117,7 @@ class BackendMavros : public Backend {
 
 public:
     BackendMavros();
+    ~BackendMavros();
 
     /// Backend is initialized and ready to run tasks?
     bool	         isReady() const override;

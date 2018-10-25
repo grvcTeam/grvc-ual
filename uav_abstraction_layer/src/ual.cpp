@@ -154,7 +154,7 @@ void UAL::init() {
             ros::Publisher pose_pub = nh.advertise<geometry_msgs::PoseStamped>(pose_topic, 10);
             ros::Publisher velocity_pub = nh.advertise<geometry_msgs::TwistStamped>(velocity_topic, 10);
             ros::Publisher odometry_pub = nh.advertise<nav_msgs::Odometry>(odometry_topic, 10);
-            ros::Publisher state_pub = nh.advertise<std_msgs::String>(state_topic, 10);
+            ros::Publisher state_pub = nh.advertise<uav_abstraction_layer::State>(state_topic, 10);
             static tf2_ros::TransformBroadcaster tf_pub;
 
             // Publish @ 30Hz default
@@ -190,6 +190,7 @@ UAL::~UAL() {
         }
         ros::param::set("/ual_ids", new_ual_ids);
     }
+    delete(backend_);
 }
 
 bool UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {
@@ -322,32 +323,39 @@ bool UAL::recoverFromManual() {
     return true;
 }
 
-std_msgs::String UAL::state() {
-    std_msgs::String output;
+uav_abstraction_layer::State UAL::state() {
+    uav_abstraction_layer::State output;
     switch (backend_->state()) {
         case Backend::State::UNINITIALIZED:
-            output.data = "UNINITIALIZED";
+            output.as_int = uav_abstraction_layer::State::UNINITIALIZED;
+            output.as_string = "UNINITIALIZED";
             break;
         case Backend::State::LANDED_DISARMED:
-            output.data = "LANDED_DISARMED";
+            output.as_int = uav_abstraction_layer::State::LANDED_DISARMED;
+            output.as_string = "LANDED_DISARMED";
             break;
         case Backend::State::LANDED_ARMED:
-            output.data = "LANDED_ARMED";
+            output.as_int = uav_abstraction_layer::State::LANDED_ARMED;
+            output.as_string = "LANDED_ARMED";
             break;
         case Backend::State::TAKING_OFF:
-            output.data = "TAKING_OFF";
+            output.as_int = uav_abstraction_layer::State::TAKING_OFF;
+            output.as_string = "TAKING_OFF";
             break;
         case Backend::State::FLYING_AUTO:
-            output.data = "FLYING_AUTO";
+            output.as_int = uav_abstraction_layer::State::FLYING_AUTO;
+            output.as_string = "FLYING_AUTO";
             break;
         case Backend::State::FLYING_MANUAL:
-            output.data = "FLYING_MANUAL";
+            output.as_int = uav_abstraction_layer::State::FLYING_MANUAL;
+            output.as_string = "FLYING_MANUAL";
             break;
         case Backend::State::LANDING:
-            output.data = "LANDING";
+            output.as_int = uav_abstraction_layer::State::LANDING;
+            output.as_string = "LANDING";
             break;
         default:
-            output.data= "unknown";
+            output.as_string= "unknown";
     }
     return output;
 }

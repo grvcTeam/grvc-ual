@@ -26,7 +26,7 @@
 #include <uav_abstraction_layer/TakeOff.h>
 #include <uav_abstraction_layer/Land.h>
 #include <uav_abstraction_layer/SetVelocity.h>
-#include <std_msgs/String.h>
+#include <uav_abstraction_layer/State.h>
 #include <thread>
 
 namespace grvc { namespace ual {
@@ -55,6 +55,9 @@ public:
 
     /// Latest transform estimation of the robot
     Transform transform() const { return backend_->transform(); }
+
+    /// Current robot state
+    uav_abstraction_layer::State state();
 
     /// Go to the specified waypoint, following a straight line
     /// \param _wp goal waypoint
@@ -92,9 +95,6 @@ protected:
     Backend* backend_;
     std::thread running_thread_;
     std::thread server_thread_;
-
-    // TODO: public?
-    std_msgs::String state();
 
     int robot_id_;
     bool id_is_unique_;
