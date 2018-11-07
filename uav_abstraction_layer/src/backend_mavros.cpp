@@ -232,9 +232,10 @@ void BackendMavros::recoverFromManual() {
     ROS_INFO("Recovered from manual mode!");
 }
 
-void BackendMavros::setHome() {
+void BackendMavros::setHome(bool set_z) {
+    double z_offset = set_z ? cur_pose_.pose.position.z : 0.0;
     local_start_pos_ = -Eigen::Vector3d(cur_pose_.pose.position.x, \
-        cur_pose_.pose.position.y, cur_pose_.pose.position.z);
+        cur_pose_.pose.position.y, z_offset);
 }
 
 void BackendMavros::takeOff(double _height) {

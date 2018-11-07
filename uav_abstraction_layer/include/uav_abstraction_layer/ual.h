@@ -88,7 +88,7 @@ public:
     bool    recoverFromManual();
 
     /// Set home position (Needed to fix px4 local pose drift)
-    bool    setHome();
+    bool    setHome(bool set_z = false);
 
 protected:
     void init();

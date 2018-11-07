@@ -20,6 +20,7 @@
 //----------------------------------------------------------------------------------------------------------------------
 #include <uav_abstraction_layer/ual.h>
 #include <uav_abstraction_layer/GoToWaypointGeo.h>
+#include <uav_abstraction_layer/SetHome.h>
 #include <ros/ros.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <std_srvs/Empty.h>
@@ -146,10 +147,10 @@ void UAL::init() {
                 return this->recoverFromManual();
             });
             ros::ServiceServer set_home_service =
-                nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>(
+                nh.advertiseService<SetHome::Request, SetHome::Response>(
                 set_home_srv,
-                [this](std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
-                return this->setHome();
+                [this](SetHome::Request &req, SetHome::Response &res) {
+                return this->setHome(req.set_z);
             });
             ros::Publisher pose_pub = nh.advertise<geometry_msgs::PoseStamped>(pose_topic, 10);
             ros::Publisher velocity_pub = nh.advertise<geometry_msgs::TwistStamped>(velocity_topic, 10);
@@ -354,13 +355,13 @@ uav_abstraction_layer::State UAL::state() {
     return output;
 }
 
-bool UAL::setHome() {
+bool UAL::setHome(bool set_z) {
     // Check required state
     if (backend_->state() != Backend::State::LANDED_DISARMED) {
         ROS_ERROR("Unable to setHome: not LANDED_DISARMED!");
         return false;
     }
-    backend_->setHome();
+    backend_->setHome(set_z);
 
     return true;
 }

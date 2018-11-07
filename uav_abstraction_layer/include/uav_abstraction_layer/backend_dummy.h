@@ -93,8 +93,8 @@ public:
         ROS_INFO("BackendDummy::recoverFromManual");
     }
     /// Set home position
-    void    setHome() override {
-        ROS_INFO("BackendDummy::setHome");
+    void    setHome(bool set_z) override {
+        ROS_INFO("BackendDummy::setHome: set_z = %s", set_z ? "true" : "false");
     }
 };
 

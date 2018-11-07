@@ -112,7 +112,7 @@ public:
     /// Use it when FLYING uav is switched to manual mode and want to go BACK to auto.
     virtual void    recoverFromManual() = 0;
     /// Set home position
-    virtual void    setHome() = 0;
+    virtual void    setHome(bool set_z) = 0;
 
     /// Cancel execution of the current task
     void	        abort(bool _freeze = true);
