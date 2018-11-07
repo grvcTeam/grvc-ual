@@ -28,7 +28,11 @@ def save_waypoints():
     # Saved waypoints file name
     file_name = raw_input("Enter saved waypoints file name (leave empty to use default): ")
     if file_name is '':
-        file_name = 'wp_default'
+        file_name = 'wp_default.yaml'
+
+    # Autocomplete file extension
+    if not file_name.endswith('.yaml'):
+        file_name = file_name + '.yaml'
 
     # Check we are actually receiving pose
     rospy.loginfo('Reading pose from: %s', pose_url)
@@ -43,7 +47,7 @@ def save_waypoints():
     # Open yaml file and save frame_id
     frame_id = current_pose.header.frame_id
     rospy.loginfo('All waypoints in frame_id: %s', frame_id)
-    file_url = plans_dir + file_name + '.yaml'
+    file_url = plans_dir + file_name
     yaml_file = open(file_url, 'w')
     yaml_file.write('frame_id: ' + frame_id + '\n')
     rospy.loginfo('Waypoints will be saved to: %s', file_url)

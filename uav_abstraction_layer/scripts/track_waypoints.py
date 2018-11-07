@@ -19,7 +19,12 @@ def track_waypoints():
 
     rospy.init_node('waypoint_tracker')
 
-    file_url = rospkg.RosPack().get_path(args.plan_package) + '/plans/' + args.plan_file
+    file_name = args.plan_file
+    # Autocomplete file extension
+    if not file_name.endswith('.yaml'):
+        file_name = file_name + '.yaml'
+
+    file_url = rospkg.RosPack().get_path(args.plan_package) + '/plans/' + file_name
     with open(file_url, 'r') as wp_file:
         wp_data = yaml.load(wp_file)
 
