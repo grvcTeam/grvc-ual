@@ -328,25 +328,25 @@ uav_abstraction_layer::State UAL::state() {
     uav_abstraction_layer::State output;
     switch (backend_->state()) {
         case Backend::State::UNINITIALIZED:
-            output.as_int = uav_abstraction_layer::State::UNINITIALIZED;
+            output.state = uav_abstraction_layer::State::UNINITIALIZED;
             break;
         case Backend::State::LANDED_DISARMED:
-            output.as_int = uav_abstraction_layer::State::LANDED_DISARMED;
+            output.state = uav_abstraction_layer::State::LANDED_DISARMED;
             break;
         case Backend::State::LANDED_ARMED:
-            output.as_int = uav_abstraction_layer::State::LANDED_ARMED;
+            output.state = uav_abstraction_layer::State::LANDED_ARMED;
             break;
         case Backend::State::TAKING_OFF:
-            output.as_int = uav_abstraction_layer::State::TAKING_OFF;
+            output.state = uav_abstraction_layer::State::TAKING_OFF;
             break;
         case Backend::State::FLYING_AUTO:
-            output.as_int = uav_abstraction_layer::State::FLYING_AUTO;
+            output.state = uav_abstraction_layer::State::FLYING_AUTO;
             break;
         case Backend::State::FLYING_MANUAL:
-            output.as_int = uav_abstraction_layer::State::FLYING_MANUAL;
+            output.state = uav_abstraction_layer::State::FLYING_MANUAL;
             break;
         case Backend::State::LANDING:
-            output.as_int = uav_abstraction_layer::State::LANDING;
+            output.state = uav_abstraction_layer::State::LANDING;
             break;
         default:
             ROS_ERROR("Unexpected Backend::State!");

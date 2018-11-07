@@ -38,10 +38,10 @@ class JoyTeleop:
         self.joy_handle.update(data)
         # print self.joy_handle  # DEBUG
         if self.joy_handle.get_button('left_shoulder'):
-            if self.joy_handle.get_button_state('x') is ButtonState.JUST_PRESSED and self.ual_state.as_int == State.LANDED_ARMED:
+            if self.joy_handle.get_button_state('x') is ButtonState.JUST_PRESSED and self.ual_state.state == State.LANDED_ARMED:
                 rospy.loginfo("Taking off")
                 self.take_off(2.0, False)  # TODO(franreal): takeoff height?
-            if self.joy_handle.get_button_state('b') is ButtonState.JUST_PRESSED and self.ual_state.as_int == State.FLYING_AUTO:
+            if self.joy_handle.get_button_state('b') is ButtonState.JUST_PRESSED and self.ual_state.state == State.FLYING_AUTO:
                 rospy.loginfo("Landing")
                 self.land(False)
 
@@ -60,7 +60,7 @@ class JoyTeleop:
             self.gain_index = self.gain_index + 1 if self.gain_index < max_index else max_index
             rospy.loginfo("Speed level: %d", self.gain_index)
             
-        if self.ual_state.as_int == State.FLYING_AUTO:
+        if self.ual_state.state == State.FLYING_AUTO:
             vel_cmd = TwistStamped()
             vel_cmd.header.stamp = rospy.Time.now()
             # TODO: Use frame_id = 'uav_1' in not-headless mode?

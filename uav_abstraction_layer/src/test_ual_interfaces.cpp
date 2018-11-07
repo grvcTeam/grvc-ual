@@ -24,7 +24,7 @@
 int main(int _argc, char** _argv) {
 
     grvc::ual::UAL ual(_argc, _argv);
-    while ((ual.state().as_int != uav_abstraction_layer::State::LANDED_ARMED) && ros::ok()) {
+    while ((ual.state().state != uav_abstraction_layer::State::LANDED_ARMED) && ros::ok()) {
         std::cout << "UAL not ready!" << std::endl;
         sleep(1);
     }
