@@ -54,13 +54,17 @@ def track_waypoints():
         go_to_waypoint = rospy.ServiceProxy(go_to_waypoint_url, GoToWaypoint)
 
         # TODO: Check we're flying!
-        raw_input("Flying. Press Enter to continue...")
+        print "Ready to track " + str(len(wp_list)) + " waypoints from " + file_url
+        answer = raw_input("Continue? (y/N): ").lower().strip()
+        if answer != 'y' and answer != 'yes':
+            print "Aborted"
+            return
 
         for waypoint in wp_list:
             print "Go to waypoint:"
             print waypoint
             go_to_waypoint(waypoint, True)
-            raw_input("Arrived. Press Enter to continue...")
+            # raw_input("Arrived. Press Enter to continue...")  # TODO: optional?
 
         return
 
