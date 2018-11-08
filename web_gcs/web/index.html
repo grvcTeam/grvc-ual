@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>UAL web GCS</title>
+  <script src="https://code.jquery.com/jquery-1.10.2.js"></script>
+  <!-- <script src="https://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.js"></script> -->
+  <link href="style.css" rel="stylesheet" type="text/css">
+</head>
+<body>
+  <script src="main.js"></script>
+  <div id="prev">
+    <button id="startstop">Connect</button>
+    <form action="" id="ip_form">
+      <input type="text" id="input_ip" name="ip" placeholder="IP:port">
+      <input type="button" id="submit_ip" value="Set IP:port">
+    </form>
+    <p>Current IP:port is <span id="current_ip">localhost:5000</span></p>
+    <form action="" id="ns_form">
+      <input type="text" id="input_ns" name="ns" placeholder="e.g. uav_1">
+      <input type="button" id="submit_ns" value="Set UAL namespace">
+    </form>
+    <p>Current UAL namespace: <span id="current_ns">/</span></p>
+  </div>
+  <div id="main">
+    <p>Status: <span id="ual_status">NOT CONNECTED</span></p>
+    <p>Pose: <span id="ual_pose_x">0</span> <span id="ual_pose_y">0</span> <span id="ual_pose_z">0</span> [<span id="ual_pose_frame_id"></span>]</p>
+    <form action="" id="takeoff">
+      <input type="text" id="input_height" name="height" placeholder="height (m)">
+      <input type="button" id="submit_takeoff" value="Take off" disabled="disabled">
+    </form>
+    <button id="land" disabled="disabled">Land</button>
+    <h3>Go to waypoint</h3>
+    <form action="" id="gtw_form">
+      <!-- <input type="text" name="frame_id" placeholder="frame_id"> -->
+      Position
+      <div>
+        x: <input type="number" name="x">
+        y: <input type="number" name="y">
+        z: <input type="number" name="z">
+      </div>
+      Orientation
+      <div>
+        x: <input type="number" name="q1">
+        y: <input type="number" name="q2">
+        z: <input type="number" name="q3">
+        w: <input type="number" name="q4">
+      </div>
+      <input type="button" id="submit_gtw" value="Go to waypoint" disabled="disabled">
+    </form>
+  </div>
+</body>
+</html>

@@ -1,0 +1,7 @@
+<launch>
+
+   	<node pkg="web_gcs" type="run_rostful.py" name="run_rostful" output="screen">
+	   <rosparam param="ual_ns">[/uav_1,/uav_2,/uav_3]</rosparam>
+	</node>
+
+</launch>
