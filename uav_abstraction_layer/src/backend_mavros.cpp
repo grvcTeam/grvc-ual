@@ -267,6 +267,71 @@ double polySigmoid(double x) {
     return y;
 }
 
+geometry_msgs::Point calculateLookaheadPoint(geometry_msgs::Point _current, geometry_msgs::Point _initial, geometry_msgs::Point _final, float _lookahead) {
+    if (_lookahead <= 0) {
+        ROS_ERROR("Lookahead must be non-zero positive!");
+        return _current;
+    }
+
+    Eigen::Vector3f x0 = Eigen::Vector3f(_current.x, _current.y, _current.z);
+    Eigen::Vector3f x1 = Eigen::Vector3f(_initial.x, _initial.y, _initial.z);
+    Eigen::Vector3f x2 = Eigen::Vector3f(_final.x, _final.y, _final.z);
+    Eigen::Vector3f p = x0;
+
+    Eigen::Vector3f x_21 = x2 - x1;
+    float d_21 = x_21.norm();
+    float t_min = - x_21.dot(x1-x0) / (d_21*d_21);
+
+    Eigen::Vector3f closest_point = x1 + t_min*(x2-x1);
+    float distance = (closest_point - x0).norm();
+
+    float t_lookahead = t_min;
+    if (_lookahead > distance) {
+        float a = sqrt(_lookahead*_lookahead - distance*distance);
+        t_lookahead = t_min + a/d_21;
+    }
+
+    if (t_lookahead <= 0){
+        p = x1;
+        ROS_INFO("p = x1");
+    } else if (t_lookahead >= 1.0) {
+        p = x2;
+        ROS_INFO("p = x2");
+    } else {
+        p = x1 + t_lookahead*(x2-x1);
+        ROS_INFO("L = %f; norm(x0-p) = %f", _lookahead, (x0-p).norm());
+    }
+
+    // TODO: return also t_lookahead and use it for quaternion slerp?
+    geometry_msgs::Point out;
+    out.x = p(0);
+    out.y = p(1);
+    out.z = p(2);
+    return out;
+}
+
+// geometry_msgs::Point calculateLookaheadPoint(geometry_msgs::Point _initial, geometry_msgs::Point _final, float _lookahead) {
+//     if (_lookahead < 0) {
+//         ROS_ERROR("Parameter look ahead [%f] must be positive!", _lookahead);
+//         return _initial;
+//     }
+//     float ab_x = _final.x - _initial.x;
+//     float ab_y = _final.y - _initial.y;
+//     float ab_z = _final.z - _initial.z;
+//     float linear_distance  = sqrt(ab_x*ab_x + ab_y*ab_y + ab_z*ab_z);
+
+//     float t = _lookahead / linear_distance;
+//     if (t >= 1.0) {
+//         return _final;
+//     } else {
+//         geometry_msgs::Point next;
+//         next.x = _initial.x + ab_x * t;
+//         next.y = _initial.y + ab_y * t;
+//         next.z = _initial.z + ab_z * t;
+//         return next;
+//     }
+// }
+
 void BackendMavros::goToWaypoint(const Waypoint& _world) {
     control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
 
@@ -306,49 +371,87 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
     // TODO(franreal): test this here and think a better place for implementation
     geometry_msgs::Point final_position = homogen_world_pos.pose.position;
     geometry_msgs::Point initial_position = cur_pose_.pose.position;
-    double v_x = final_position.x - initial_position.x;
-    double v_y = final_position.y - initial_position.y;
-    double v_z = final_position.z - initial_position.z;
+    double ab_x = final_position.x - initial_position.x;
+    double ab_y = final_position.y - initial_position.y;
+    double ab_z = final_position.z - initial_position.z;
 
     Eigen::Quaterniond final_orientation = Eigen::Quaterniond(homogen_world_pos.pose.orientation.w, 
         homogen_world_pos.pose.orientation.x, homogen_world_pos.pose.orientation.y, homogen_world_pos.pose.orientation.z);
     Eigen::Quaterniond initial_orientation = Eigen::Quaterniond(cur_pose_.pose.orientation.w, 
         cur_pose_.pose.orientation.x, cur_pose_.pose.orientation.y, cur_pose_.pose.orientation.z);
 
-    double linear_distance  = sqrt(v_x*v_x + v_y*v_y + v_z*v_z);
-    double angular_distance = final_orientation.angularDistance(initial_orientation);
-    if (linear_distance > sqrt(position_th_) || angular_distance > 0.1) {  // TODO(franreal): Check thresholds!
-        float mean_speed = 0.5;  // TODO(franreal): As a parameter?
+    float linear_distance  = sqrt(ab_x*ab_x + ab_y*ab_y + ab_z*ab_z);
+    float angular_distance = final_orientation.angularDistance(initial_orientation);
+    if (linear_distance > sqrt(position_th_) || angular_distance > acos(1.0-2.0*orientation_th_)) {
+        float mpc_xy_vel_max   =   2.0;  // [m/s]   TODO: From mavros param service
+        float mpc_z_vel_max_up =   3.0;  // [m/s]   TODO: From mavros param service
+        float mpc_z_vel_max_dn =   1.0;  // [m/s]   TODO: From mavros param service
+        float mc_yawrate_max   = 200.0;  // [deg/s] TODO: From mavros param service
+
+        // float mpc_xy_p = 0.95;  // TODO: From mavros param service
+        // float mpc_z_p  = 1.00;  // TODO: From mavros param service
+        // float mc_yaw_p = 2.80;  // TODO: From mavros param service
+
+        float mpc_z_vel_max = (ab_z > 0)? mpc_z_vel_max_up : mpc_z_vel_max_dn;
+        float xy_distance = sqrt(ab_x*ab_x + ab_y*ab_y);
+        float z_distance = fabs(ab_z);
+        float mean_speed = (mpc_xy_vel_max*xy_distance + mpc_z_vel_max*z_distance) / linear_distance;
+        ROS_INFO("mean_speed = %f", mean_speed);
         float frequency = 10;
-        double t_linear_step = mean_speed / (linear_distance*frequency);
-        float mean_yawrate = 0.25;  // TODO(franreal): As a parameter?
-        double t_angular_step = mean_yawrate / (angular_distance*frequency);
-        double t_step = std::min(t_linear_step, t_angular_step);
+        float t_linear_step = mean_speed / (linear_distance*frequency);
+        float mean_yawrate = mc_yawrate_max * M_PI/180.0;
+        ROS_INFO("mean_yawrate = %f", mean_yawrate);
+        float t_angular_step = mean_yawrate / (angular_distance*frequency);
+        float t_step = std::min(t_linear_step, t_angular_step);
         ROS_INFO("linear_distance = %f, t_linear_step = %f", linear_distance, t_linear_step);
         ROS_INFO("angular_distance = %f, t_angular_step = %f", angular_distance, t_angular_step);
         ROS_INFO("t_step = min(t_linear_step, t_angular_step) = %f", t_step);
-        double t = 0;
-        double t_shape = t;  // Non linear t shape
+        float t = 0;
+        float t_shape = t;  // Non linear t shape
+
         ros::Rate rate(frequency);
-        while ((t <= 1.0) && !abort_ && ros::ok()) {
+        float next_to_final_distance = linear_distance;
+        float target_lookahead = 1.0;  // TODO(franreal): Parameter?
+        float lookahead = 0;
+        float p = 0.25;
+        while (next_to_final_distance>0.01 && !abort_ && ros::ok()) {
+            lookahead = (1-p)*lookahead + p*target_lookahead;
+            geometry_msgs::Point next = calculateLookaheadPoint(cur_pose_.pose.position, initial_position, final_position, lookahead);
+            float t_x = final_position.x - next.x;
+            float t_y = final_position.y - next.y;
+            float t_z = final_position.z - next.z;
+            next_to_final_distance = sqrt(t_x*t_x + t_y*t_y + t_z*t_z);;
             Waypoint wp_i;
-            wp_i.pose.position.x = initial_position.x + v_x * t_shape;
-            wp_i.pose.position.y = initial_position.y + v_y * t_shape;
-            wp_i.pose.position.z = initial_position.z + v_z * t_shape;
-            Eigen::Quaterniond q_i = initial_orientation.slerp(t_shape, final_orientation);
-            wp_i.pose.orientation.w = q_i.w();
-            wp_i.pose.orientation.x = q_i.x();
-            wp_i.pose.orientation.y = q_i.y();
-            wp_i.pose.orientation.z = q_i.z();
+            wp_i.pose.position.x = next.x;
+            wp_i.pose.position.y = next.y;
+            wp_i.pose.position.z = next.z;
+            wp_i.pose.orientation.w = final_orientation.w();
+            wp_i.pose.orientation.x = final_orientation.x();
+            wp_i.pose.orientation.y = final_orientation.y();
+            wp_i.pose.orientation.z = final_orientation.z();
             ref_pose_.pose = wp_i.pose;
-            float speed = sqrt(cur_vel_.twist.linear.x*cur_vel_.twist.linear.x + cur_vel_.twist.linear.y*cur_vel_.twist.linear.y + cur_vel_.twist.linear.z*cur_vel_.twist.linear.z);
-            ROS_INFO("t = %f, t_shape = %f, wp_i = [%f, %f, %f][%f, %f, %f, %f], speed = %f", t, t_shape, wp_i.pose.position.x, wp_i.pose.position.y, wp_i.pose.position.z,
-                wp_i.pose.orientation.x, wp_i.pose.orientation.y, wp_i.pose.orientation.z, wp_i.pose.orientation.w, speed);
-            t += t_step;  // TODO(franreal): Previous wp?
-            t_shape = polySigmoid(t);
             rate.sleep();
         }
+        // while ((t <= 1.0) && !abort_ && ros::ok()) {
+        //     Waypoint wp_i;
+        //     wp_i.pose.position.x = initial_position.x + ab_x * t_shape;
+        //     wp_i.pose.position.y = initial_position.y + ab_y * t_shape;
+        //     wp_i.pose.position.z = initial_position.z + ab_z * t_shape;
+        //     Eigen::Quaterniond q_i = initial_orientation.slerp(t_shape, final_orientation);
+        //     wp_i.pose.orientation.w = q_i.w();
+        //     wp_i.pose.orientation.x = q_i.x();
+        //     wp_i.pose.orientation.y = q_i.y();
+        //     wp_i.pose.orientation.z = q_i.z();
+        //     ref_pose_.pose = wp_i.pose;
+        //     float speed = sqrt(cur_vel_.twist.linear.x*cur_vel_.twist.linear.x + cur_vel_.twist.linear.y*cur_vel_.twist.linear.y + cur_vel_.twist.linear.z*cur_vel_.twist.linear.z);
+        //     ROS_INFO("t = %f, t_shape = %f, wp_i = [%f, %f, %f][%f, %f, %f, %f], speed = %f", t, t_shape, wp_i.pose.position.x, wp_i.pose.position.y, wp_i.pose.position.z,
+        //         wp_i.pose.orientation.x, wp_i.pose.orientation.y, wp_i.pose.orientation.z, wp_i.pose.orientation.w, speed);
+        //     t += t_step;  // TODO(franreal): Previous wp?
+        //     t_shape = polySigmoid(t);
+        //     rate.sleep();
+        // }
     }
+    ROS_INFO("All points sent!");
 
     // Finally set pose
     ref_pose_.pose = homogen_world_pos.pose;
@@ -419,6 +522,7 @@ Pose BackendMavros::pose() {
             out.header.frame_id = pose_frame_id_;
         }
 
+        out.header.stamp = ros::Time::now();
         return out;
 }
 
