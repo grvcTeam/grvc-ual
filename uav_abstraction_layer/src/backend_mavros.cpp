@@ -393,18 +393,20 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
     float linear_distance  = sqrt(ab_x*ab_x + ab_y*ab_y + ab_z*ab_z);
     float linear_threshold = sqrt(position_th_);
     if (linear_distance > linear_threshold) {
-        // float mpc_xy_vel_max   =   2.0;  // [m/s]   TODO: From mavros param service
-        // float mpc_z_vel_max_up =   3.0;  // [m/s]   TODO: From mavros param service
-        // float mpc_z_vel_max_dn =   1.0;  // [m/s]   TODO: From mavros param service
-        // float mc_yawrate_max   = 200.0;  // [deg/s] TODO: From mavros param service
+        float mpc_xy_vel_max   =   2.0;  // [m/s]   TODO: From mavros param service
+        float mpc_z_vel_max_up =   3.0;  // [m/s]   TODO: From mavros param service
+        float mpc_z_vel_max_dn =   1.0;  // [m/s]   TODO: From mavros param service
+        float mc_yawrate_max   = 200.0;  // [deg/s] TODO: From mavros param service
 
         // // float mpc_xy_p = 0.95;  // TODO: From mavros param service
         // // float mpc_z_p  = 1.00;  // TODO: From mavros param service
         // // float mc_yaw_p = 2.80;  // TODO: From mavros param service
 
-        // float mpc_z_vel_max = (ab_z > 0)? mpc_z_vel_max_up : mpc_z_vel_max_dn;
-        // float xy_distance = sqrt(ab_x*ab_x + ab_y*ab_y);
-        // float z_distance = fabs(ab_z);
+        float mpc_z_vel_max = (ab_z > 0)? mpc_z_vel_max_up : mpc_z_vel_max_dn;
+        // float mpc_xyz_vel_max = std::min(mpc_xy_vel_max, mpc_z_vel_max);
+        float xy_distance = sqrt(ab_x*ab_x + ab_y*ab_y);
+        float z_distance = fabs(ab_z);
+        bool z_vel_is_limit = (mpc_z_vel_max*xy_distance < mpc_xy_vel_max*z_distance);
         // float mean_speed = (mpc_xy_vel_max*xy_distance + mpc_z_vel_max*z_distance) / linear_distance;
         // ROS_INFO("mean_speed = %f", mean_speed);
         float frequency = 10;
@@ -425,6 +427,15 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
         float lookahead = 0;
         float p = 0.25;  // TODO: Use polySigmoid instead?
         while (next_to_final_distance > linear_threshold && !abort_ && ros::ok()) {
+            float current_xy_vel = sqrt(cur_vel_.twist.linear.x*cur_vel_.twist.linear.x + cur_vel_.twist.linear.y*cur_vel_.twist.linear.y);
+            float current_z_vel = fabs(cur_vel_.twist.linear.z);
+            if (z_vel_is_limit) {
+                if (current_z_vel > 0.8*mpc_z_vel_max) { target_lookahead -= 0.01; }  // TODO: Other thesholds, other update politics?
+                if (current_z_vel < 0.5*mpc_z_vel_max) { target_lookahead += 0.01; }
+            } else {
+                if (current_xy_vel > 0.8*mpc_xy_vel_max) { target_lookahead -= 0.01; }  // TODO: Other thesholds, other update politics?
+                if (current_xy_vel < 0.5*mpc_xy_vel_max) { target_lookahead += 0.01; }
+            }
             lookahead = (1-p)*lookahead + p*target_lookahead;
             PurePursuitOutput pp = PurePursuit(cur_pose_.pose.position, initial_position, final_position, lookahead);
             float t_x = final_position.x - pp.next.x;
