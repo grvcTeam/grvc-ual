@@ -132,7 +132,7 @@ void UAL::init() {
                 nh.subscribe<geometry_msgs::PoseStamped>(
                 set_pose_topic, 1,
                 [this](const geometry_msgs::PoseStamped::ConstPtr& _msg) {
-                this->goToWaypoint(*_msg, false);
+                this->setPose(*_msg);
             });
             ros::Subscriber set_velocity_sub =
                 nh.subscribe<geometry_msgs::TwistStamped>(
