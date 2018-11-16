@@ -50,6 +50,10 @@ public:
     /// Latest transform estimation of the robot
     virtual Transform transform() const override;
 
+    /// Set pose
+    /// \param _pose target pose
+    void    setPose(const geometry_msgs::PoseStamped& _pose) override;
+
     /// Go to the specified waypoint, following a straight line
     /// \param _wp goal waypoint
     void	goToWaypoint(const Waypoint& _wp) override;

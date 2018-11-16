@@ -58,6 +58,13 @@ public:
         return out;
     }
 
+    /// Set pose
+    /// \param _pose target pose
+    void    setPose(const geometry_msgs::PoseStamped& _pose) override {
+        ROS_INFO("BackendDummy::setPose: p.x = %f, p.y = %f, p.z = %f, q.x = %f, q.y = %f, q.z = %f, q.w = %f", _pose.pose.position.x, _pose.pose.position.y, _pose.pose.position.z, 
+            _pose.pose.orientation.x, _pose.pose.orientation.y, _pose.pose.orientation.z, _pose.pose.orientation.w);
+    }
+
     /// Go to the specified waypoint, following a straight line
     /// \param _wp goal waypoint
     void	goToWaypoint(const Waypoint& _wp) override {

@@ -59,6 +59,10 @@ public:
     /// Current robot state
     uav_abstraction_layer::State state();
 
+    /// Set pose
+    /// \param _pose target pose
+    bool    setPose(const geometry_msgs::PoseStamped& _pose);
+
     /// Go to the specified waypoint, following a straight line
     /// \param _wp goal waypoint
     /// \param _blocking indicates if function call is blocking (default = true)

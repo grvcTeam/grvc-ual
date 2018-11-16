@@ -194,6 +194,19 @@ UAL::~UAL() {
     delete(backend_);
 }
 
+bool UAL::setPose(const geometry_msgs::PoseStamped& _pose) {
+    // Check required state
+    if (backend_->state() != Backend::State::FLYING_AUTO) {
+        ROS_ERROR("Unable to setPose: not FLYING_AUTO!");
+        return false;
+    }
+    // Override any previous FLYING function
+    if (!backend_->isIdle()) { backend_->abort(false); }
+
+    // Function is non-blocking in backend TODO: non-thread-safe-call?
+    backend_->threadSafeCall(&Backend::setPose, _pose);
+    return true;
+}
 bool UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {
     // Check required state
     if (backend_->state() != Backend::State::FLYING_AUTO) {

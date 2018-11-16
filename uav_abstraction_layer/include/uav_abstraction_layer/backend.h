@@ -90,6 +90,10 @@ public:
     /// Current robot state
     inline State state() { return this->state_; }
 
+    /// Set pose
+    /// \param _pose target pose
+    virtual void    setPose(const geometry_msgs::PoseStamped& _pose) = 0;
+
     /// Go to the specified waypoint, following a straight line
     /// \param _wp goal waypoint
     virtual void	goToWaypoint(const Waypoint& _wp) = 0;

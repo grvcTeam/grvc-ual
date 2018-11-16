@@ -331,6 +331,45 @@ bool BackendMavros::isReady() const {
     }
 }
 
+void BackendMavros::setPose(const geometry_msgs::PoseStamped& _world) {
+    control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
+
+    geometry_msgs::PoseStamped homogen_world_pos;
+    tf2_ros::Buffer tfBuffer;
+    tf2_ros::TransformListener tfListener(tfBuffer);
+    std::string waypoint_frame_id = tf2::getFrameId(_world);
+
+    if ( waypoint_frame_id == "" || waypoint_frame_id == uav_home_frame_id_ ) {
+        // No transform is needed
+        homogen_world_pos = _world;
+    }
+    else {
+        // We need to transform
+        geometry_msgs::TransformStamped transformToHomeFrame;
+
+        if ( cached_transforms_.find(waypoint_frame_id) == cached_transforms_.end() ) {
+            // waypoint_frame_id not found in cached_transforms_
+            transformToHomeFrame = tfBuffer.lookupTransform(uav_home_frame_id_, waypoint_frame_id, ros::Time(0), ros::Duration(1.0));
+            cached_transforms_[waypoint_frame_id] = transformToHomeFrame; // Save transform in cache
+        } else {
+            // found in cache
+            transformToHomeFrame = cached_transforms_[waypoint_frame_id];
+        }
+        
+        tf2::doTransform(_world, homogen_world_pos, transformToHomeFrame);
+        
+    }
+
+//    std::cout << "Going to waypoint: " << homogen_world_pos.pose.position << std::endl;
+
+    // Do we still need local_start_pos_?
+    homogen_world_pos.pose.position.x -= local_start_pos_[0];
+    homogen_world_pos.pose.position.y -= local_start_pos_[1];
+    homogen_world_pos.pose.position.z -= local_start_pos_[2];
+
+    ref_pose_.pose = homogen_world_pos.pose;
+}
+
 void BackendMavros::goToWaypoint(const Waypoint& _world) {
     control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
 
