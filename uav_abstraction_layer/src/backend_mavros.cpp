@@ -370,6 +370,71 @@ void BackendMavros::setPose(const geometry_msgs::PoseStamped& _world) {
     ref_pose_.pose = homogen_world_pos.pose;
 }
 
+double polySigmoid(double x) {
+    double y = 0;
+    if (x <= 0.5) {
+        y = 2.0*x*x;
+    } else {
+        y = -2.0*x*x + 4.0*x - 1.0;
+    }
+    return y;
+}
+
+// TODO: Move from here
+struct PurePursuitOutput {
+    geometry_msgs::Point next;
+    float t_lookahead;
+};
+
+// TODO: Move from here
+PurePursuitOutput PurePursuit(geometry_msgs::Point _current, geometry_msgs::Point _initial, geometry_msgs::Point _final, float _lookahead) {
+
+    PurePursuitOutput out;
+    out.next = _current;
+    out.t_lookahead = 0;
+    if (_lookahead <= 0) {
+        ROS_ERROR("Lookahead must be non-zero positive!");
+        return out;
+    }
+
+    Eigen::Vector3f x0 = Eigen::Vector3f(_current.x, _current.y, _current.z);
+    Eigen::Vector3f x1 = Eigen::Vector3f(_initial.x, _initial.y, _initial.z);
+    Eigen::Vector3f x2 = Eigen::Vector3f(_final.x, _final.y, _final.z);
+    Eigen::Vector3f p = x0;
+
+    Eigen::Vector3f x_21 = x2 - x1;
+    float d_21 = x_21.norm();
+    float t_min = - x_21.dot(x1-x0) / (d_21*d_21);
+
+    Eigen::Vector3f closest_point = x1 + t_min*(x2-x1);
+    float distance = (closest_point - x0).norm();
+
+    float t_lookahead = t_min;
+    if (_lookahead > distance) {
+        float a = sqrt(_lookahead*_lookahead - distance*distance);
+        t_lookahead = t_min + a/d_21;
+    }
+
+    if (t_lookahead <= 0.0) {
+        p = x1;
+        t_lookahead = 0.0;
+        ROS_INFO("p = x1");
+    } else if (t_lookahead >= 1.0) {
+        p = x2;
+        t_lookahead = 1.0;
+        ROS_INFO("p = x2");
+    } else {
+        p = x1 + t_lookahead*(x2-x1);
+        ROS_INFO("L = %f; norm(x0-p) = %f", _lookahead, (x0-p).norm());
+    }
+
+    out.next.x = p(0);
+    out.next.y = p(1);
+    out.next.z = p(2);
+    out.t_lookahead = t_lookahead;
+    return out;
+}
+
 void BackendMavros::goToWaypoint(const Waypoint& _world) {
     control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
 
@@ -406,6 +471,65 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
     homogen_world_pos.pose.position.y -= local_start_pos_[1];
     homogen_world_pos.pose.position.z -= local_start_pos_[2];
 
+    // TODO(franreal): test this here and think a better place for implementation
+    geometry_msgs::Point final_position = homogen_world_pos.pose.position;
+    geometry_msgs::Point initial_position = cur_pose_.pose.position;
+    double ab_x = final_position.x - initial_position.x;
+    double ab_y = final_position.y - initial_position.y;
+    double ab_z = final_position.z - initial_position.z;
+
+    Eigen::Quaterniond final_orientation = Eigen::Quaterniond(homogen_world_pos.pose.orientation.w, 
+        homogen_world_pos.pose.orientation.x, homogen_world_pos.pose.orientation.y, homogen_world_pos.pose.orientation.z);
+    Eigen::Quaterniond initial_orientation = Eigen::Quaterniond(cur_pose_.pose.orientation.w, 
+        cur_pose_.pose.orientation.x, cur_pose_.pose.orientation.y, cur_pose_.pose.orientation.z);
+
+    float linear_distance  = sqrt(ab_x*ab_x + ab_y*ab_y + ab_z*ab_z);
+    float linear_threshold = sqrt(position_th_);
+    if (linear_distance > linear_threshold) {
+        float mpc_xy_vel_max   =   2.0;  // [m/s]   TODO: From mavros param service
+        float mpc_z_vel_max_up =   3.0;  // [m/s]   TODO: From mavros param service
+        float mpc_z_vel_max_dn =   1.0;  // [m/s]   TODO: From mavros param service
+        float mc_yawrate_max   = 200.0;  // [deg/s] TODO: From mavros param service
+
+        float mpc_z_vel_max = (ab_z > 0)? mpc_z_vel_max_up : mpc_z_vel_max_dn;
+        float xy_distance = sqrt(ab_x*ab_x + ab_y*ab_y);
+        float z_distance = fabs(ab_z);
+        bool z_vel_is_limit = (mpc_z_vel_max*xy_distance < mpc_xy_vel_max*z_distance);
+
+        ros::Rate rate(10);  // [Hz]
+        float next_to_final_distance = linear_distance;
+        float lookahead = 0.05;
+        while (next_to_final_distance > linear_threshold && !abort_ && ros::ok()) {
+            float current_xy_vel = sqrt(cur_vel_.twist.linear.x*cur_vel_.twist.linear.x + cur_vel_.twist.linear.y*cur_vel_.twist.linear.y);
+            float current_z_vel = fabs(cur_vel_.twist.linear.z);
+            if (z_vel_is_limit) {
+                if (current_z_vel > 0.8*mpc_z_vel_max) { lookahead -= 0.05; }  // TODO: Other thesholds, other update politics?
+                if (current_z_vel < 0.5*mpc_z_vel_max) { lookahead += 0.05; }  // TODO: Other thesholds, other update politics?
+                ROS_INFO("current_z_vel = %f", current_z_vel);
+            } else {
+                if (current_xy_vel > 0.8*mpc_xy_vel_max) { lookahead -= 0.05; }  // TODO: Other thesholds, other update politics?
+                if (current_xy_vel < 0.5*mpc_xy_vel_max) { lookahead += 0.05; }  // TODO: Other thesholds, other update politics?
+                ROS_INFO("current_xy_vel = %f", current_xy_vel);
+            }
+            PurePursuitOutput pp = PurePursuit(cur_pose_.pose.position, initial_position, final_position, lookahead);
+            Waypoint wp_i;
+            wp_i.pose.position.x = pp.next.x;
+            wp_i.pose.position.y = pp.next.y;
+            wp_i.pose.position.z = pp.next.z;
+            Eigen::Quaterniond q_i = initial_orientation.slerp(pp.t_lookahead, final_orientation);
+            wp_i.pose.orientation.w = q_i.w();
+            wp_i.pose.orientation.x = q_i.x();
+            wp_i.pose.orientation.y = q_i.y();
+            wp_i.pose.orientation.z = q_i.z();
+            ref_pose_.pose = wp_i.pose;
+            next_to_final_distance = (1.0 - pp.t_lookahead) * linear_distance;
+            ROS_INFO("next_to_final_distance = %f", next_to_final_distance);
+            rate.sleep();
+        }
+    }
+    ROS_INFO("All points sent!");
+
+    // Finally set pose
     ref_pose_.pose = homogen_world_pos.pose;
     position_error_.reset();
     orientation_error_.reset();
