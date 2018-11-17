@@ -486,14 +486,10 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
     float linear_distance  = sqrt(ab_x*ab_x + ab_y*ab_y + ab_z*ab_z);
     float linear_threshold = sqrt(position_th_);
     if (linear_distance > linear_threshold) {
-        updateParam("MPC_XY_VEL_MAX");
-        updateParam("MPC_Z_VEL_MAX_UP");
-        updateParam("MPC_Z_VEL_MAX_DN");
-        updateParam("MC_YAWRATE_MAX");
-        float mpc_xy_vel_max   = mavros_params_["MPC_XY_VEL_MAX"];
-        float mpc_z_vel_max_up = mavros_params_["MPC_Z_VEL_MAX_UP"];
-        float mpc_z_vel_max_dn = mavros_params_["MPC_Z_VEL_MAX_DN"];
-        float mc_yawrate_max   = mavros_params_["MC_YAWRATE_MAX"];
+        float mpc_xy_vel_max   = updateParam("MPC_XY_VEL_MAX");
+        float mpc_z_vel_max_up = updateParam("MPC_Z_VEL_MAX_UP");
+        float mpc_z_vel_max_dn = updateParam("MPC_Z_VEL_MAX_DN");
+        float mc_yawrate_max   = updateParam("MC_YAWRATE_MAX");
 
         float mpc_z_vel_max = (ab_z > 0)? mpc_z_vel_max_up : mpc_z_vel_max_dn;
         float xy_distance = sqrt(ab_x*ab_x + ab_y*ab_y);
@@ -726,7 +722,7 @@ void BackendMavros::initHomeFrame() {
     static_tf_broadcaster_->sendTransform(static_transformStamped);
 }
 
-void BackendMavros::updateParam(const std::string& _param_id) {
+double BackendMavros::updateParam(const std::string& _param_id) {
     mavros_msgs::ParamGet get_param_service;
     get_param_service.request.param_id = _param_id;
     if (get_param_client_.call(get_param_service) && get_param_service.response.success) {
@@ -737,10 +733,11 @@ void BackendMavros::updateParam(const std::string& _param_id) {
         ROS_ERROR("Error in get param [%s] service calling, leaving current value [%f]", 
             get_param_service.request.param_id.c_str(), mavros_params_[_param_id]);
     } else {
-        // TODO: Give it a default invented (0.0) value?
-        ROS_ERROR("Error in get param [%s] service calling", 
+        mavros_params_[_param_id] = 0.0;
+        ROS_ERROR("Error in get param [%s] service calling, initializing it to zero", 
             get_param_service.request.param_id.c_str());
     }
+    return mavros_params_[_param_id];
 }
 
 }}	// namespace grvc::ual

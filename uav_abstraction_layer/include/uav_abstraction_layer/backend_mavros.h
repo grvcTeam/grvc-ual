@@ -163,7 +163,7 @@ private:
     void initHomeFrame();
     bool referencePoseReached();
     void setFlightMode(const std::string& _flight_mode);
-    void updateParam(const std::string& _param_id);
+    double updateParam(const std::string& _param_id);
     State guessState();
 
     //WaypointList path_;
