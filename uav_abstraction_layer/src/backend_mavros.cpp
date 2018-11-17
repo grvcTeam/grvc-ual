@@ -29,6 +29,7 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <uav_abstraction_layer/geographic_to_cartesian.h>
+#include <mavros_msgs/ParamGet.h>
 
 namespace grvc { namespace ual {
 
@@ -53,6 +54,7 @@ BackendMavros::BackendMavros()
     std::string mavros_ns = "mavros";
     std::string set_mode_srv = mavros_ns + "/set_mode";
     std::string arming_srv = mavros_ns + "/cmd/arming";
+    std::string get_param_srv = mavros_ns + "/param/get";
     std::string set_pose_topic = mavros_ns + "/setpoint_position/local";
     std::string set_pose_global_topic = mavros_ns + "/setpoint_raw/global";
     std::string set_vel_topic = mavros_ns + "/setpoint_velocity/cmd_vel";
@@ -108,6 +110,14 @@ BackendMavros::BackendMavros()
 
     // Thread publishing target pose at 10Hz for offboard mode
     offboard_thread_ = std::thread(&BackendMavros::offboardThreadLoop, this);
+
+    // Client to get parameters from mavros and required default values
+    get_param_client_ = nh.serviceClient<mavros_msgs::ParamGet>(get_param_srv.c_str());
+    mavros_params_["MPC_XY_VEL_MAX"]   =   2.0;  // [m/s]   Default value
+    mavros_params_["MPC_Z_VEL_MAX_UP"] =   3.0;  // [m/s]   Default value
+    mavros_params_["MPC_Z_VEL_MAX_DN"] =   1.0;  // [m/s]   Default value
+    mavros_params_["MC_YAWRATE_MAX"]   = 200.0;  // [deg/s] Default value
+    // Updating here is non-sense as service seems to be slow in waking up
 
     ROS_INFO("BackendMavros %d running!",robot_id_);
 }
@@ -370,23 +380,13 @@ void BackendMavros::setPose(const geometry_msgs::PoseStamped& _world) {
     ref_pose_.pose = homogen_world_pos.pose;
 }
 
-double polySigmoid(double x) {
-    double y = 0;
-    if (x <= 0.5) {
-        y = 2.0*x*x;
-    } else {
-        y = -2.0*x*x + 4.0*x - 1.0;
-    }
-    return y;
-}
-
-// TODO: Move from here
+// TODO: Move from here?
 struct PurePursuitOutput {
     geometry_msgs::Point next;
     float t_lookahead;
 };
 
-// TODO: Move from here
+// TODO: Move from here?
 PurePursuitOutput PurePursuit(geometry_msgs::Point _current, geometry_msgs::Point _initial, geometry_msgs::Point _final, float _lookahead) {
 
     PurePursuitOutput out;
@@ -418,14 +418,14 @@ PurePursuitOutput PurePursuit(geometry_msgs::Point _current, geometry_msgs::Poin
     if (t_lookahead <= 0.0) {
         p = x1;
         t_lookahead = 0.0;
-        ROS_INFO("p = x1");
+        // ROS_INFO("p = x1");
     } else if (t_lookahead >= 1.0) {
         p = x2;
         t_lookahead = 1.0;
-        ROS_INFO("p = x2");
+        // ROS_INFO("p = x2");
     } else {
         p = x1 + t_lookahead*(x2-x1);
-        ROS_INFO("L = %f; norm(x0-p) = %f", _lookahead, (x0-p).norm());
+        // ROS_INFO("L = %f; norm(x0-p) = %f", _lookahead, (x0-p).norm());
     }
 
     out.next.x = p(0);
@@ -471,7 +471,7 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
     homogen_world_pos.pose.position.y -= local_start_pos_[1];
     homogen_world_pos.pose.position.z -= local_start_pos_[2];
 
-    // TODO(franreal): test this here and think a better place for implementation
+    // Smooth pose reference passing!
     geometry_msgs::Point final_position = homogen_world_pos.pose.position;
     geometry_msgs::Point initial_position = cur_pose_.pose.position;
     double ab_x = final_position.x - initial_position.x;
@@ -486,10 +486,14 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
     float linear_distance  = sqrt(ab_x*ab_x + ab_y*ab_y + ab_z*ab_z);
     float linear_threshold = sqrt(position_th_);
     if (linear_distance > linear_threshold) {
-        float mpc_xy_vel_max   =   2.0;  // [m/s]   TODO: From mavros param service
-        float mpc_z_vel_max_up =   3.0;  // [m/s]   TODO: From mavros param service
-        float mpc_z_vel_max_dn =   1.0;  // [m/s]   TODO: From mavros param service
-        float mc_yawrate_max   = 200.0;  // [deg/s] TODO: From mavros param service
+        updateParam("MPC_XY_VEL_MAX");
+        updateParam("MPC_Z_VEL_MAX_UP");
+        updateParam("MPC_Z_VEL_MAX_DN");
+        updateParam("MC_YAWRATE_MAX");
+        float mpc_xy_vel_max   = mavros_params_["MPC_XY_VEL_MAX"];
+        float mpc_z_vel_max_up = mavros_params_["MPC_Z_VEL_MAX_UP"];
+        float mpc_z_vel_max_dn = mavros_params_["MPC_Z_VEL_MAX_DN"];
+        float mc_yawrate_max   = mavros_params_["MC_YAWRATE_MAX"];
 
         float mpc_z_vel_max = (ab_z > 0)? mpc_z_vel_max_up : mpc_z_vel_max_dn;
         float xy_distance = sqrt(ab_x*ab_x + ab_y*ab_y);
@@ -505,11 +509,11 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
             if (z_vel_is_limit) {
                 if (current_z_vel > 0.8*mpc_z_vel_max) { lookahead -= 0.05; }  // TODO: Other thesholds, other update politics?
                 if (current_z_vel < 0.5*mpc_z_vel_max) { lookahead += 0.05; }  // TODO: Other thesholds, other update politics?
-                ROS_INFO("current_z_vel = %f", current_z_vel);
+                // ROS_INFO("current_z_vel = %f", current_z_vel);
             } else {
                 if (current_xy_vel > 0.8*mpc_xy_vel_max) { lookahead -= 0.05; }  // TODO: Other thesholds, other update politics?
                 if (current_xy_vel < 0.5*mpc_xy_vel_max) { lookahead += 0.05; }  // TODO: Other thesholds, other update politics?
-                ROS_INFO("current_xy_vel = %f", current_xy_vel);
+                // ROS_INFO("current_xy_vel = %f", current_xy_vel);
             }
             PurePursuitOutput pp = PurePursuit(cur_pose_.pose.position, initial_position, final_position, lookahead);
             Waypoint wp_i;
@@ -523,11 +527,11 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
             wp_i.pose.orientation.z = q_i.z();
             ref_pose_.pose = wp_i.pose;
             next_to_final_distance = (1.0 - pp.t_lookahead) * linear_distance;
-            ROS_INFO("next_to_final_distance = %f", next_to_final_distance);
+            // ROS_INFO("next_to_final_distance = %f", next_to_final_distance);
             rate.sleep();
         }
     }
-    ROS_INFO("All points sent!");
+    // ROS_INFO("All points sent!");
 
     // Finally set pose
     ref_pose_.pose = homogen_world_pos.pose;
@@ -720,6 +724,23 @@ void BackendMavros::initHomeFrame() {
 
     static_tf_broadcaster_ = new tf2_ros::StaticTransformBroadcaster();
     static_tf_broadcaster_->sendTransform(static_transformStamped);
+}
+
+void BackendMavros::updateParam(const std::string& _param_id) {
+    mavros_msgs::ParamGet get_param_service;
+    get_param_service.request.param_id = _param_id;
+    if (get_param_client_.call(get_param_service) && get_param_service.response.success) {
+        mavros_params_[_param_id] = get_param_service.response.value.integer? 
+            get_param_service.response.value.integer : get_param_service.response.value.real;
+        ROS_INFO("Parameter [%s] value is [%f]", get_param_service.request.param_id.c_str(), mavros_params_[_param_id]);
+    } else if (mavros_params_.count(_param_id)) {
+        ROS_ERROR("Error in get param [%s] service calling, leaving current value [%f]", 
+            get_param_service.request.param_id.c_str(), mavros_params_[_param_id]);
+    } else {
+        // TODO: Give it a default invented (0.0) value?
+        ROS_ERROR("Error in get param [%s] service calling", 
+            get_param_service.request.param_id.c_str());
+    }
 }
 
 }}	// namespace grvc::ual
