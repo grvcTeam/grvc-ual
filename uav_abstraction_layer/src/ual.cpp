@@ -264,6 +264,11 @@ bool UAL::takeOff(double _height, bool _blocking) {
         ROS_ERROR("Unable to takeOff: not LANDED_ARMED!");
         return false;
     }
+    // Check input
+    if (_height < 0.0) {
+        ROS_ERROR("Unable to takeOff: height must be positive!");
+        return false;
+    }
 
     if (_blocking) {
         if (!backend_->threadSafeCall(&Backend::takeOff, _height)) {
