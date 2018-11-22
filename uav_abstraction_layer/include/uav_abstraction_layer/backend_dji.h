@@ -42,6 +42,12 @@
 // #include <tf2_ros/static_transform_broadcaster.h>
 
 #include <geometry_msgs/PointStamped.h>
+#include <geometry_msgs/QuaternionStamped.h>
+#include <std_msgs/UInt8.h>
+
+// std_msgs::UInt8 S_FLYING = 2;
+typedef double Quaterniond [4];
+
 
 namespace grvc { namespace ual {
 
@@ -86,7 +92,7 @@ namespace grvc { namespace ual {
 //     std::deque<double> buffer_;
 //     std::mutex mutex_;
 // };
-
+ 
 class BackendDji : public Backend {
 
 public:
@@ -127,15 +133,40 @@ public:
     /// Set home position
     void    setHome() override;
 
+ 
 private:
     void controlThread();
     // void setArmed(bool _value);
     // void initHomeFrame();
     // bool referencePoseReached();
     // void setFlightMode(const std::string& _flight_mode);
+    
+    void Quaternion2EulerAngle(const geometry_msgs::Pose::_orientation_type& _q, double& _roll, double& _pitch, double& _yaw);
+
+// {
+// 	// roll (x-axis rotation)
+// 	double sinr = +2.0 * (q.w() * q.x() + q.y() * q.z());
+// 	double cosr = +1.0 - 2.0 * (q.x() * q.x() + q.y() * q.y());
+// 	roll = atan2(sinr, cosr);
+
+// 	// pitch (y-axis rotation)
+// 	double sinp = +2.0 * (q.w() * q.y() - q.z() * q.x());
+// 	if (fabs(sinp) >= 1)
+// 		pitch = copysign(M_PI / 2, sinp); // use 90 degrees if out of range
+// 	else
+// 		pitch = asin(sinp);
+
+// 	// yaw (z-axis rotation)
+// 	double siny = +2.0 * (q.w() * q.z() + q.x() * q.y());
+// 	double cosy = +1.0 - 2.0 * (q.y() * q.y() + q.z() * q.z());  
+// 	yaw = atan2(siny, cosy);
+// }
+    
+    
+    void goHome();
 
     geometry_msgs::PoseStamped reference_pose_;
-    // sensor_msgs::NavSatFix     ref_pose_global_;
+    sensor_msgs::NavSatFix     reference_pose_global_;
     // geometry_msgs::PoseStamped cur_pose_;
     // geometry_msgs::TwistStamped ref_vel_;
     // geometry_msgs::TwistStamped cur_vel_;
@@ -143,6 +174,9 @@ private:
     // mavros_msgs::ExtendedState mavros_extended_state_;
 
     geometry_msgs::PointStamped current_position_;
+    sensor_msgs::NavSatFix      current_position_global;
+    geometry_msgs::QuaternionStamped current_attitude_;
+    std_msgs::UInt8 flight_status_;
 
     // Control
     enum class eControlMode { IDLE, LOCAL_VEL, LOCAL_POSE, GLOBAL_POSE };
@@ -163,8 +197,13 @@ private:
     ros::ServiceClient drone_task_control_client_;
 
     ros::Publisher reference_position_pub_;
-
+    
     ros::Subscriber position_sub_;
+    ros::Subscriber position_global_sub_;
+    ros::Subscriber attitude_sub_;
+
+    ros::Subscriber flight_status_sub_;
+
 
     // ros::Publisher mavros_ref_pose_pub_;
     // ros::Publisher mavros_ref_pose_global_pub_;
@@ -183,6 +222,9 @@ private:
 
     std::thread control_thread_;
     double control_thread_frequency_;
+    
+    bool activated_ = false;
+    bool home_set_ = false;
 };
 
 }}	// namespace grvc::ual
