@@ -117,6 +117,7 @@ BackendMavros::BackendMavros()
     mavros_params_["MPC_Z_VEL_MAX_UP"] =   3.0;  // [m/s]   Default value
     mavros_params_["MPC_Z_VEL_MAX_DN"] =   1.0;  // [m/s]   Default value
     mavros_params_["MC_YAWRATE_MAX"]   = 200.0;  // [deg/s] Default value
+    mavros_params_["MPC_TKO_SPEED"]    =   1.5;  // [m/s]   Default value
     // Updating here is non-sense as service seems to be slow in waking up
 
     ROS_INFO("BackendMavros %d running!",robot_id_);
@@ -143,6 +144,7 @@ void BackendMavros::offboardThreadLoop(){
             }
             break;
         case eControlMode::LOCAL_POSE:
+            ref_pose_.header.stamp = ros::Time::now();
             mavros_ref_pose_pub_.publish(ref_pose_);
             ref_vel_.twist.linear.x = 0;
             ref_vel_.twist.linear.y = 0;
@@ -248,6 +250,8 @@ void BackendMavros::setHome(bool set_z) {
         cur_pose_.pose.position.y, z_offset);
 }
 
+/*
+// Set pose version (too abrupt old behaviour)
 void BackendMavros::takeOff(double _height) {
     calling_takeoff = true;
 
@@ -257,11 +261,114 @@ void BackendMavros::takeOff(double _height) {
     ref_pose_ = cur_pose_;
     ref_pose_.pose.position.z += _height;
     setFlightMode("OFFBOARD");
-    // setFlightMode("AUTO.TAKEOFF");  // TODO(franreal): Use this mode instead?
     position_error_.reset();
     orientation_error_.reset();
 
     // Wait until take off: unabortable!
+    while (!referencePoseReached() && (this->mavros_state_.mode == "OFFBOARD") && ros::ok()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    ROS_INFO("Flying!");
+    calling_takeoff = false;
+
+    // Update state right now!
+    this->state_ = guessState();
+}
+
+// Set mode version (some ramdom behaviour)
+void BackendMavros::takeOff(double _height) {
+    calling_takeoff = true;
+
+    control_mode_ = eControlMode::LOCAL_POSE;
+
+    // TODO: Set MIS_TAKEOFF_ALT to ref_pose_.pose.position.z + _height
+    setFlightMode("AUTO.TAKEOFF");
+    while ((this->mavros_state_.mode == "AUTO.TAKEOFF") && ros::ok()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    if (this->mavros_state_.mode == "AUTO.LOITER") {  // Assure takeoff has not been calcelled (random!)
+        ref_pose_ = cur_pose_;
+        setFlightMode("OFFBOARD");
+    }
+    ROS_INFO("Flying!");
+    calling_takeoff = false;
+
+    // Update state right now!
+    this->state_ = guessState();
+}
+
+// Go to waypoint version (renders takeoff abortable)
+void BackendMavros::takeOff(double _height) {
+    calling_takeoff = true;
+
+    control_mode_ = eControlMode::LOCAL_POSE;  // Take off control is performed in position (not velocity)
+
+    ref_pose_ = cur_pose_;
+    Waypoint takeoff_pose = cur_pose_;
+    takeoff_pose.header.frame_id = "";
+    takeoff_pose.pose.position.z += _height;  // sigmoid here? param MPC_TKO_SPEED?
+    setFlightMode("OFFBOARD");
+    goToWaypoint(takeoff_pose);
+    ROS_INFO("Flying!");
+    calling_takeoff = false;
+
+    // Update state right now!
+    this->state_ = guessState();
+}
+*/
+
+void BackendMavros::takeOff(double _height) {
+    if (_height < 0.0) {
+        ROS_ERROR("Takeoff height must be positive!");
+        return;
+    }
+    calling_takeoff = true;
+
+    control_mode_ = eControlMode::LOCAL_POSE;  // Take off control is performed in position (not velocity)
+
+    float acc_max = 1.0;  // TODO: From param?
+    float vel_max = updateParam("MPC_TKO_SPEED");
+
+    float a = sqrt(_height * acc_max);
+    if (a < vel_max) {
+        vel_max = a;
+    }
+    float t1 = vel_max / acc_max;
+    float h1 = 0.5 * acc_max * t1 * t1;
+    float t2 = t1 + (_height - 2.0 * h1) / vel_max;
+    // float h2 = _height - h1;
+    float t3 = t2 + t1;
+
+    float t = 0.0;
+    float delta_t = 0.1;  // [s]
+    ros::Rate rate(1.0 / delta_t);
+
+    ref_pose_ = cur_pose_;
+    float base_z  = cur_pose_.pose.position.z;
+    float delta_z = 0;
+
+    setFlightMode("OFFBOARD");
+    while ((t < t3) && ros::ok()) {  // Unabortable!
+        if (t < t1) {
+            delta_z = 0.5 * acc_max * t * t;
+        } else if (t < t2) {
+            delta_z = h1 + vel_max * (t - t1);
+        } else {
+            delta_z = _height - 0.5 * acc_max * (t3 - t) * (t3 - t);
+        }
+
+        if (delta_z > _height) {
+            ROS_WARN("Unexpected delta_z value [%f]", delta_z);
+        } else {
+            ref_pose_.pose.position.z = base_z + delta_z;
+        }
+
+        rate.sleep();
+        t += delta_t;
+    }
+    ref_pose_.pose.position.z = base_z + _height;
+
+    // Now wait (unabortable!)
     while (!referencePoseReached() && (this->mavros_state_.mode == "OFFBOARD") && ros::ok()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
