@@ -23,7 +23,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 ## System dependencies are found with CMake's conventions
-# find_package(Boost REQUIRED COMPONENTS system)
+find_package(DJIOSDK REQUIRED)
 
 # Check for mavros version for compatibility with older versions
 execute_process(COMMAND rosversion mavros
@@ -150,7 +150,7 @@ include_directories(
 #   src/${PROJECT_NAME}/uav_abstraction_layer.cpp
 # )
 add_library(${PROJECT_NAME}
-  src/backend.cpp src/backend_mavros.cpp src/backend_light.cpp src/backend_dji.cpp src/ual.cpp
+  src/backend.cpp src/backend_mavros.cpp src/backend_light.cpp src/backend_dji.cpp src/ual.cpp 
 )
 
 ## Add cmake target dependencies of the library
@@ -183,10 +183,12 @@ add_dependencies(server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TA
 target_link_libraries(test_ual_interfaces
   ${PROJECT_NAME}
   ${catkin_LIBRARIES}
+  ${DJIOSDK_LIBRARIES}
 )
 target_link_libraries(server
   ${PROJECT_NAME}
   ${catkin_LIBRARIES}
+  ${DJIOSDK_LIBRARIES}
 )
 
 ###################
