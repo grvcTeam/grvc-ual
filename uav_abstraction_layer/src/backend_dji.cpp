@@ -31,7 +31,8 @@
 #include <dji_sdk/SetLocalPosRef.h>
 #include <dji_sdk/SDKControlAuthority.h>
 #include <dji_sdk/DroneTaskControl.h>
-// #include <std_msgs/UInt8.h>
+#include <dji_sdk/DroneArmControl.h>
+#include <std_msgs/UInt8.h>
 #include <sensor_msgs/Joy.h>
 // #include <ros/package.h>
 // #include <tf2_ros/transform_listener.h>
@@ -43,7 +44,7 @@
 // geometry_msgs::Pose_<std::allocator<void> >::_orientation_type {aka geometry_msgs::Quaternion_
 
 geometry_msgs::Pose::_orientation_type q;
-geometry_msgs::QuaternionStamped current_attitude;
+// geometry_msgs::QuaternionStamped current_attitude;
 double roll;
 double pitch;
 double yaw;
@@ -79,6 +80,7 @@ BackendDji::BackendDji()
     // std::string state_topic = mavros_ns + "/state";
     // std::string extended_state_topic = mavros_ns + "/extended_state";
     std::string activation_srv = dji_ns + "/activation";
+    std::string arming_srv = dji_ns + "/drone_arm_control";
     std::string set_local_pos_ref_srv = dji_ns + "/set_local_pos_ref";
     std::string sdk_control_authority_srv = dji_ns + "/sdk_control_authority";
     std::string drone_task_control_srv = dji_ns + "/drone_task_control";
@@ -96,6 +98,7 @@ BackendDji::BackendDji()
 
 
     activation_client_ = nh.serviceClient<dji_sdk::Activation>(activation_srv.c_str());
+    arming_client_ = nh.serviceClient<dji_sdk::DroneArmControl>(arming_srv.c_str());
     set_local_pos_ref_client_ = nh.serviceClient<dji_sdk::SetLocalPosRef>(set_local_pos_ref_srv.c_str());
     sdk_control_authority_client_ = nh.serviceClient<dji_sdk::SDKControlAuthority>(sdk_control_authority_srv.c_str());
     drone_task_control_client_ = nh.serviceClient<dji_sdk::DroneTaskControl>(drone_task_control_srv.c_str());
@@ -184,10 +187,7 @@ void BackendDji::controlThread() {
             reference_joy.axes.push_back(flag);
 
             reference_position_pub_.publish(reference_joy);
-            
-
-
-      
+  
             // mavros_ref_pose_pub_.publish(ref_pose_);
             // ref_vel_.twist.linear.x = 0;
             // ref_vel_.twist.linear.y = 0;
@@ -259,7 +259,14 @@ void BackendDji::Quaternion2EulerAngle(const geometry_msgs::Pose::_orientation_t
 	double cosy = +1.0 - 2.0 * (q.y * q.y + q.z * q.z);  
 	yaw = atan2(siny, cosy);
 }
-// void BackendDji::setArmed(bool _value) {
+void BackendDji::setArmed(bool _value) {
+    int arm;
+    if(_value) {arm=1;}
+    else if(!_value) {arm=0;}
+    dji_sdk::DroneArmControl arming_service;
+    arming_service.request.arm = _value;
+    arming_client_.call(arming_service);
+
 //     mavros_msgs::CommandBool arming_service;
 //     arming_service.request.value = _value;
 //     // Arm: unabortable?
@@ -273,7 +280,7 @@ void BackendDji::Quaternion2EulerAngle(const geometry_msgs::Pose::_orientation_t
 //         bool armed = mavros_state_.armed;  // WATCHOUT: bug-prone ros-bool/bool comparison 
 //         if (armed == _value) { break; }  // Out-of-while condition
 //     }
-// }
+}
 
 // void BackendDji::setFlightMode(const std::string& _flight_mode) {
 //     mavros_msgs::SetMode flight_mode_service;
@@ -348,15 +355,17 @@ void BackendDji::takeOff(double _height) {
     drone_task_control.request.task = dji_sdk::DroneTaskControl::Request::TASK_TAKEOFF;
     drone_task_control_client_.call(drone_task_control);
 
-    control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
     reference_pose_.pose.position.x = current_position_.point.x;
     reference_pose_.pose.position.y = current_position_.point.y;
     reference_pose_.pose.position.z = _height;
-    q.x = current_attitude.quaternion.x + reference_pose_.pose.orientation.x;
-    q.y = current_attitude.quaternion.y + reference_pose_.pose.orientation.y;
-    q.z = current_attitude.quaternion.z + reference_pose_.pose.orientation.z;
-    q.w = current_attitude.quaternion.w + reference_pose_.pose.orientation.w;
-    
+    q.x = current_attitude_.quaternion.x;
+    q.y = current_attitude_.quaternion.y;
+    q.z = current_attitude_.quaternion.z;
+    q.w = current_attitude_.quaternion.w;
+
+    control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
+
+
     //  if(flight_status_ == 2) {
     //     ROS_INFO("Flying!");
     // }
@@ -464,10 +473,10 @@ void BackendDji::goToWaypoint(const Waypoint& _world) {
 
     control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
     reference_pose_ = _world;
-    q.x = current_attitude.quaternion.x + reference_pose_.pose.orientation.x;
-    q.y = current_attitude.quaternion.y + reference_pose_.pose.orientation.y;
-    q.z = current_attitude.quaternion.z + reference_pose_.pose.orientation.z;
-    q.w = current_attitude.quaternion.w + reference_pose_.pose.orientation.w;
+    q.x = reference_pose_.pose.orientation.x;
+    q.y = reference_pose_.pose.orientation.y;
+    q.z = reference_pose_.pose.orientation.z;
+    q.w = reference_pose_.pose.orientation.w;
 
 
 
@@ -540,12 +549,15 @@ void	BackendDji::goToWaypointGeo(const WaypointGeo& _wp){
 }*/
 
 Pose BackendDji::pose() {
-        // Pose out;
+        Pose out;
 
-        // out.pose.position.x = cur_pose_.pose.position.x + local_start_pos_[0];
-        // out.pose.position.y = cur_pose_.pose.position.y + local_start_pos_[1];
-        // out.pose.position.z = cur_pose_.pose.position.z + local_start_pos_[2];
-        // out.pose.orientation = cur_pose_.pose.orientation;
+        out.pose.position.x = current_position_.point.x;
+        out.pose.position.y = current_position_.point.y;
+        out.pose.position.z = current_position_.point.z;
+        out.pose.orientation.x = current_attitude_.quaternion.x;
+        out.pose.orientation.y = current_attitude_.quaternion.y;
+        out.pose.orientation.z = current_attitude_.quaternion.z;
+        out.pose.orientation.w = current_attitude_.quaternion.w;
 
         // if (pose_frame_id_ == "") {
         //     // Default: local pose
@@ -572,7 +584,7 @@ Pose BackendDji::pose() {
         //     out.header.frame_id = pose_frame_id_;
         // }
 
-        // return out;
+        return out;
 }
 
 Velocity BackendDji::velocity() const {

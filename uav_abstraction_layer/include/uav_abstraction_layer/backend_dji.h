@@ -132,11 +132,10 @@ public:
     void    recoverFromManual() override;
     /// Set home position
     void    setHome() override;
-
  
 private:
     void controlThread();
-    // void setArmed(bool _value);
+    void setArmed(bool _value);
     // void initHomeFrame();
     // bool referencePoseReached();
     // void setFlightMode(const std::string& _flight_mode);
@@ -192,6 +191,7 @@ private:
     // ros::ServiceClient arming_client_;
 
     ros::ServiceClient activation_client_;
+    ros::ServiceClient arming_client_;
     ros::ServiceClient set_local_pos_ref_client_;
     ros::ServiceClient sdk_control_authority_client_;
     ros::ServiceClient drone_task_control_client_;
