@@ -20,7 +20,7 @@ def main():
                         help='IP address of this device, used to set proper fcu_url')
     parser.add_argument('-fcu_url', type=str, default="udp://:14550@localhost:14556",
                         help='set fcu_url manually in custom mode')
-    parser.add_argument('-gcs_url', type=str, default="udp://@localhost",
+    parser.add_argument('-gcs_url', type=str, default="",
                         help='set gcs_url manually in custom mode')
     args, unknown = parser.parse_known_args()
     utils.check_unknown_args(unknown)
@@ -59,10 +59,9 @@ def main():
         subprocess.call("rosparam set " + node_name + "/fcu_url " + fcu_url, shell=True)
         subprocess.call("rosparam set " + node_name + "/gcs_url " + "udp://@{}".format(args.own_ip), shell=True)
     elif args.mode =="custom":
-        fcu_url = "{}".format(args.fcu_url)
-        gcs_url = "{}".format(args.gcs_url)
-        subprocess.call("rosparam set " + node_name + "/fcu_url " + fcu_url, shell=True)
-        subprocess.call("rosparam set " + node_name + "/gcs_url " + gcs_url, shell=True)
+        subprocess.call("rosparam set " + node_name + "/fcu_url " + args.fcu_url, shell=True)
+        if args.gcs_url:
+            subprocess.call("rosparam set " + node_name + "/gcs_url " + args.gcs_url, shell=True)
 
     # ...and load blacklist, config (as seen in mavros node.launch)
     yaml_path = rospack.get_path("px4_bringup") + "/config/"
