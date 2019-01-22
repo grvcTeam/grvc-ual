@@ -24,7 +24,7 @@
  <tr style="height: 56px;">
   <td id="projectalign" style="padding-left: 0.5em;">
    <div id="projectname">grvc_ual
-   &#160;<span id="projectnumber">2.0</span>
+   &#160;<span id="projectnumber">2.2</span>
    </div>
    <div id="projectbrief">An abstraction layer for unmanned aerial vehicles</div>
   </td>
@@ -90,7 +90,6 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <div class="header">
   <div class="summary">
 <a href="#pub-methods">Public Member Functions</a> &#124;
-<a href="#pro-types">Protected Types</a> &#124;
 <a href="#pro-methods">Protected Member Functions</a> &#124;
 <a href="#pro-attribs">Protected Attributes</a> &#124;
 <a href="classgrvc_1_1ual_1_1_u_a_l-members.html">List of all members</a>  </div>
@@ -133,10 +132,20 @@ Pose&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 Velocity&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgrvc_1_1ual_1_1_u_a_l.html#a2a96c803f7cd61efc82a150c56f5c6b6">velocity</a> () const </td></tr>
 <tr class="memdesc:a2a96c803f7cd61efc82a150c56f5c6b6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Latest velocity estimation of the robot. <br /></td></tr>
 <tr class="separator:a2a96c803f7cd61efc82a150c56f5c6b6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae88b79d4ff1cf49f11433af86d46c5ee"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ae88b79d4ff1cf49f11433af86d46c5ee"></a>
+Odometry&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgrvc_1_1ual_1_1_u_a_l.html#ae88b79d4ff1cf49f11433af86d46c5ee">odometry</a> () const </td></tr>
+<tr class="memdesc:ae88b79d4ff1cf49f11433af86d46c5ee"><td class="mdescLeft">&#160;</td><td class="mdescRight">Latest odometry estimation of the robot. <br /></td></tr>
+<tr class="separator:ae88b79d4ff1cf49f11433af86d46c5ee"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1523eb59a93e753587727687675edf69"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a1523eb59a93e753587727687675edf69"></a>
 Transform&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgrvc_1_1ual_1_1_u_a_l.html#a1523eb59a93e753587727687675edf69">transform</a> () const </td></tr>
 <tr class="memdesc:a1523eb59a93e753587727687675edf69"><td class="mdescLeft">&#160;</td><td class="mdescRight">Latest transform estimation of the robot. <br /></td></tr>
 <tr class="separator:a1523eb59a93e753587727687675edf69"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a993df5ed2f4d1942ce474437fe36c47a"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a993df5ed2f4d1942ce474437fe36c47a"></a>
+uav_abstraction_layer::State&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgrvc_1_1ual_1_1_u_a_l.html#a993df5ed2f4d1942ce474437fe36c47a">state</a> ()</td></tr>
+<tr class="memdesc:a993df5ed2f4d1942ce474437fe36c47a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Current robot state. <br /></td></tr>
+<tr class="separator:a993df5ed2f4d1942ce474437fe36c47a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9e8a688b811c23e7a658496efc299305"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgrvc_1_1ual_1_1_u_a_l.html#a9e8a688b811c23e7a658496efc299305">setPose</a> (const geometry_msgs::PoseStamped &amp;_pose)</td></tr>
+<tr class="separator:a9e8a688b811c23e7a658496efc299305"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4996a929793155d0aa977d76c43e42cf"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgrvc_1_1ual_1_1_u_a_l.html#a4996a929793155d0aa977d76c43e42cf">goToWaypoint</a> (const Waypoint &amp;_wp, bool _blocking=true)</td></tr>
 <tr class="separator:a4996a929793155d0aa977d76c43e42cf"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abc3692d187e8dc392e31682e92dfabc2"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgrvc_1_1ual_1_1_u_a_l.html#abc3692d187e8dc392e31682e92dfabc2">goToWaypointGeo</a> (const WaypointGeo &amp;_wp, bool _blocking=true)</td></tr>
@@ -149,28 +158,16 @@ Transform&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href=
 <tr class="separator:a0ec1c6b60411c5bebc59589e92c8ca47"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7a43b78462863700cfd23c7df3428351"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgrvc_1_1ual_1_1_u_a_l.html#a7a43b78462863700cfd23c7df3428351">recoverFromManual</a> ()</td></tr>
 <tr class="separator:a7a43b78462863700cfd23c7df3428351"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5e9ce7d890e512a46c2285a460d486dc"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a5e9ce7d890e512a46c2285a460d486dc"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgrvc_1_1ual_1_1_u_a_l.html#a5e9ce7d890e512a46c2285a460d486dc">setHome</a> ()</td></tr>
-<tr class="memdesc:a5e9ce7d890e512a46c2285a460d486dc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set home position (Needed to fix px4 local pose drift) <br /></td></tr>
-<tr class="separator:a5e9ce7d890e512a46c2285a460d486dc"><td class="memSeparator" colspan="2">&#160;</td></tr>
-</table><table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pro-types"></a>
-Protected Types</h2></td></tr>
-<tr class="memitem:afa8ff6c59a025a0dcc50bce7f628349e"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="afa8ff6c59a025a0dcc50bce7f628349e"></a>enum &#160;</td><td class="memItemRight" valign="bottom"><b>State</b> { <b>LANDED</b>, 
-<b>TAKING_OFF</b>, 
-<b>FLYING</b>, 
-<b>LANDING</b>
- }</td></tr>
-<tr class="separator:afa8ff6c59a025a0dcc50bce7f628349e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a74596f49793d2e57a9ee695b3bf8c62d"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a74596f49793d2e57a9ee695b3bf8c62d"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgrvc_1_1ual_1_1_u_a_l.html#a74596f49793d2e57a9ee695b3bf8c62d">setHome</a> (bool set_z=false)</td></tr>
+<tr class="memdesc:a74596f49793d2e57a9ee695b3bf8c62d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set home position (Needed to fix px4 local pose drift) <br /></td></tr>
+<tr class="separator:a74596f49793d2e57a9ee695b3bf8c62d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pro-methods"></a>
 Protected Member Functions</h2></td></tr>
 <tr class="memitem:a11285189b4afb64c1531ccc05e78bbb1"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a11285189b4afb64c1531ccc05e78bbb1"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>init</b> ()</td></tr>
 <tr class="separator:a11285189b4afb64c1531ccc05e78bbb1"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7607b590b2bb5353da855a01f465c7ea"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a7607b590b2bb5353da855a01f465c7ea"></a>
-std_msgs::String&#160;</td><td class="memItemRight" valign="bottom"><b>state</b> ()</td></tr>
-<tr class="separator:a7607b590b2bb5353da855a01f465c7ea"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pro-attribs"></a>
 Protected Attributes</h2></td></tr>
@@ -183,15 +180,12 @@ std::thread&#160;</td><td class="memItemRight" valign="bottom"><b>running_thread
 <tr class="memitem:afee98ca5392232db170301cf1b7c4e7b"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="afee98ca5392232db170301cf1b7c4e7b"></a>
 std::thread&#160;</td><td class="memItemRight" valign="bottom"><b>server_thread_</b></td></tr>
 <tr class="separator:afee98ca5392232db170301cf1b7c4e7b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae46f411130c69c6afcfb8ede15cb77b1"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ae46f411130c69c6afcfb8ede15cb77b1"></a>
-std::atomic&lt; State &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>state_</b> = {LANDED}</td></tr>
-<tr class="separator:ae46f411130c69c6afcfb8ede15cb77b1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af8ced874b3f05fee02164d88000b8c94"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="af8ced874b3f05fee02164d88000b8c94"></a>
 int&#160;</td><td class="memItemRight" valign="bottom"><b>robot_id_</b></td></tr>
 <tr class="separator:af8ced874b3f05fee02164d88000b8c94"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a460c5d8f09f163b9d12093f1cafa36bc"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a460c5d8f09f163b9d12093f1cafa36bc"></a>
-std::string&#160;</td><td class="memItemRight" valign="bottom"><b>ns_prefix_</b></td></tr>
-<tr class="separator:a460c5d8f09f163b9d12093f1cafa36bc"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6b1db87a7066824aaa51e62c0255bbc8"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a6b1db87a7066824aaa51e62c0255bbc8"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><b>id_is_unique_</b></td></tr>
+<tr class="separator:a6b1db87a7066824aaa51e62c0255bbc8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p><a class="el" href="classgrvc_1_1ual_1_1_u_a_l.html" title="UAL replicates Backend interface, with some extras. ">UAL</a> replicates <a class="el" href="classgrvc_1_1ual_1_1_backend.html" title="Common interface for back-end implementations of ual. ">Backend</a> interface, with some extras. </p>
@@ -300,6 +294,28 @@ std::string&#160;</td><td class="memItemRight" valign="bottom"><b>ns_prefix_</b>
 
 </div>
 </div>
+<a class="anchor" id="a9e8a688b811c23e7a658496efc299305"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool grvc::ual::UAL::setPose </td>
+          <td>(</td>
+          <td class="paramtype">const geometry_msgs::PoseStamped &amp;&#160;</td>
+          <td class="paramname"><em>_pose</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Set pose </p><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">_pose</td><td>target pose </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <a class="anchor" id="a0ec1c6b60411c5bebc59589e92c8ca47"></a>
 <div class="memitem">
 <div class="memproto">
@@ -356,7 +372,7 @@ std::string&#160;</td><td class="memItemRight" valign="bottom"><b>ns_prefix_</b>
 </div>
 </div>
 <hr/>The documentation for this class was generated from the following file:<ul>
-<li>/home/bardo91/Desktop/grvc-ual/uav_abstraction_layer/include/uav_abstraction_layer/<a class="el" href="ual_8h_source.html">ual.h</a></li>
+<li>include/uav_abstraction_layer/<a class="el" href="ual_8h_source.html">ual.h</a></li>
 </ul>
 </div><!-- contents -->
 <!-- start footer part -->

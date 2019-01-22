@@ -24,7 +24,7 @@
  <tr style="height: 56px;">
   <td id="projectalign" style="padding-left: 0.5em;">
    <div id="projectname">grvc_ual
-   &#160;<span id="projectnumber">2.0</span>
+   &#160;<span id="projectnumber">2.2</span>
    </div>
    <div id="projectbrief">An abstraction layer for unmanned aerial vehicles</div>
   </td>
@@ -89,6 +89,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 </div><!-- top -->
 <div class="header">
   <div class="summary">
+<a href="#pub-types">Public Types</a> &#124;
 <a href="#pub-methods">Public Member Functions</a> &#124;
 <a href="#pub-static-methods">Static Public Member Functions</a> &#124;
 <a href="#pro-attribs">Protected Attributes</a> &#124;
@@ -113,6 +114,22 @@ Inheritance diagram for grvc::ual::Backend:</div>
 </map>
 <center><span class="legend">[<a href="graph_legend.html">legend</a>]</span></center></div>
 <table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-types"></a>
+Public Types</h2></td></tr>
+<tr class="memitem:a325a57c5db962bb177ba464897329ed8"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a325a57c5db962bb177ba464897329ed8"></a>enum &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgrvc_1_1ual_1_1_backend.html#a325a57c5db962bb177ba464897329ed8">State</a> { <br />
+&#160;&#160;<b>UNINITIALIZED</b>, 
+<b>LANDED_DISARMED</b>, 
+<b>LANDED_ARMED</b>, 
+<b>TAKING_OFF</b>, 
+<br />
+&#160;&#160;<b>FLYING_AUTO</b>, 
+<b>FLYING_MANUAL</b>, 
+<b>LANDING</b>
+<br />
+ }<tr class="memdesc:a325a57c5db962bb177ba464897329ed8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Possible backend states. <br /></td></tr>
+</td></tr>
+<tr class="separator:a325a57c5db962bb177ba464897329ed8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
 <tr class="memitem:afccdd403a43ca9ff79976bc8518820c6"><td class="memTemplParams" colspan="2"><a class="anchor" id="afccdd403a43ca9ff79976bc8518820c6"></a>
@@ -140,10 +157,20 @@ virtual Pose&#160;</td><td class="memItemRight" valign="bottom"><a class="el" hr
 virtual Velocity&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgrvc_1_1ual_1_1_backend.html#ac4c5f66021b930d00d84d2f17fdc5558">velocity</a> () const =0</td></tr>
 <tr class="memdesc:ac4c5f66021b930d00d84d2f17fdc5558"><td class="mdescLeft">&#160;</td><td class="mdescRight">Latest velocity estimation of the robot. <br /></td></tr>
 <tr class="separator:ac4c5f66021b930d00d84d2f17fdc5558"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2b5c71e58d3cf928ab5bb18968589b28"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a2b5c71e58d3cf928ab5bb18968589b28"></a>
+virtual Odometry&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgrvc_1_1ual_1_1_backend.html#a2b5c71e58d3cf928ab5bb18968589b28">odometry</a> () const =0</td></tr>
+<tr class="memdesc:a2b5c71e58d3cf928ab5bb18968589b28"><td class="mdescLeft">&#160;</td><td class="mdescRight">Latest odometry estimation of the robot. <br /></td></tr>
+<tr class="separator:a2b5c71e58d3cf928ab5bb18968589b28"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a23bbae2a7820d0d0cc5613bdb78eaee7"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a23bbae2a7820d0d0cc5613bdb78eaee7"></a>
 virtual Transform&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgrvc_1_1ual_1_1_backend.html#a23bbae2a7820d0d0cc5613bdb78eaee7">transform</a> () const =0</td></tr>
 <tr class="memdesc:a23bbae2a7820d0d0cc5613bdb78eaee7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Latest transform estimation of the robot. <br /></td></tr>
 <tr class="separator:a23bbae2a7820d0d0cc5613bdb78eaee7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aedef3774290dfdeb8b5b9d9f79f1d1f2"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="aedef3774290dfdeb8b5b9d9f79f1d1f2"></a>
+<a class="el" href="classgrvc_1_1ual_1_1_backend.html#a325a57c5db962bb177ba464897329ed8">State</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgrvc_1_1ual_1_1_backend.html#aedef3774290dfdeb8b5b9d9f79f1d1f2">state</a> ()</td></tr>
+<tr class="memdesc:aedef3774290dfdeb8b5b9d9f79f1d1f2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Current robot state. <br /></td></tr>
+<tr class="separator:aedef3774290dfdeb8b5b9d9f79f1d1f2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa6035671e6d0973dbbcbecd9e54184ca"><td class="memItemLeft" align="right" valign="top">virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgrvc_1_1ual_1_1_backend.html#aa6035671e6d0973dbbcbecd9e54184ca">setPose</a> (const geometry_msgs::PoseStamped &amp;_pose)=0</td></tr>
+<tr class="separator:aa6035671e6d0973dbbcbecd9e54184ca"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a897849ae862a2c7146b551a1e3e4c0b7"><td class="memItemLeft" align="right" valign="top">virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgrvc_1_1ual_1_1_backend.html#a897849ae862a2c7146b551a1e3e4c0b7">goToWaypoint</a> (const Waypoint &amp;_wp)=0</td></tr>
 <tr class="separator:a897849ae862a2c7146b551a1e3e4c0b7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a11f308eb450b4643f55672fa61b26c1a"><td class="memItemLeft" align="right" valign="top">virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgrvc_1_1ual_1_1_backend.html#a11f308eb450b4643f55672fa61b26c1a">goToWaypointGeo</a> (const WaypointGeo &amp;_wp)=0</td></tr>
@@ -159,10 +186,10 @@ virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" hr
 <tr class="separator:a7f5445d6c5d215269e6ca9f0457985ea"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2cf2556951349f6888026566c35a9602"><td class="memItemLeft" align="right" valign="top">virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgrvc_1_1ual_1_1_backend.html#a2cf2556951349f6888026566c35a9602">recoverFromManual</a> ()=0</td></tr>
 <tr class="separator:a2cf2556951349f6888026566c35a9602"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aefe3a92d1a7a2ed4aadec3526a6a5675"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="aefe3a92d1a7a2ed4aadec3526a6a5675"></a>
-virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgrvc_1_1ual_1_1_backend.html#aefe3a92d1a7a2ed4aadec3526a6a5675">setHome</a> ()=0</td></tr>
-<tr class="memdesc:aefe3a92d1a7a2ed4aadec3526a6a5675"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set home position. <br /></td></tr>
-<tr class="separator:aefe3a92d1a7a2ed4aadec3526a6a5675"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a53d2ae7b246b008a974b5e11a6b00847"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a53d2ae7b246b008a974b5e11a6b00847"></a>
+virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgrvc_1_1ual_1_1_backend.html#a53d2ae7b246b008a974b5e11a6b00847">setHome</a> (bool set_z)=0</td></tr>
+<tr class="memdesc:a53d2ae7b246b008a974b5e11a6b00847"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set home position. <br /></td></tr>
+<tr class="separator:a53d2ae7b246b008a974b5e11a6b00847"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aaf66329f50e3c508a7127213540e3752"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="aaf66329f50e3c508a7127213540e3752"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgrvc_1_1ual_1_1_backend.html#aaf66329f50e3c508a7127213540e3752">abort</a> (bool _freeze=true)</td></tr>
 <tr class="memdesc:aaf66329f50e3c508a7127213540e3752"><td class="mdescLeft">&#160;</td><td class="mdescRight">Cancel execution of the current task. <br /></td></tr>
@@ -188,6 +215,9 @@ std::atomic&lt; bool &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>
 <tr class="memitem:aacbd0c274e5b2b79152493287638e113"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="aacbd0c274e5b2b79152493287638e113"></a>
 std::thread&#160;</td><td class="memItemRight" valign="bottom"><b>spin_thread_</b></td></tr>
 <tr class="separator:aacbd0c274e5b2b79152493287638e113"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae06647d4f5ac59cd5e2c3243dd997346"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ae06647d4f5ac59cd5e2c3243dd997346"></a>
+std::atomic&lt; <a class="el" href="classgrvc_1_1ual_1_1_backend.html#a325a57c5db962bb177ba464897329ed8">State</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>state_</b> = {UNINITIALIZED}</td></tr>
+<tr class="separator:ae06647d4f5ac59cd5e2c3243dd997346"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Common interface for back-end implementations of ual. </p>
@@ -312,6 +342,38 @@ std::thread&#160;</td><td class="memItemRight" valign="bottom"><b>spin_thread_</
 <p>Recover from manual flight mode Use it when FLYING uav is switched to manual mode and want to go BACK to auto. </p>
 
 <p>Implemented in <a class="el" href="classgrvc_1_1ual_1_1_backend_mavros.html#afe8eb51fadd5c9026491941997333922">grvc::ual::BackendMavros</a>, <a class="el" href="classgrvc_1_1ual_1_1_backend_dummy.html#af71a6a187bf378112de3aca2c7069c0a">grvc::ual::BackendDummy</a>, and <a class="el" href="classgrvc_1_1ual_1_1_backend_light.html#a1f679cb066487392270c0947e8247dc2">grvc::ual::BackendLight</a>.</p>
+
+</div>
+</div>
+<a class="anchor" id="aa6035671e6d0973dbbcbecd9e54184ca"></a>
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual void grvc::ual::Backend::setPose </td>
+          <td>(</td>
+          <td class="paramtype">const geometry_msgs::PoseStamped &amp;&#160;</td>
+          <td class="paramname"><em>_pose</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">pure virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<p>Set pose </p><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">_pose</td><td>target pose </td></tr>
+  </table>
+  </dd>
+</dl>
+
+<p>Implemented in <a class="el" href="classgrvc_1_1ual_1_1_backend_mavros.html#ac3c4ed027efb42eacf1894e94b95991a">grvc::ual::BackendMavros</a>, <a class="el" href="classgrvc_1_1ual_1_1_backend_dummy.html#a470381e0dc2c5cecd9af48cbbc9ab833">grvc::ual::BackendDummy</a>, and <a class="el" href="classgrvc_1_1ual_1_1_backend_light.html#aab86065d24a4f8c7e6bc85697332a3b3">grvc::ual::BackendLight</a>.</p>
 
 </div>
 </div>
@@ -446,7 +508,7 @@ std::thread&#160;</td><td class="memItemRight" valign="bottom"><b>spin_thread_</
 </div>
 </div>
 <hr/>The documentation for this class was generated from the following file:<ul>
-<li>/home/bardo91/Desktop/grvc-ual/uav_abstraction_layer/include/uav_abstraction_layer/<a class="el" href="backend_8h_source.html">backend.h</a></li>
+<li>include/uav_abstraction_layer/<a class="el" href="backend_8h_source.html">backend.h</a></li>
 </ul>
 </div><!-- contents -->
 <!-- start footer part -->

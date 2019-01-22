@@ -24,7 +24,7 @@
  <tr style="height: 56px;">
   <td id="projectalign" style="padding-left: 0.5em;">
    <div id="projectname">grvc_ual
-   &#160;<span id="projectnumber">2.0</span>
+   &#160;<span id="projectnumber">2.2</span>
    </div>
    <div id="projectbrief">An abstraction layer for unmanned aerial vehicles</div>
   </td>
@@ -108,24 +108,30 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>reset</b> ()</td></tr
 <tr class="memitem:a11d94df9ef9bdf73bc381ea187424cd1"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a11d94df9ef9bdf73bc381ea187424cd1"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>update</b> (double _value)</td></tr>
 <tr class="separator:a11d94df9ef9bdf73bc381ea187424cd1"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad17eea3110a3afc605f31444590104e1"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ad17eea3110a3afc605f31444590104e1"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><b>metrics</b> (double &amp;_min, double &amp;_mean, double &amp;_max)</td></tr>
-<tr class="separator:ad17eea3110a3afc605f31444590104e1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af6edba52d543543c8d28553e8c656443"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="af6edba52d543543c8d28553e8c656443"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><b>get_stats</b> (double &amp;_min, double &amp;_mean, double &amp;_max)</td></tr>
+<tr class="separator:af6edba52d543543c8d28553e8c656443"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2a23ca287e91a1963dbf0232bd60657e"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a2a23ca287e91a1963dbf0232bd60657e"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><b>get_variance</b> (double &amp;_var)</td></tr>
+<tr class="separator:a2a23ca287e91a1963dbf0232bd60657e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pro-attribs"></a>
 Protected Attributes</h2></td></tr>
 <tr class="memitem:a2881e82644147420ccf14f81692523e4"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a2881e82644147420ccf14f81692523e4"></a>
 size_t&#160;</td><td class="memItemRight" valign="bottom"><b>buffer_size_</b> = 0</td></tr>
 <tr class="separator:a2881e82644147420ccf14f81692523e4"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa2afd0e4e6d576578273a256e32c9b7e"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="aa2afd0e4e6d576578273a256e32c9b7e"></a>
-std::deque&lt; double &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>buffer_</b></td></tr>
-<tr class="separator:aa2afd0e4e6d576578273a256e32c9b7e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae706d3c4b17b88b10376a5078e963a31"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ae706d3c4b17b88b10376a5078e963a31"></a>
+unsigned int&#160;</td><td class="memItemRight" valign="bottom"><b>current_</b> = 0</td></tr>
+<tr class="separator:ae706d3c4b17b88b10376a5078e963a31"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a99b40fead210688b4afdd0990365078c"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a99b40fead210688b4afdd0990365078c"></a>
+std::vector&lt; double &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>buffer_</b></td></tr>
+<tr class="separator:a99b40fead210688b4afdd0990365078c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af4a1d5be3781d26672b27f8039adbd3d"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="af4a1d5be3781d26672b27f8039adbd3d"></a>
 std::mutex&#160;</td><td class="memItemRight" valign="bottom"><b>mutex_</b></td></tr>
 <tr class="separator:af4a1d5be3781d26672b27f8039adbd3d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <hr/>The documentation for this class was generated from the following file:<ul>
-<li>/home/bardo91/Desktop/grvc-ual/uav_abstraction_layer/include/uav_abstraction_layer/<a class="el" href="backend__mavros_8h_source.html">backend_mavros.h</a></li>
+<li>include/uav_abstraction_layer/<a class="el" href="backend__mavros_8h_source.html">backend_mavros.h</a></li>
 </ul>
 </div><!-- contents -->
 <!-- start footer part -->
