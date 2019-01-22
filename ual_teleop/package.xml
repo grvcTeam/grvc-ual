@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>ual_teleop</name>
-  <version>2.0.0</version>
+  <version>2.2.0</version>
   <description>The ual_teleop package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
@@ -13,7 +13,7 @@
   <!-- One license tag required, multiple allowed, one license per tag -->
   <!-- Commonly used license strings: -->
   <!--   BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3 -->
-  <license>TODO</license>
+  <license>MIT</license>
 
 
   <!-- Url tags are optional, but multiple are allowed, one per tag -->
