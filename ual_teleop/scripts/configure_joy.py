@@ -51,7 +51,7 @@ def wait_axis(label):
     while not rospy.is_shutdown():
         if current_joy.axes != previous_joy.axes:
             for i, axis in enumerate(current_joy.axes):
-                if math.fabs(axis) > 0.99:
+                if axis != previous_joy.axes[i] and math.fabs(axis) > 0.99:
                     return {'type': 'axis', 'index': i, 'reversed': (axis < 0)}
             previous_joy = copy.deepcopy(current_joy)
         else:
