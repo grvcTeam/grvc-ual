@@ -44,9 +44,11 @@
 #include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/QuaternionStamped.h>
 #include <std_msgs/UInt8.h>
+#include <std_msgs/Float64.h>
 
 // std_msgs::UInt8 S_FLYING = 2;
 typedef double Quaterniond [4];
+
 
 
 namespace grvc { namespace ual {
@@ -141,6 +143,7 @@ private:
     // void setFlightMode(const std::string& _flight_mode);
     
     void Quaternion2EulerAngle(const geometry_msgs::Pose::_orientation_type& _q, double& _roll, double& _pitch, double& _yaw);
+    bool altimeter_off(void);
 
 // {
 // 	// roll (x-axis rotation)
@@ -176,6 +179,7 @@ private:
     sensor_msgs::NavSatFix      current_position_global;
     geometry_msgs::QuaternionStamped current_attitude_;
     std_msgs::UInt8 flight_status_;
+    std_msgs::Float64 current_laser_altitude_;
 
     // Control
     enum class eControlMode { IDLE, LOCAL_VEL, LOCAL_POSE, GLOBAL_POSE };
@@ -201,6 +205,7 @@ private:
     ros::Subscriber position_sub_;
     ros::Subscriber position_global_sub_;
     ros::Subscriber attitude_sub_;
+    ros::Subscriber laser_altitude_sub_;
 
     ros::Subscriber flight_status_sub_;
 

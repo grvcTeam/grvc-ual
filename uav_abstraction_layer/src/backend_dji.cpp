@@ -32,7 +32,8 @@
 #include <dji_sdk/SDKControlAuthority.h>
 #include <dji_sdk/DroneTaskControl.h>
 #include <dji_sdk/DroneArmControl.h>
-#include <std_msgs/UInt8.h>
+// #include <std_msgs/UInt8.h>
+// #include <std_msgs/Float64.h>
 #include <sensor_msgs/Joy.h>
 // #include <ros/package.h>
 // #include <tf2_ros/transform_listener.h>
@@ -49,6 +50,10 @@ double roll;
 double pitch;
 double yaw;
 
+double altitude_off;
+double alt_1;
+int alt_counter = 0;
+
 namespace grvc { namespace ual {
 
 BackendDji::BackendDji()
@@ -64,8 +69,8 @@ BackendDji::BackendDji()
     // position_th_ = position_th_param*position_th_param;
     // orientation_th_ = 0.5*(1 - cos(orientation_th_param));
 
-    // ROS_INFO("BackendDji constructor with id %d",robot_id_);
-    // // ROS_INFO("BackendDji: thresholds = %f %f", position_th_, orientation_th_);
+    ROS_INFO("BackendDji constructor with id %d",robot_id_);
+    // ROS_INFO("BackendDji: thresholds = %f %f", position_th_, orientation_th_);
 
     // // Init ros communications
     ros::NodeHandle nh;
@@ -88,6 +93,8 @@ BackendDji::BackendDji()
     std::string get_position_global_topic = dji_ns + "/gps_position";
     std::string get_attitude_topic = dji_ns + "/attitude";
     std::string get_status_topic = dji_ns + "/flight_status";
+
+    std::string get_laser_altitude_topic = "/laser_altitude";
 
     
     // std::string set_position_topic = dji_ns + "/flight_control_setpoint_ENUposition_yaw";
@@ -127,6 +134,10 @@ BackendDji::BackendDji()
             this->current_attitude_ = *_msg;
     });
 
+    laser_altitude_sub_ = nh.subscribe<std_msgs::Float64>(get_laser_altitude_topic.c_str(), 1, \
+        [this](const std_msgs::Float64::ConstPtr& _msg) {
+            this->current_laser_altitude_ = *_msg;
+    });
 
     // // TODO: Check this and solve frames issue
     // // Wait until we have pose
@@ -182,11 +193,27 @@ void BackendDji::controlThread() {
             //flag = (0x80 | 0x10 | 0x00 | 0x02 | 0x01);
             reference_joy.axes.push_back(reference_pose_.pose.position.x - current_position_.point.x);
             reference_joy.axes.push_back(reference_pose_.pose.position.y - current_position_.point.y);
-            reference_joy.axes.push_back(reference_pose_.pose.position.z);
+            
+            // double current_laser_altitude = current_laser_altitude_.data;
+            
+            // if(current_laser_altitude_.data == 0.0) {
+            bool alt_off;
+            alt_off = altimeter_off();
+            // std::cout << alt_off << std::endl;
+            if(current_laser_altitude_.data == 0.0 || alt_off) {
+                reference_joy.axes.push_back(reference_pose_.pose.position.z);
+            }
+            else {
+                altitude_off = reference_pose_.pose.position.z - current_laser_altitude_.data;
+                reference_joy.axes.push_back(current_position_.point.z + 3*altitude_off);
+            }
+
             reference_joy.axes.push_back(yaw);
             reference_joy.axes.push_back(flag);
 
             reference_position_pub_.publish(reference_joy);
+
+            // std::cout << current_laser_altitude_ << std::endl;
   
             // mavros_ref_pose_pub_.publish(ref_pose_);
             // ref_vel_.twist.linear.x = 0;
@@ -238,6 +265,20 @@ void BackendDji::controlThread() {
 
         rate.sleep();
     }
+}
+
+bool BackendDji::altimeter_off() {
+    double alt_2 = current_laser_altitude_.data;
+    if(alt_1 == alt_2 && alt_1 != 0.0){
+        alt_counter ++;
+    }
+    else {
+        alt_counter = 0;
+    }
+    // std::cout << "alt_counter  "<< alt_counter << std::endl;
+    alt_1 = alt_2;
+    if (alt_counter > 150) return true;
+    else return false;
 }
 
 void BackendDji::Quaternion2EulerAngle(const geometry_msgs::Pose::_orientation_type& q, double& roll, double& pitch, double& yaw)
