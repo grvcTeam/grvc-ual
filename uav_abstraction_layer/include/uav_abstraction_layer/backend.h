@@ -61,6 +61,17 @@ public:
         }
     }
 
+    /// Possible backend states
+    enum State {
+        UNINITIALIZED,
+        LANDED_DISARMED,
+        LANDED_ARMED,
+        TAKING_OFF,
+        FLYING_AUTO,
+        FLYING_MANUAL,
+        LANDING
+    };
+
     /// Constructor inits node
     Backend();
 
@@ -76,6 +87,12 @@ public:
     virtual Odometry odometry() const = 0;
     /// Latest transform estimation of the robot
     virtual Transform transform() const = 0;
+    /// Current robot state
+    inline State state() { return this->state_; }
+
+    /// Set pose
+    /// \param _pose target pose
+    virtual void    setPose(const geometry_msgs::PoseStamped& _pose) = 0;
 
     /// Go to the specified waypoint, following a straight line
     /// \param _wp goal waypoint
@@ -99,7 +116,7 @@ public:
     /// Use it when FLYING uav is switched to manual mode and want to go BACK to auto.
     virtual void    recoverFromManual() = 0;
     /// Set home position
-    virtual void    setHome() = 0;
+    virtual void    setHome(bool set_z) = 0;
 
     /// Cancel execution of the current task
     void	        abort(bool _freeze = true);
@@ -131,6 +148,8 @@ protected:
 
     // Ros spinning thread
     std::thread spin_thread_;
+
+    std::atomic<State> state_ = {UNINITIALIZED};
 };
 
 }}	// namespace grvc::ual

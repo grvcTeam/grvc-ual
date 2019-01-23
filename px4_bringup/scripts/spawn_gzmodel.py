@@ -132,6 +132,7 @@ def main():
         tree.write(temp_sdf)
 
     # Sleep for waiting the world to load
+    rospy.wait_for_service('/gazebo/spawn_sdf_model')
     time.sleep(0.4)
 
     # Minimum z to avoid collision with ground

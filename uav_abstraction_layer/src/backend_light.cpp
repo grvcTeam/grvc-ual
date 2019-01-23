@@ -259,7 +259,7 @@ void BackendLight::setVelocity(const Velocity& _vel) {
     last_command_time_ = ros::Time::now();
 }
 
-void BackendLight::goToWaypoint(const Waypoint& _world) {
+void BackendLight::setPose(const geometry_msgs::PoseStamped& _world) {
     control_in_vel_ = false;  // Control in position
 
     geometry_msgs::PoseStamped homogen_world_pos;
@@ -291,6 +291,11 @@ void BackendLight::goToWaypoint(const Waypoint& _world) {
 //    std::cout << "Going to waypoint: " << homogen_world_pos.pose.position << std::endl;
 
     ref_pose_.pose = homogen_world_pos.pose;
+}
+
+void BackendLight::goToWaypoint(const Waypoint& _world) {
+    // Set pose!
+    setPose(_world);
 
     // Wait until we arrive: abortable
     while(!referencePoseReached() && !abort_ && ros::ok()) {

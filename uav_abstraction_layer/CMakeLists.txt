@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(uav_abstraction_layer)
 
-set(GRVC_UAL_VERSION 2.0)
+set(GRVC_UAL_VERSION 2.2)
 
 ## Add support for C++11, supported in ROS Kinetic and newer
 add_definitions(-std=c++11)
@@ -20,6 +20,7 @@ find_package(catkin REQUIRED COMPONENTS
   gazebo_msgs
   sensor_msgs
   dji_sdk
+  geodesy
 )
 
 ## System dependencies are found with CMake's conventions
@@ -69,11 +70,10 @@ endif()
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  State.msg
+)
 
 ## Generate services in the 'srv' folder
 add_service_files(
@@ -83,6 +83,7 @@ add_service_files(
   TakeOff.srv
   Land.srv
   SetVelocity.srv
+  SetHome.srv
 )
 
 ## Generate actions in the 'action' folder
@@ -130,7 +131,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES uav_abstraction_layer
-  CATKIN_DEPENDS message_runtime geometry_msgs mavros mavros_msgs roscpp std_msgs tf2_ros gazebo_msgs sensor_msgs dji_sdk
+  CATKIN_DEPENDS message_runtime geometry_msgs mavros mavros_msgs roscpp std_msgs tf2_ros gazebo_msgs sensor_msgs geodesy dji_sdk
 #  DEPENDS system_lib
 )
 

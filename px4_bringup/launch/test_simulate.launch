@@ -12,6 +12,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     <arg name="multi" default="false"/>
 
+    <rosparam param="/use_sim_time">true</rosparam>
+
     <!-- Launch Gazebo simulation TODO: world location? -->
     <node pkg="px4_bringup" type="launch_gzworld.py" name="gazebo_world" output="screen"
         args="-physics=ode -world=$(find px4_bringup)/config/empty_light.world">
