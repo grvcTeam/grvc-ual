@@ -29,6 +29,7 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <uav_abstraction_layer/geographic_to_cartesian.h>
+#include <mavros_msgs/ParamGet.h>
 
 namespace grvc { namespace ual {
 
@@ -53,6 +54,7 @@ BackendMavros::BackendMavros()
     std::string mavros_ns = "mavros";
     std::string set_mode_srv = mavros_ns + "/set_mode";
     std::string arming_srv = mavros_ns + "/cmd/arming";
+    std::string get_param_srv = mavros_ns + "/param/get";
     std::string set_pose_topic = mavros_ns + "/setpoint_position/local";
     std::string set_pose_global_topic = mavros_ns + "/setpoint_raw/global";
     std::string set_vel_topic = mavros_ns + "/setpoint_velocity/cmd_vel";
@@ -109,6 +111,15 @@ BackendMavros::BackendMavros()
     // Thread publishing target pose at 10Hz for offboard mode
     offboard_thread_ = std::thread(&BackendMavros::offboardThreadLoop, this);
 
+    // Client to get parameters from mavros and required default values
+    get_param_client_ = nh.serviceClient<mavros_msgs::ParamGet>(get_param_srv.c_str());
+    mavros_params_["MPC_XY_VEL_MAX"]   =   2.0;  // [m/s]   Default value
+    mavros_params_["MPC_Z_VEL_MAX_UP"] =   3.0;  // [m/s]   Default value
+    mavros_params_["MPC_Z_VEL_MAX_DN"] =   1.0;  // [m/s]   Default value
+    mavros_params_["MC_YAWRATE_MAX"]   = 200.0;  // [deg/s] Default value
+    mavros_params_["MPC_TKO_SPEED"]    =   1.5;  // [m/s]   Default value
+    // Updating here is non-sense as service seems to be slow in waking up
+
     ROS_INFO("BackendMavros %d running!",robot_id_);
 }
 
@@ -133,6 +144,7 @@ void BackendMavros::offboardThreadLoop(){
             }
             break;
         case eControlMode::LOCAL_POSE:
+            ref_pose_.header.stamp = ros::Time::now();
             mavros_ref_pose_pub_.publish(ref_pose_);
             ref_vel_.twist.linear.x = 0;
             ref_vel_.twist.linear.y = 0;
@@ -239,19 +251,57 @@ void BackendMavros::setHome(bool set_z) {
 }
 
 void BackendMavros::takeOff(double _height) {
+    if (_height < 0.0) {
+        ROS_ERROR("Takeoff height must be positive!");
+        return;
+    }
     calling_takeoff = true;
 
     control_mode_ = eControlMode::LOCAL_POSE;  // Take off control is performed in position (not velocity)
 
-    // setArmed(true);  // Disabled for safety reasons!
-    ref_pose_ = cur_pose_;
-    ref_pose_.pose.position.z += _height;
-    setFlightMode("OFFBOARD");
-    // setFlightMode("AUTO.TAKEOFF");  // TODO(franreal): Use this mode instead?
-    position_error_.reset();
-    orientation_error_.reset();
+    float acc_max = 1.0;  // TODO: From param?
+    float vel_max = updateParam("MPC_TKO_SPEED");
 
-    // Wait until take off: unabortable!
+    float a = sqrt(_height * acc_max);
+    if (a < vel_max) {
+        vel_max = a;
+    }
+    float t1 = vel_max / acc_max;
+    float h1 = 0.5 * acc_max * t1 * t1;
+    float t2 = t1 + (_height - 2.0 * h1) / vel_max;
+    // float h2 = _height - h1;
+    float t3 = t2 + t1;
+
+    float t = 0.0;
+    float delta_t = 0.1;  // [s]
+    ros::Rate rate(1.0 / delta_t);
+
+    ref_pose_ = cur_pose_;
+    float base_z  = cur_pose_.pose.position.z;
+    float delta_z = 0;
+
+    setFlightMode("OFFBOARD");
+    while ((t < t3) && ros::ok()) {  // Unabortable!
+        if (t < t1) {
+            delta_z = 0.5 * acc_max * t * t;
+        } else if (t < t2) {
+            delta_z = h1 + vel_max * (t - t1);
+        } else {
+            delta_z = _height - 0.5 * acc_max * (t3 - t) * (t3 - t);
+        }
+
+        if (delta_z > _height) {
+            ROS_WARN("Unexpected delta_z value [%f]", delta_z);
+        } else {
+            ref_pose_.pose.position.z = base_z + delta_z;
+        }
+
+        rate.sleep();
+        t += delta_t;
+    }
+    ref_pose_.pose.position.z = base_z + _height;
+
+    // Now wait (unabortable!)
     while (!referencePoseReached() && (this->mavros_state_.mode == "OFFBOARD") && ros::ok()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
@@ -331,6 +381,100 @@ bool BackendMavros::isReady() const {
     }
 }
 
+void BackendMavros::setPose(const geometry_msgs::PoseStamped& _world) {
+    control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
+
+    geometry_msgs::PoseStamped homogen_world_pos;
+    tf2_ros::Buffer tfBuffer;
+    tf2_ros::TransformListener tfListener(tfBuffer);
+    std::string waypoint_frame_id = tf2::getFrameId(_world);
+
+    if ( waypoint_frame_id == "" || waypoint_frame_id == uav_home_frame_id_ ) {
+        // No transform is needed
+        homogen_world_pos = _world;
+    }
+    else {
+        // We need to transform
+        geometry_msgs::TransformStamped transformToHomeFrame;
+
+        if ( cached_transforms_.find(waypoint_frame_id) == cached_transforms_.end() ) {
+            // waypoint_frame_id not found in cached_transforms_
+            transformToHomeFrame = tfBuffer.lookupTransform(uav_home_frame_id_, waypoint_frame_id, ros::Time(0), ros::Duration(1.0));
+            cached_transforms_[waypoint_frame_id] = transformToHomeFrame; // Save transform in cache
+        } else {
+            // found in cache
+            transformToHomeFrame = cached_transforms_[waypoint_frame_id];
+        }
+        
+        tf2::doTransform(_world, homogen_world_pos, transformToHomeFrame);
+        
+    }
+
+//    std::cout << "Going to waypoint: " << homogen_world_pos.pose.position << std::endl;
+
+    // Do we still need local_start_pos_?
+    homogen_world_pos.pose.position.x -= local_start_pos_[0];
+    homogen_world_pos.pose.position.y -= local_start_pos_[1];
+    homogen_world_pos.pose.position.z -= local_start_pos_[2];
+
+    ref_pose_.pose = homogen_world_pos.pose;
+}
+
+// TODO: Move from here?
+struct PurePursuitOutput {
+    geometry_msgs::Point next;
+    float t_lookahead;
+};
+
+// TODO: Move from here?
+PurePursuitOutput PurePursuit(geometry_msgs::Point _current, geometry_msgs::Point _initial, geometry_msgs::Point _final, float _lookahead) {
+
+    PurePursuitOutput out;
+    out.next = _current;
+    out.t_lookahead = 0;
+    if (_lookahead <= 0) {
+        ROS_ERROR("Lookahead must be non-zero positive!");
+        return out;
+    }
+
+    Eigen::Vector3f x0 = Eigen::Vector3f(_current.x, _current.y, _current.z);
+    Eigen::Vector3f x1 = Eigen::Vector3f(_initial.x, _initial.y, _initial.z);
+    Eigen::Vector3f x2 = Eigen::Vector3f(_final.x, _final.y, _final.z);
+    Eigen::Vector3f p = x0;
+
+    Eigen::Vector3f x_21 = x2 - x1;
+    float d_21 = x_21.norm();
+    float t_min = - x_21.dot(x1-x0) / (d_21*d_21);
+
+    Eigen::Vector3f closest_point = x1 + t_min*(x2-x1);
+    float distance = (closest_point - x0).norm();
+
+    float t_lookahead = t_min;
+    if (_lookahead > distance) {
+        float a = sqrt(_lookahead*_lookahead - distance*distance);
+        t_lookahead = t_min + a/d_21;
+    }
+
+    if (t_lookahead <= 0.0) {
+        p = x1;
+        t_lookahead = 0.0;
+        // ROS_INFO("p = x1");
+    } else if (t_lookahead >= 1.0) {
+        p = x2;
+        t_lookahead = 1.0;
+        // ROS_INFO("p = x2");
+    } else {
+        p = x1 + t_lookahead*(x2-x1);
+        // ROS_INFO("L = %f; norm(x0-p) = %f", _lookahead, (x0-p).norm());
+    }
+
+    out.next.x = p(0);
+    out.next.y = p(1);
+    out.next.z = p(2);
+    out.t_lookahead = t_lookahead;
+    return out;
+}
+
 void BackendMavros::goToWaypoint(const Waypoint& _world) {
     control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
 
@@ -367,6 +511,65 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
     homogen_world_pos.pose.position.y -= local_start_pos_[1];
     homogen_world_pos.pose.position.z -= local_start_pos_[2];
 
+    // Smooth pose reference passing!
+    geometry_msgs::Point final_position = homogen_world_pos.pose.position;
+    geometry_msgs::Point initial_position = cur_pose_.pose.position;
+    double ab_x = final_position.x - initial_position.x;
+    double ab_y = final_position.y - initial_position.y;
+    double ab_z = final_position.z - initial_position.z;
+
+    Eigen::Quaterniond final_orientation = Eigen::Quaterniond(homogen_world_pos.pose.orientation.w, 
+        homogen_world_pos.pose.orientation.x, homogen_world_pos.pose.orientation.y, homogen_world_pos.pose.orientation.z);
+    Eigen::Quaterniond initial_orientation = Eigen::Quaterniond(cur_pose_.pose.orientation.w, 
+        cur_pose_.pose.orientation.x, cur_pose_.pose.orientation.y, cur_pose_.pose.orientation.z);
+
+    float linear_distance  = sqrt(ab_x*ab_x + ab_y*ab_y + ab_z*ab_z);
+    float linear_threshold = sqrt(position_th_);
+    if (linear_distance > linear_threshold) {
+        float mpc_xy_vel_max   = updateParam("MPC_XY_VEL_MAX");
+        float mpc_z_vel_max_up = updateParam("MPC_Z_VEL_MAX_UP");
+        float mpc_z_vel_max_dn = updateParam("MPC_Z_VEL_MAX_DN");
+        float mc_yawrate_max   = updateParam("MC_YAWRATE_MAX");
+
+        float mpc_z_vel_max = (ab_z > 0)? mpc_z_vel_max_up : mpc_z_vel_max_dn;
+        float xy_distance = sqrt(ab_x*ab_x + ab_y*ab_y);
+        float z_distance = fabs(ab_z);
+        bool z_vel_is_limit = (mpc_z_vel_max*xy_distance < mpc_xy_vel_max*z_distance);
+
+        ros::Rate rate(10);  // [Hz]
+        float next_to_final_distance = linear_distance;
+        float lookahead = 0.05;
+        while (next_to_final_distance > linear_threshold && !abort_ && ros::ok()) {
+            float current_xy_vel = sqrt(cur_vel_.twist.linear.x*cur_vel_.twist.linear.x + cur_vel_.twist.linear.y*cur_vel_.twist.linear.y);
+            float current_z_vel = fabs(cur_vel_.twist.linear.z);
+            if (z_vel_is_limit) {
+                if (current_z_vel > 0.8*mpc_z_vel_max) { lookahead -= 0.05; }  // TODO: Other thesholds, other update politics?
+                if (current_z_vel < 0.5*mpc_z_vel_max) { lookahead += 0.05; }  // TODO: Other thesholds, other update politics?
+                // ROS_INFO("current_z_vel = %f", current_z_vel);
+            } else {
+                if (current_xy_vel > 0.8*mpc_xy_vel_max) { lookahead -= 0.05; }  // TODO: Other thesholds, other update politics?
+                if (current_xy_vel < 0.5*mpc_xy_vel_max) { lookahead += 0.05; }  // TODO: Other thesholds, other update politics?
+                // ROS_INFO("current_xy_vel = %f", current_xy_vel);
+            }
+            PurePursuitOutput pp = PurePursuit(cur_pose_.pose.position, initial_position, final_position, lookahead);
+            Waypoint wp_i;
+            wp_i.pose.position.x = pp.next.x;
+            wp_i.pose.position.y = pp.next.y;
+            wp_i.pose.position.z = pp.next.z;
+            Eigen::Quaterniond q_i = initial_orientation.slerp(pp.t_lookahead, final_orientation);
+            wp_i.pose.orientation.w = q_i.w();
+            wp_i.pose.orientation.x = q_i.x();
+            wp_i.pose.orientation.y = q_i.y();
+            wp_i.pose.orientation.z = q_i.z();
+            ref_pose_.pose = wp_i.pose;
+            next_to_final_distance = (1.0 - pp.t_lookahead) * linear_distance;
+            // ROS_INFO("next_to_final_distance = %f", next_to_final_distance);
+            rate.sleep();
+        }
+    }
+    // ROS_INFO("All points sent!");
+
+    // Finally set pose
     ref_pose_.pose = homogen_world_pos.pose;
     position_error_.reset();
     orientation_error_.reset();
@@ -557,6 +760,24 @@ void BackendMavros::initHomeFrame() {
 
     static_tf_broadcaster_ = new tf2_ros::StaticTransformBroadcaster();
     static_tf_broadcaster_->sendTransform(static_transformStamped);
+}
+
+double BackendMavros::updateParam(const std::string& _param_id) {
+    mavros_msgs::ParamGet get_param_service;
+    get_param_service.request.param_id = _param_id;
+    if (get_param_client_.call(get_param_service) && get_param_service.response.success) {
+        mavros_params_[_param_id] = get_param_service.response.value.integer? 
+            get_param_service.response.value.integer : get_param_service.response.value.real;
+        ROS_INFO("Parameter [%s] value is [%f]", get_param_service.request.param_id.c_str(), mavros_params_[_param_id]);
+    } else if (mavros_params_.count(_param_id)) {
+        ROS_ERROR("Error in get param [%s] service calling, leaving current value [%f]", 
+            get_param_service.request.param_id.c_str(), mavros_params_[_param_id]);
+    } else {
+        mavros_params_[_param_id] = 0.0;
+        ROS_ERROR("Error in get param [%s] service calling, initializing it to zero", 
+            get_param_service.request.param_id.c_str());
+    }
+    return mavros_params_[_param_id];
 }
 
 }}	// namespace grvc::ual

@@ -20,14 +20,6 @@ joy_layout:
     type: button
     index: 5
 
-  left_trigger:
-    type: button
-    index: 4
-
-  right_trigger:
-    type: button
-    index: 5
-
   select:
     type: button
     index: 6

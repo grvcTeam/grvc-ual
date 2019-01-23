@@ -132,7 +132,7 @@ void UAL::init() {
                 nh.subscribe<geometry_msgs::PoseStamped>(
                 set_pose_topic, 1,
                 [this](const geometry_msgs::PoseStamped::ConstPtr& _msg) {
-                this->goToWaypoint(*_msg, false);
+                this->setPose(*_msg);
             });
             ros::Subscriber set_velocity_sub =
                 nh.subscribe<geometry_msgs::TwistStamped>(
@@ -194,6 +194,19 @@ UAL::~UAL() {
     delete(backend_);
 }
 
+bool UAL::setPose(const geometry_msgs::PoseStamped& _pose) {
+    // Check required state
+    if (backend_->state() != Backend::State::FLYING_AUTO) {
+        ROS_ERROR("Unable to setPose: not FLYING_AUTO!");
+        return false;
+    }
+    // Override any previous FLYING function
+    if (!backend_->isIdle()) { backend_->abort(false); }
+
+    // Function is non-blocking in backend TODO: non-thread-safe-call?
+    backend_->threadSafeCall(&Backend::setPose, _pose);
+    return true;
+}
 bool UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {
     // Check required state
     if (backend_->state() != Backend::State::FLYING_AUTO) {
@@ -249,6 +262,11 @@ bool UAL::takeOff(double _height, bool _blocking) {
     // Check required state
     if (backend_->state() != Backend::State::LANDED_ARMED) {
         ROS_ERROR("Unable to takeOff: not LANDED_ARMED!");
+        return false;
+    }
+    // Check input
+    if (_height < 0.0) {
+        ROS_ERROR("Unable to takeOff: height must be positive!");
         return false;
     }
 

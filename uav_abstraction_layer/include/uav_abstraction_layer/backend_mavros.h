@@ -130,6 +130,10 @@ public:
     /// Latest transform estimation of the robot
     virtual Transform transform() const override;
 
+    /// Set pose
+    /// \param _pose target pose
+    void    setPose(const geometry_msgs::PoseStamped& _pose) override;
+
     /// Go to the specified waypoint, following a straight line
     /// \param _wp goal waypoint
     void	goToWaypoint(const Waypoint& _wp) override;
@@ -159,6 +163,7 @@ private:
     void initHomeFrame();
     bool referencePoseReached();
     void setFlightMode(const std::string& _flight_mode);
+    double updateParam(const std::string& _param_id);
     State guessState();
 
     //WaypointList path_;
@@ -184,6 +189,7 @@ private:
     /// Ros Communication
     ros::ServiceClient flight_mode_client_;
     ros::ServiceClient arming_client_;
+    ros::ServiceClient get_param_client_;
     ros::Publisher mavros_ref_pose_pub_;
     ros::Publisher mavros_ref_pose_global_pub_;
     ros::Publisher mavros_ref_vel_pub_;
@@ -199,6 +205,7 @@ private:
     std::string uav_frame_id_;
     tf2_ros::StaticTransformBroadcaster * static_tf_broadcaster_;
     std::map <std::string, geometry_msgs::TransformStamped> cached_transforms_;
+    std::map<std::string, double> mavros_params_;
     Eigen::Vector3d local_start_pos_;
     ros::Time last_command_time_;
 
