@@ -447,7 +447,6 @@ void BackendDji::takeOff(double _height) {
     control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
 
     while ( !(fabs(_height - current_position_.point.z) < position_th_) ) {
-        std::cout << "fabs  " << fabs(_height - current_position_.point.z) << std::endl;
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
@@ -503,9 +502,10 @@ void BackendDji::land() {
     ROS_INFO("Landing...");
     }
 
-    if (flight_status_.data == DJISDK::FlightStatus::STATUS_STOPPED) {
-    ROS_INFO("Landed!");
+    while (flight_status_.data != DJISDK::FlightStatus::STATUS_STOPPED) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+    ROS_INFO("Landed!");
     
 
 

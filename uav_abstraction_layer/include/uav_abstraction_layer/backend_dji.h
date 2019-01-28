@@ -213,7 +213,6 @@ private:
 
     ros::Subscriber flight_status_sub_;
 
-
     // ros::Publisher mavros_ref_pose_pub_;
     // ros::Publisher mavros_ref_pose_global_pub_;
     // ros::Publisher mavros_ref_vel_pub_;
