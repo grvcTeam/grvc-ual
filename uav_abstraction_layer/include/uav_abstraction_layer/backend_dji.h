@@ -41,6 +41,7 @@
 // #include <geometry_msgs/TransformStamped.h>
 // #include <tf2_ros/static_transform_broadcaster.h>
 
+#include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/QuaternionStamped.h>
 #include <std_msgs/UInt8.h>
@@ -99,6 +100,7 @@ class BackendDji : public Backend {
 
 public:
     BackendDji();
+    // ~BackendDji();
 
     /// Backend is initialized and ready to run tasks?
     bool	         isReady() const override;
@@ -110,6 +112,10 @@ public:
     virtual Odometry odometry() const override;
     /// Latest transform estimation of the robot
     virtual Transform transform() const override;
+
+    /// Set pose
+    /// \param _pose target pose
+    void    setPose(const geometry_msgs::PoseStamped& _pose) override;
 
     /// Go to the specified waypoint, following a straight line
     /// \param _wp goal waypoint
@@ -133,7 +139,7 @@ public:
     /// Use it when FLYING uav is switched to manual mode and want to go BACK to auto.
     void    recoverFromManual() override;
     /// Set home position
-    void    setHome() override;
+    void    setHome(bool set_z) override;
  
 private:
     void controlThread();
@@ -141,6 +147,7 @@ private:
     // void initHomeFrame();
     // bool referencePoseReached();
     // void setFlightMode(const std::string& _flight_mode);
+    State guessState();
     
     void Quaternion2EulerAngle(const geometry_msgs::Pose::_orientation_type& _q, double& _roll, double& _pitch, double& _yaw);
     bool altimeter_off(void);
@@ -169,9 +176,8 @@ private:
 
     geometry_msgs::PoseStamped reference_pose_;
     sensor_msgs::NavSatFix     reference_pose_global_;
-    // geometry_msgs::PoseStamped cur_pose_;
-    // geometry_msgs::TwistStamped ref_vel_;
-    // geometry_msgs::TwistStamped cur_vel_;
+    geometry_msgs::TwistStamped reference_vel_;
+    geometry_msgs::TwistStamped current_vel_;
     // mavros_msgs::State mavros_state_;
     // mavros_msgs::ExtendedState mavros_extended_state_;
 
@@ -185,22 +191,20 @@ private:
     enum class eControlMode { IDLE, LOCAL_VEL, LOCAL_POSE, GLOBAL_POSE };
     eControlMode control_mode_ = eControlMode::IDLE;
     // bool mavros_has_pose_ = false;
-    // float position_th_;
-    // float orientation_th_;
+    float position_th_;
+    float orientation_th_;
     // HistoryBuffer position_error_;
     // HistoryBuffer orientation_error_;
 
     // /// Ros Communication
     // ros::ServiceClient flight_mode_client_;
-    // ros::ServiceClient arming_client_;
-
     ros::ServiceClient activation_client_;
     ros::ServiceClient arming_client_;
     ros::ServiceClient set_local_pos_ref_client_;
     ros::ServiceClient sdk_control_authority_client_;
     ros::ServiceClient drone_task_control_client_;
 
-    ros::Publisher reference_position_pub_;
+    ros::Publisher flight_control_pub_;
     
     ros::Subscriber position_sub_;
     ros::Subscriber position_global_sub_;
@@ -224,10 +228,15 @@ private:
     // tf2_ros::StaticTransformBroadcaster * static_tf_broadcaster_;
     // std::map <std::string, geometry_msgs::TransformStamped> cached_transforms_;
     // Eigen::Vector3d local_start_pos_;
+    
+    ros::Time last_command_time_;
 
     std::thread control_thread_;
     double control_thread_frequency_;
     
+    bool calling_takeoff = false;
+    bool calling_land = false;
+
     bool activated_ = false;
     bool home_set_ = false;
 };
