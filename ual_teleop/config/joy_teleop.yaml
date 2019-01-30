@@ -1,0 +1,45 @@
+joy_actions:
+
+  secure:
+    id: left_shoulder
+    type: button
+
+  take_off:
+    id: x
+    type: button
+
+  land:
+    id: b
+    type: button
+
+  toggle_headless:
+    id: right_shoulder
+    type: button
+
+  speed_down:
+    id: left_trigger
+    type: button
+
+  speed_up:
+    id: right_trigger
+    type: button
+
+  throttle:
+    id: left_analog_y
+    reversed: false
+    type: axis
+
+  yaw:
+    id: left_analog_x
+    reversed: false
+    type: axis
+
+  pitch:
+    id: right_analog_y
+    reversed: false
+    type: axis
+
+  roll:
+    id: right_analog_x
+    reversed: false
+    type: axis

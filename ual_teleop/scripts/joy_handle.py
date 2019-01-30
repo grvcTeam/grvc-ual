@@ -3,6 +3,16 @@ import yaml
 from enum import Enum
 from sensor_msgs.msg import Joy
 
+expected_axes =     ['left_analog_x', 'left_analog_y',
+                     'right_analog_x', 'right_analog_y',
+                     'dpad_x', 'dpad_y']
+
+expected_buttons =  ['a', 'b', 'x', 'y', 
+                     'left_shoulder', 'right_shoulder',
+                     'left_trigger', 'right_trigger',
+                     'select', 'start',
+                     'left_thumb', 'right_thumb']
+
 ButtonState = Enum('ButtonState', 'UNKNOWN JUST_PRESSED PRESSED JUST_RELEASED RELEASED')
 
 def update_button_state(prev_state, value):
@@ -41,6 +51,7 @@ class JoyHandle:
         self.buttons_state = []
         with open(config_file, 'r') as config:
             self.layout = yaml.load(config)['joy_layout']
+            self.action_map = yaml.load(config)['joy_action']
 
     def update(self, data):
         self.ros_data = data
@@ -50,33 +61,47 @@ class JoyHandle:
         for i, state in enumerate(self.buttons_state):
             self.buttons_state[i] = update_button_state(state, self.ros_data.buttons[i])
 
-    # TODO(franreal): Study other interface functions like is_pressed(id)
     def get_axis(self, id):
-        # TODO(franreal): Check id is an axis first?
+        if id not in expected_axes:
+            raise IOError("Unexpected axis id")
         if self.layout[id]['reversed']:
             return -self.ros_data.axes[self.layout[id]['index']]
         else:
             return self.ros_data.axes[self.layout[id]['index']]
 
     def get_button(self, id):
-        # TODO(franreal): Check id is a button first?
+        if id not in expected_buttons:
+            raise IOError("Unexpected button id")
         return self.ros_data.buttons[self.layout[id]['index']]
 
     def get_button_state(self, id):
-        # TODO(franreal): Check id is a button first?
+        if id not in expected_buttons:
+            raise IOError("Unexpected button id")
         return self.buttons_state[self.layout[id]['index']]
+
+    def get_action_axis(self, action):
+        if self.action_map[action]['type'] != 'axis':
+            raise IOError("Unexpected type")
+        if self.action_map[id]['reversed']:
+            return -self.get_axis(self.action_map[action]['id'])
+        else:
+            return self.get_axis(self.action_map[action]['id'])
+
+    def get_action_button(self, action):
+        if self.action_map[action]['type'] != 'button':
+            raise IOError("Unexpected type")
+        return self.get_button(self.action_map[action]['id'])
+
+    def get_action_button_state(self, action):
+        if self.action_map[action]['type'] != 'button':
+            raise IOError("Unexpected type")
+        return self.get_button_state(self.action_map[action]['id'])
 
     def __str__(self):
         output = '---\n'
-        for button in ['a', 'b', 'x', 'y', 
-                       'left_shoulder', 'right_shoulder',
-                       'left_trigger', 'right_trigger',
-                       'select', 'start',
-                       'left_thumb', 'right_thumb']:
+        for button in expected_buttons:
             output = output + button + ': ' + str(self.get_button_state(button)) + '\n'
-        for axis in ['left_analog_x', 'left_analog_y',
-                     'right_analog_x', 'right_analog_y',
-                     'dpad_x', 'dpad_y']:
+        for axis in expected_axes:
             output = output + axis + ': ' + str(self.get_axis(axis)) + '\n'
         return output
 

@@ -7,17 +7,7 @@ from sensor_msgs.msg import Joy
 import yaml
 import time
 import copy
-
-# TODO(franreal): Define expected axes/buttons in file?
-expected_buttons =  ['a', 'b', 'x', 'y', 
-                     'left_shoulder', 'right_shoulder',
-                     'left_trigger', 'right_trigger',
-                     'select', 'start',
-                     'left_thumb', 'right_thumb']
-
-expected_axes =     ['left_analog_x', 'left_analog_y',
-                     'right_analog_x', 'right_analog_y',
-                     'dpad_x', 'dpad_y']
+from joy_handle import expected_axes, expected_buttons
 
 current_joy = Joy()
 joy_is_connected = False
