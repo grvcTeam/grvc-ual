@@ -175,6 +175,10 @@ private:
     void goHome();
 
     geometry_msgs::PoseStamped reference_pose_;
+    double offset_x;
+    double offset_y;
+    // std_msgs::Float64 offset_x;
+    // std_msgs::Float64 offset_y;
     sensor_msgs::NavSatFix     reference_pose_global_;
     geometry_msgs::TwistStamped reference_vel_;
     geometry_msgs::TwistStamped current_vel_;
@@ -185,6 +189,7 @@ private:
     sensor_msgs::NavSatFix      current_position_global;
     geometry_msgs::QuaternionStamped current_attitude_;
     std_msgs::UInt8 flight_status_;
+    std_msgs::UInt8 display_mode_;
     std_msgs::Float64 current_laser_altitude_;
 
     // Control
@@ -193,6 +198,7 @@ private:
     // bool mavros_has_pose_ = false;
     float position_th_;
     float orientation_th_;
+    float vel_factor;
     // HistoryBuffer position_error_;
     // HistoryBuffer orientation_error_;
 
@@ -212,6 +218,7 @@ private:
     ros::Subscriber laser_altitude_sub_;
 
     ros::Subscriber flight_status_sub_;
+    ros::Subscriber display_mode_sub_;
 
     // ros::Publisher mavros_ref_pose_pub_;
     // ros::Publisher mavros_ref_pose_global_pub_;

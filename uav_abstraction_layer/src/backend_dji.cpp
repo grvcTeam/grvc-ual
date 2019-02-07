@@ -66,6 +66,10 @@ BackendDji::BackendDji()
     position_th_ = position_th_param*position_th_param;
     orientation_th_ = 0.5*(1 - cos(orientation_th_param));
 
+    float vel_factor_param;
+    pnh.param<float>("vel_factor", vel_factor_param, 0.6);
+    vel_factor = vel_factor_param;
+
     ROS_INFO("BackendDji constructor with id %d",robot_id_);
     // ROS_INFO("BackendDji: thresholds = %f %f", position_th_, orientation_th_);
 
@@ -89,6 +93,7 @@ BackendDji::BackendDji()
     std::string get_position_global_topic = dji_ns + "/gps_position";
     std::string get_attitude_topic = dji_ns + "/attitude";
     std::string get_status_topic = dji_ns + "/flight_status";
+    std::string get_mode_topic = dji_ns + "/display_mode";
 
     // std::string flight_control_topic = dji_ns + "/flight_control_setpoint_ENUposition_yaw";
     std::string flight_control_topic = dji_ns + "/flight_control_setpoint_generic";
@@ -111,6 +116,11 @@ BackendDji::BackendDji()
     flight_status_sub_ = nh.subscribe<std_msgs::UInt8>(get_status_topic.c_str(), 1, \
         [this](const std_msgs::UInt8::ConstPtr& _msg) {
             this->flight_status_ = *_msg;
+    });
+
+    display_mode_sub_ = nh.subscribe<std_msgs::UInt8>(get_mode_topic.c_str(), 1, \
+        [this](const std_msgs::UInt8::ConstPtr _msg) {
+            this->display_mode_ = *_msg;
     });
 
     position_sub_ = nh.subscribe<geometry_msgs::PointStamped>(get_position_topic.c_str(), 1, \
@@ -190,26 +200,20 @@ void BackendDji::controlThread() {
         case eControlMode::LOCAL_POSE: 
                         
             BackendDji::Quaternion2EulerAngle(q, roll, pitch, yaw);
-            
-            // reference_joy.axes.push_back(reference_pose_.pose.position.x - current_position_.point.x);
-            // reference_joy.axes.push_back(reference_pose_.pose.position.y - current_position_.point.y);
-            // reference_joy.axes.push_back(reference_pose_.pose.position.z);
-            // reference_joy.axes.push_back(yaw);  // TODO: calculate desired yaw
-            // flight_control_pub_.publish(reference_joy);
-
-            
+             
             control_flag = (DJISDK::HORIZONTAL_POSITION |
                 DJISDK::VERTICAL_POSITION       |
                 DJISDK::YAW_ANGLE            |
                 DJISDK::HORIZONTAL_GROUND |
                 DJISDK::STABLE_ENABLE);
-          
             //flag = (0x80 | 0x10 | 0x00 | 0x02 | 0x01);
-            reference_joy.axes.push_back(reference_pose_.pose.position.x - current_position_.point.x);
-            reference_joy.axes.push_back(reference_pose_.pose.position.y - current_position_.point.y);
+
+            offset_x = reference_pose_.pose.position.x - current_position_.point.x;
+            offset_y = reference_pose_.pose.position.y - current_position_.point.y;
+            reference_joy.axes.push_back(vel_factor * offset_x);
+            reference_joy.axes.push_back(vel_factor * offset_y);
             
             // double current_laser_altitude = current_laser_altitude_.data;
-            
             // if(current_laser_altitude_.data == 0.0) {
             bool alt_off;
             alt_off = altimeter_off();
@@ -228,38 +232,24 @@ void BackendDji::controlThread() {
             flight_control_pub_.publish(reference_joy);
 
             // std::cout << current_laser_altitude_ << std::endl;
-  
-            // mavros_ref_pose_pub_.publish(ref_pose_);
-            // ref_vel_.twist.linear.x = 0;
-            // ref_vel_.twist.linear.y = 0;
-            // ref_vel_.twist.linear.z = 0;
-            // ref_vel_.twist.angular.z = 0;
+
             break; 
         case eControlMode::GLOBAL_POSE:
 
-            reference_joy.axes.push_back(100*(reference_pose_global_.latitude - current_position_global.latitude));
-            reference_joy.axes.push_back(100*(reference_pose_global_.longitude - current_position_global.longitude));
+            control_flag = (DJISDK::HORIZONTAL_POSITION |
+                DJISDK::VERTICAL_POSITION       |
+                DJISDK::YAW_ANGLE            |
+                DJISDK::HORIZONTAL_GROUND |
+                DJISDK::STABLE_ENABLE);
+
+            reference_joy.axes.push_back(100000*(reference_pose_global_.longitude - current_position_global.longitude));
+            reference_joy.axes.push_back(100000*(reference_pose_global_.latitude - current_position_global.latitude));
             reference_joy.axes.push_back(reference_pose_global_.altitude);
             reference_joy.axes.push_back(yaw);
             reference_joy.axes.push_back(control_flag);
 
             flight_control_pub_.publish(reference_joy);
 
-            // ref_vel_.twist.linear.x = 0;
-            // ref_vel_.twist.linear.y = 0;
-            // ref_vel_.twist.linear.z = 0;
-            // ref_vel_.twist.angular.z = 0;
-            // ref_pose_ = cur_pose_;
-
-            // mavros_msgs::GlobalPositionTarget msg;    
-            // msg.latitude = ref_pose_global_.latitude;
-            // msg.longitude = ref_pose_global_.longitude;
-            // msg.altitude = ref_pose_global_.altitude;
-            // msg.header.stamp = ros::Time::now();
-            // msg.coordinate_frame = mavros_msgs::GlobalPositionTarget::FRAME_GLOBAL_REL_ALT;
-            // msg.type_mask = 4088; //((4095^1)^2)^4;
-
-            // mavros_ref_pose_global_pub_.publish(msg);
             break;
         }
         // // Error history update
@@ -293,7 +283,11 @@ Backend::State BackendDji::guessState() {
         { return TAKING_OFF; }
     if (this->calling_land && this->flight_status_.data == DJISDK::FlightStatus::STATUS_IN_AIR ) 
         { return LANDING; }
-    if (!this->calling_takeoff && !this->calling_land && this->flight_status_.data == DJISDK::FlightStatus::STATUS_IN_AIR ) 
+    if (!this->calling_takeoff && !this->calling_land 
+        && this->flight_status_.data == DJISDK::FlightStatus::STATUS_IN_AIR 
+        // && this->display_mode_.data == 6) 
+        && this->display_mode_.data == DJISDK::DisplayMode::MODE_NAVI_SDK_CTRL) 
+        // && this->display_mode_.data == DJISDK::DisplayMode::MODE_P_GPS) 
         { return FLYING_AUTO; }
 
     return FLYING_MANUAL;
@@ -377,9 +371,22 @@ void BackendDji::setArmed(bool _value) {
 // }
 
 void BackendDji::recoverFromManual() {
+    if (display_mode_.data != DJISDK::DisplayMode::MODE_P_GPS) {
+        ROS_ERROR("Unable to recover from manual. Not in P_GPS MODE");
+        ROS_INFO("Please switch rc to P_GPS MODE");
+        return;
+    }
     dji_sdk::SDKControlAuthority sdk_control_authority;
     sdk_control_authority.request.control_enable = dji_sdk::SDKControlAuthority::Request::REQUEST_CONTROL;
     sdk_control_authority_client_.call(sdk_control_authority);
+
+    reference_vel_.twist.linear.x = 0;
+    reference_vel_.twist.linear.y = 0;
+    reference_vel_.twist.linear.z = 0;
+    reference_vel_.twist.angular.z = 0;
+
+    control_mode_ = eControlMode::LOCAL_VEL;
+    ros::Duration(0.5).sleep();
 
     control_mode_ = eControlMode::IDLE;  
     
@@ -388,17 +395,7 @@ void BackendDji::recoverFromManual() {
     } else {
         ROS_WARN("Unable to recover from manual mode (not in manual!)");
     }
-
-   // if (mavros_state_.mode == "POSCTL" ||
-    //     mavros_state_.mode == "ALTCTL" ||
-    //     mavros_state_.mode == "STABILIZED") {
-    //     control_mode_ = eControlMode::LOCAL_POSE;
-    //     ref_pose_ = cur_pose_;
-    //     setFlightMode("OFFBOARD");
-    //     ROS_INFO("Recovered from manual mode!");
-    // } else {
-    //     ROS_WARN("Unable to recover from manual mode (not in manual!)");
-    // }
+    this->state_ = guessState();
 }
 
 void BackendDji::setHome(bool set_z) {
@@ -425,12 +422,10 @@ void BackendDji::takeOff(double _height) {
     dji_sdk::SDKControlAuthority sdk_control_authority;
     sdk_control_authority.request.control_enable = dji_sdk::SDKControlAuthority::Request::REQUEST_CONTROL;
     sdk_control_authority_client_.call(sdk_control_authority);
-    std::cout << 'test coontrol enabled' << std::endl;
 
     dji_sdk::DroneTaskControl drone_task_control;
     drone_task_control.request.task = dji_sdk::DroneTaskControl::Request::TASK_TAKEOFF;
     drone_task_control_client_.call(drone_task_control);
-    std::cout << 'test task take_off' << std::endl;
     ROS_INFO("Taking Off...");
 
 
@@ -461,6 +456,8 @@ void BackendDji::takeOff(double _height) {
 
     // Update state right now!
     this->state_ = guessState();
+
+    control_mode_ = eControlMode::IDLE;    //Disable control in position
     
     // float f_height = _height;
     // sensor_msgs::Joy reference_joy;
