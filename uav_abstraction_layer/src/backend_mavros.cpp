@@ -79,7 +79,11 @@ BackendMavros::BackendMavros()
     mavros_cur_vel_sub_ = nh.subscribe<geometry_msgs::TwistStamped>(vel_topic.c_str(), 1, \
         [this](const geometry_msgs::TwistStamped::ConstPtr& _msg) {
             this->cur_vel_ = *_msg;
+#ifdef MAVROS_VERSION_BELOW_0_28_0
             this->cur_vel_.header.frame_id = this->uav_home_frame_id_;
+#else
+            this->cur_vel_.header.frame_id = this->uav_frame_id_;
+#endif
     });
     mavros_cur_geo_pose_sub_ = nh.subscribe<sensor_msgs::NavSatFix>(geo_pose_topic.c_str(), 1, \
         [this](const sensor_msgs::NavSatFix::ConstPtr& _msg) {
@@ -698,9 +702,16 @@ void BackendMavros::initHomeFrame() {
 
     local_start_pos_ << 0.0, 0.0, 0.0;
 
-    // Get frames from rosparam
-    ros::param::param<std::string>("~uav_frame",uav_frame_id_,"uav_" + std::to_string(robot_id_));
-    ros::param::param<std::string>("~uav_home_frame",uav_home_frame_id_, "uav_" + std::to_string(robot_id_) + "_home");
+    // Get frame prefix from namespace
+    std::string ns = ros::this_node::getNamespace();
+    uav_frame_id_ = ns + "/base_link";
+    uav_home_frame_id_ = ns + "/odom";
+    while (uav_frame_id_[0]=='/') {
+        uav_frame_id_.erase(0,1);
+    }
+    while (uav_home_frame_id_[0]=='/') {
+        uav_home_frame_id_.erase(0,1);
+    }
     std::string parent_frame;
     ros::param::param<std::string>("~home_pose_parent_frame", parent_frame, "map");
     
