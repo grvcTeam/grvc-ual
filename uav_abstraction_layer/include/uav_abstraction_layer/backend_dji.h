@@ -150,7 +150,8 @@ private:
     State guessState();
     
     void Quaternion2EulerAngle(const geometry_msgs::Pose::_orientation_type& _q, double& _roll, double& _pitch, double& _yaw);
-    bool altimeter_off(void);
+    bool altimeter_fail(void);
+
 
 // {
 // 	// roll (x-axis rotation)
@@ -199,6 +200,8 @@ private:
     float position_th_;
     float orientation_th_;
     float vel_factor;
+    bool laser_altimeter;
+    bool self_arming;
     // HistoryBuffer position_error_;
     // HistoryBuffer orientation_error_;
 

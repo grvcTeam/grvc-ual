@@ -47,7 +47,7 @@ double roll;
 double pitch;
 double yaw;
 
-double altitude_off;
+double altitude_offset;
 double alt_1;
 int alt_counter = 0;
 
@@ -69,6 +69,9 @@ BackendDji::BackendDji()
     float vel_factor_param;
     pnh.param<float>("vel_factor", vel_factor_param, 0.6);
     vel_factor = vel_factor_param;
+    
+    pnh.param<bool>("laser_altimeter", laser_altimeter, false);
+    pnh.param<bool>("self_arming", self_arming, false);
 
     ROS_INFO("BackendDji constructor with id %d",robot_id_);
     // ROS_INFO("BackendDji: thresholds = %f %f", position_th_, orientation_th_);
@@ -98,7 +101,7 @@ BackendDji::BackendDji()
     // std::string flight_control_topic = dji_ns + "/flight_control_setpoint_ENUposition_yaw";
     std::string flight_control_topic = dji_ns + "/flight_control_setpoint_generic";
 
-    std::string get_laser_altitude_topic = "/laser_altitude";
+    std::string get_laser_altitude_topic = "laser_altitude";
     
      
 
@@ -213,18 +216,20 @@ void BackendDji::controlThread() {
             reference_joy.axes.push_back(vel_factor * offset_x);
             reference_joy.axes.push_back(vel_factor * offset_y);
             
-            // double current_laser_altitude = current_laser_altitude_.data;
-            // if(current_laser_altitude_.data == 0.0) {
-            bool alt_off;
-            alt_off = altimeter_off();
-            // std::cout << alt_off << std::endl;
-            if(current_laser_altitude_.data == 0.0 || alt_off) {
+
+            if (laser_altimeter == true) {
+                // ROS_INFO("laser alt on: %s", laser_altimeter ? "true":"false");
+                if ( current_laser_altitude_.data == 0.0 || altimeter_fail() ) {
+                    reference_joy.axes.push_back(reference_pose_.pose.position.z);
+                }   
+                else {
+                    altitude_offset = reference_pose_.pose.position.z - current_laser_altitude_.data;
+                    reference_joy.axes.push_back(current_position_.point.z + 2*altitude_offset);
+                }
+            } else {
                 reference_joy.axes.push_back(reference_pose_.pose.position.z);
             }
-            else {
-                altitude_off = reference_pose_.pose.position.z - current_laser_altitude_.data;
-                reference_joy.axes.push_back(current_position_.point.z + 2*altitude_off);
-            }
+
 
             reference_joy.axes.push_back(yaw);
             reference_joy.axes.push_back(control_flag);
@@ -277,7 +282,13 @@ void BackendDji::controlThread() {
 Backend::State BackendDji::guessState() {
     // Sequentially checks allow state deduction
     if (!this->isReady()) { return UNINITIALIZED; }
-    if (this->flight_status_.data == DJISDK::FlightStatus::STATUS_STOPPED) { return LANDED_DISARMED; }
+    if (this->flight_status_.data == DJISDK::FlightStatus::STATUS_STOPPED) { 
+        if (self_arming) {
+            return LANDED_ARMED;
+        } else {
+            return LANDED_DISARMED; 
+        }
+    }
     if (this->flight_status_.data == DJISDK::FlightStatus::STATUS_ON_GROUND) { return LANDED_ARMED; }
     if (this->calling_takeoff && this->flight_status_.data == DJISDK::FlightStatus::STATUS_IN_AIR ) 
         { return TAKING_OFF; }
@@ -293,7 +304,7 @@ Backend::State BackendDji::guessState() {
     return FLYING_MANUAL;
 }
 
-bool BackendDji::altimeter_off() {
+bool BackendDji::altimeter_fail() {
     double alt_2 = current_laser_altitude_.data;
     if(alt_1 == alt_2 && alt_1 != 0.0){
         alt_counter ++;
@@ -303,7 +314,7 @@ bool BackendDji::altimeter_off() {
     }
     // std::cout << "alt_counter  "<< alt_counter << std::endl;
     alt_1 = alt_2;
-    if (alt_counter > 150) return true;
+    if (alt_counter > 100) return true;
     else return false;
 }
 
