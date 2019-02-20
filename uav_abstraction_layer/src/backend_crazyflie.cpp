@@ -31,38 +31,6 @@
 #include <chrono>
 #include <string>
 
-/* Crazyflie services and topics
-    hector@hector-GRVC ~/ual_ws> rostopic list
-    /crazyflie/anchors_markers
-    /crazyflie/battery
-    /crazyflie/cmd_vel
-    /crazyflie/crazyflie_position
-    /crazyflie/goal
-    /crazyflie/imu
-    /crazyflie/magnetic_field
-    /crazyflie/marker
-    /crazyflie/pose
-    /crazyflie/pressure
-    /crazyflie/ranging
-    /crazyflie/rssi
-    /crazyflie/temperature
-    /tf
-
-    hector@hector-GRVC ~/ual_ws> rosservice list
-    /add_crazyflie
-    /crazyflie/land
-    /crazyflie/takeoff
-*/
-
-/* UAL services and topics
-    /uav_1/ual/odom
-    /uav_1/ual/pose
-    /uav_1/ual/set_pose
-    /uav_1/ual/set_velocity
-    /uav_1/ual/state
-    /uav_1/ual/velocity
-*/
-
 namespace grvc {
 namespace ual {
 
@@ -241,7 +209,7 @@ Backend::State BackendCrazyflie::guessState() {
     // }
     if (this->isReady() && crazyflie_state_.data == 0) {
         return LANDED_ARMED;
-    } 
+    }
     if (this->calling_takeoff) {
         return TAKING_OFF;
     }
