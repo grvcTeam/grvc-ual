@@ -145,11 +145,11 @@ void BackendCrazyflie::offboardThreadLoop() {
     while (ros::ok() /* && crazyflie_state_.data == 1 */) {
         switch (control_mode_) {
             case eControlMode::LOCAL_VEL:
-                // crazyflie_ref_vel_pub_.publish(ref_vel_);
-                // ref_pose_ = cur_pose_;
-                // if (ros::Time::now().toSec() - last_command_time_.toSec() >= 0.5) {
-                //     control_mode_ = eControlMode::LOCAL_POSE;
-                // }
+                crazyflie_ref_vel_pub_.publish(ref_vel_);
+                ref_pose_ = cur_pose_;
+                if (ros::Time::now().toSec() - last_command_time_.toSec() >= 0.5) {
+                    control_mode_ = eControlMode::LOCAL_POSE;
+                }
                 break;
             case eControlMode::LOCAL_POSE:
                 ref_pose_.header.stamp = ros::Time::now();
@@ -373,7 +373,7 @@ void BackendCrazyflie::land() {
 
 void BackendCrazyflie::setVelocity(const Velocity& _vel) {
     // TODO: WARNING
-    // control_mode_ = eControlMode::LOCAL_VEL;  // Velocity control!
+    control_mode_ = eControlMode::LOCAL_VEL;  // Velocity control!
 
     // tf2_ros::Buffer tfBuffer;
     // tf2_ros::TransformListener tfListener(tfBuffer);
@@ -404,7 +404,18 @@ void BackendCrazyflie::setVelocity(const Velocity& _vel) {
     //         ref_vel_.twist.angular = _vel.twist.angular;
     //     }
     // }
-    // last_command_time_ = ros::Time::now();
+    ref_vel_.header = _vel.header;
+    ref_vel_.twist = _vel.twist;
+    // Do not change your Z ?
+    ref_vel_.twist.linear.z = cur_pose_.pose.position.z * 1000;
+    // Warning! LPS Python commands Z velocity like that
+    // if (_vel.twist.linear.z > 0) {
+    //     ref_vel_.twist.linear.z = _vel.twist.linear.z * 1000;
+    // } else {
+    //     ref_vel_.twist.linear.z = 1;
+    // }
+
+    last_command_time_ = ros::Time::now();
 }
 
 bool BackendCrazyflie::isReady() const {
