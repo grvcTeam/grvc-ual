@@ -51,23 +51,23 @@ BackendCrazyflie::BackendCrazyflie()
 
     // Init ros communications
     ros::NodeHandle nh;
-    std::string crazyflie_ns = "ual";
+    std::string crazyflie_ns = "/crazyflie" + robot_id_;
     // std::string set_mode_srv = crazyflie_ns + "/set_mode";
     // std::string arming_srv = crazyflie_ns + "/cmd/arming";
     // std::string get_param_srv = crazyflie_ns + "/param/get";
-    std::string set_pose_topic = /* crazyflie_ns + */ "/crazyflie/goal";
+    std::string set_pose_topic = crazyflie_ns + "/goal";
     // std::string set_pose_global_topic = crazyflie_ns + "/setpoint_raw/global";
-    std::string set_vel_topic = /* crazyflie_ns + */ "/crazyflie/cmd_vel";
-    std::string pose_topic = /* crazyflie_ns + */ "/crazyflie/pose";
+    std::string set_vel_topic = crazyflie_ns + "/cmd_vel";
+    std::string pose_topic = crazyflie_ns + "/pose";
     // std::string geo_pose_topic = crazyflie_ns + "/global_position/global";
     // std::string vel_topic = crazyflie_ns + "/local_position/velocity";
-    std::string state_topic = /* crazyflie_ns + */ "/crazyflie/state";
+    std::string state_topic = crazyflie_ns + "/state";
     // std::string extended_state_topic = crazyflie_ns + "/extended_state";
 
     // flight_mode_client_ = nh.serviceClient<mavros_msgs::SetMode>(set_mode_srv.c_str());
     // arming_client_ = nh.serviceClient<mavros_msgs::CommandBool>(arming_srv.c_str());
-    takeoff_client_ = nh.serviceClient<std_srvs::Empty>("/crazyflie/takeoff");
-    land_client_ = nh.serviceClient<std_srvs::Empty>("/crazyflie/land");
+    takeoff_client_ = nh.serviceClient<std_srvs::Empty>(crazyflie_ns + "/takeoff");
+    land_client_ = nh.serviceClient<std_srvs::Empty>(crazyflie_ns + "/land");
 
     crazyflie_ref_pose_pub_ = nh.advertise<geometry_msgs::PoseStamped>(set_pose_topic.c_str(), 1);
     // mavros_ref_pose_global_pub_ = nh.advertise<mavros_msgs::GlobalPositionTarget>(set_pose_global_topic.c_str(), 1);
