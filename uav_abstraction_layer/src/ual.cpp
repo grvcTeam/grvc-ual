@@ -262,6 +262,7 @@ bool UAL::takeOff(double _height, bool _blocking) {
     // Check required state
     if (backend_->state() != Backend::State::LANDED_ARMED) {
         ROS_ERROR("Unable to takeOff: not LANDED_ARMED!");
+        std::cout << backend_->state() << std::endl;
         return false;
     }
     // Check input
