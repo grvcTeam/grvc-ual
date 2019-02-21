@@ -652,7 +652,11 @@ Pose BackendDji::pose() {
 
         out.pose.position.x = current_position_.point.x;
         out.pose.position.y = current_position_.point.y;
-        out.pose.position.z = current_position_.point.z;
+        if (laser_altimeter == true) {
+            out.pose.position.z = current_laser_altitude_.data;
+        } else {
+            out.pose.position.z = current_position_.point.z;
+        }
         out.pose.orientation.x = current_attitude_.quaternion.x;
         out.pose.orientation.y = current_attitude_.quaternion.y;
         out.pose.orientation.z = current_attitude_.quaternion.z;
