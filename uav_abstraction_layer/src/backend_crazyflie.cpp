@@ -51,23 +51,23 @@ BackendCrazyflie::BackendCrazyflie()
 
     // Init ros communications
     ros::NodeHandle nh;
-    std::string crazyflie_ns = "ual";
+    std::string crazyflie_ns = "/crazyflie" + std::to_string(robot_id_);
     // std::string set_mode_srv = crazyflie_ns + "/set_mode";
     // std::string arming_srv = crazyflie_ns + "/cmd/arming";
     // std::string get_param_srv = crazyflie_ns + "/param/get";
-    std::string set_pose_topic = /* crazyflie_ns + */ "/crazyflie/goal";
+    std::string set_pose_topic = crazyflie_ns + "/goal";
     // std::string set_pose_global_topic = crazyflie_ns + "/setpoint_raw/global";
-    std::string set_vel_topic = /* crazyflie_ns + */ "/crazyflie/cmd_vel";
-    std::string pose_topic = /* crazyflie_ns + */ "/crazyflie/pose";
+    std::string set_vel_topic = crazyflie_ns + "/cmd_vel";
+    std::string pose_topic = crazyflie_ns + "/pose";
     // std::string geo_pose_topic = crazyflie_ns + "/global_position/global";
     // std::string vel_topic = crazyflie_ns + "/local_position/velocity";
-    std::string state_topic = /* crazyflie_ns + */ "/crazyflie/state";
+    std::string state_topic = crazyflie_ns + "/state";
     // std::string extended_state_topic = crazyflie_ns + "/extended_state";
 
     // flight_mode_client_ = nh.serviceClient<mavros_msgs::SetMode>(set_mode_srv.c_str());
     // arming_client_ = nh.serviceClient<mavros_msgs::CommandBool>(arming_srv.c_str());
-    takeoff_client_ = nh.serviceClient<std_srvs::Empty>("/crazyflie/takeoff");
-    land_client_ = nh.serviceClient<std_srvs::Empty>("/crazyflie/land");
+    takeoff_client_ = nh.serviceClient<std_srvs::Empty>(crazyflie_ns + "/takeoff");
+    land_client_ = nh.serviceClient<std_srvs::Empty>(crazyflie_ns + "/land");
 
     crazyflie_ref_pose_pub_ = nh.advertise<geometry_msgs::PoseStamped>(set_pose_topic.c_str(), 1);
     // mavros_ref_pose_global_pub_ = nh.advertise<mavros_msgs::GlobalPositionTarget>(set_pose_global_topic.c_str(), 1);
@@ -144,13 +144,13 @@ void BackendCrazyflie::offboardThreadLoop() {
     ros::Rate rate(offboard_thread_frequency_);
     while (ros::ok() /* && crazyflie_state_.data == 1 */) {
         switch (control_mode_) {
-            case eControlMode::LOCAL_VEL:
-                crazyflie_ref_vel_pub_.publish(ref_vel_);
-                ref_pose_ = cur_pose_;
-                if (ros::Time::now().toSec() - last_command_time_.toSec() >= 0.5) {
-                    control_mode_ = eControlMode::LOCAL_POSE;
-                }
-                break;
+            // case eControlMode::LOCAL_VEL:
+            //     crazyflie_ref_vel_pub_.publish(ref_vel_);
+            //     ref_pose_ = cur_pose_;
+            //     if (ros::Time::now().toSec() - last_command_time_.toSec() >= 0.5) {
+            //         control_mode_ = eControlMode::LOCAL_POSE;
+            //     }
+            //     break;
             case eControlMode::LOCAL_POSE:
                 ref_pose_.header.stamp = ros::Time::now();
                 crazyflie_ref_pose_pub_.publish(ref_pose_);
@@ -373,7 +373,7 @@ void BackendCrazyflie::land() {
 
 void BackendCrazyflie::setVelocity(const Velocity& _vel) {
     // TODO: WARNING
-    control_mode_ = eControlMode::LOCAL_VEL;  // Velocity control!
+    // control_mode_ = eControlMode::LOCAL_VEL;  // Velocity control!
 
     // tf2_ros::Buffer tfBuffer;
     // tf2_ros::TransformListener tfListener(tfBuffer);
@@ -404,10 +404,10 @@ void BackendCrazyflie::setVelocity(const Velocity& _vel) {
     //         ref_vel_.twist.angular = _vel.twist.angular;
     //     }
     // }
-    ref_vel_.header = _vel.header;
-    ref_vel_.twist = _vel.twist;
+    // ref_vel_.header = _vel.header;
+    // ref_vel_.twist = _vel.twist;
     // Do not change your Z ?
-    ref_vel_.twist.linear.z = cur_pose_.pose.position.z * 1000;
+    // ref_vel_.twist.linear.z = cur_pose_.pose.position.z * 1000;
     // Warning! LPS Python commands Z velocity like that
     // if (_vel.twist.linear.z > 0) {
     //     ref_vel_.twist.linear.z = _vel.twist.linear.z * 1000;
@@ -415,7 +415,7 @@ void BackendCrazyflie::setVelocity(const Velocity& _vel) {
     //     ref_vel_.twist.linear.z = 1;
     // }
 
-    last_command_time_ = ros::Time::now();
+    // last_command_time_ = ros::Time::now();
 }
 
 bool BackendCrazyflie::isReady() const {
@@ -685,7 +685,7 @@ Pose BackendCrazyflie::pose() {
     //     tf2::doTransform(aux, out, transformToPoseFrame);
     //     out.header.frame_id = pose_frame_id_;
     // }
-    out.header.frame_id = "world";
+    out.header.frame_id = "map";
     out.header.stamp = cur_pose_.header.stamp;
     return out;
 }
