@@ -452,7 +452,7 @@ void BackendDji::takeOff(double _height) {
 
     control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
 
-    while ( !(fabs(_height - current_position_.point.z) < position_th_) ) {
+    while ( !(fabs(_height - current_position_.point.z) < 1.5*position_th_) ) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
@@ -652,7 +652,7 @@ Pose BackendDji::pose() {
 
         out.pose.position.x = current_position_.point.x;
         out.pose.position.y = current_position_.point.y;
-        if (laser_altimeter == true) {
+        if (laser_altimeter == true && current_laser_altitude_.data != 0.0 && !altimeter_fail() ) {
             out.pose.position.z = current_laser_altitude_.data;
         } else {
             out.pose.position.z = current_position_.point.z;
