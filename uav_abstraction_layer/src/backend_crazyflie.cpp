@@ -52,6 +52,7 @@ BackendCrazyflie::BackendCrazyflie()
     // Init ros communications
     ros::NodeHandle nh;
     std::string crazyflie_ns = "/crazyflie" + std::to_string(robot_id_);
+   
     // std::string set_mode_srv = crazyflie_ns + "/set_mode";
     // std::string arming_srv = crazyflie_ns + "/cmd/arming";
     // std::string get_param_srv = crazyflie_ns + "/param/get";
