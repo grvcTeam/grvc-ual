@@ -192,7 +192,9 @@ private:
     // mavros_msgs::ExtendedState mavros_extended_state_;
 
     geometry_msgs::PointStamped current_position_;
-    sensor_msgs::NavSatFix      current_position_global;
+    sensor_msgs::NavSatFix      current_position_global_;
+    geometry_msgs::Vector3Stamped current_linear_velocity_;
+    geometry_msgs::Vector3Stamped current_angular_velocity_;
     geometry_msgs::QuaternionStamped current_attitude_;
     std_msgs::UInt8 flight_status_;
     std_msgs::UInt8 display_mode_;
@@ -224,6 +226,8 @@ private:
     
     ros::Subscriber position_sub_;
     ros::Subscriber position_global_sub_;
+    ros::Subscriber linear_velocity_sub_;
+    ros::Subscriber angular_velocity_sub_;
     ros::Subscriber attitude_sub_;
     ros::Subscriber laser_altitude_sub_;
     ros::Subscriber flight_status_sub_;

@@ -73,16 +73,20 @@ BackendDji::BackendDji()
     std::string mission_waypoint_setSpeed_srv = dji_ns + "/mission_waypoint_setSpeed";
     std::string mission_waypoint_action_srv = dji_ns + "/mission_waypoint_action";
 
-    // ROS toics
+    // ROS subscribed topics
     std::string get_position_topic = dji_ns + "/local_position";
+    std::string get_linear_velocity_topic = dji_ns + "/velocity";
+    std::string get_angular_velocity_topic = dji_ns + "/angular_velocity_fused";
     std::string get_position_global_topic = dji_ns + "/gps_position";
     std::string get_attitude_topic = dji_ns + "/attitude";
     std::string get_status_topic = dji_ns + "/flight_status";
     std::string get_mode_topic = dji_ns + "/display_mode";
-    std::string flight_control_topic = dji_ns + "/flight_control_setpoint_generic";
 
     std::string get_laser_altitude_topic = "laser_altitude";
-    
+
+    // ROS published topics
+    std::string flight_control_topic = dji_ns + "/flight_control_setpoint_generic";
+
     // ROS services' Clients
     activation_client_ = nh.serviceClient<dji_sdk::Activation>(activation_srv.c_str());
     arming_client_ = nh.serviceClient<dji_sdk::DroneArmControl>(arming_srv.c_str());
@@ -114,7 +118,7 @@ BackendDji::BackendDji()
 
     position_global_sub_ = nh.subscribe<sensor_msgs::NavSatFix>(get_position_global_topic.c_str(), 1, \
         [this](const sensor_msgs::NavSatFix::ConstPtr& _msg) {
-            this->current_position_global = *_msg;
+            this->current_position_global_ = *_msg;
     });
     
     attitude_sub_ = nh.subscribe<geometry_msgs::QuaternionStamped>(get_attitude_topic.c_str(), 1, \
@@ -125,6 +129,16 @@ BackendDji::BackendDji()
     laser_altitude_sub_ = nh.subscribe<std_msgs::Float64>(get_laser_altitude_topic.c_str(), 1, \
         [this](const std_msgs::Float64::ConstPtr& _msg) {
             this->current_laser_altitude_ = *_msg;
+    });
+
+    linear_velocity_sub_ = nh.subscribe<geometry_msgs::Vector3Stamped>(get_position_topic.c_str(), 1, \
+        [this](const geometry_msgs::Vector3Stamped::ConstPtr& _msg) {
+            this->current_linear_velocity_ = *_msg;
+    });
+
+    angular_velocity_sub_ = nh.subscribe<geometry_msgs::Vector3Stamped>(get_position_topic.c_str(), 1, \
+        [this](const geometry_msgs::Vector3Stamped::ConstPtr& _msg) {
+            this->current_angular_velocity_ = *_msg;
     });
 
     // // TODO: Check this and solve frames issue
@@ -228,8 +242,8 @@ void BackendDji::controlThread() {
                 DJISDK::HORIZONTAL_GROUND |
                 DJISDK::STABLE_ENABLE);
 
-            reference_joy.axes.push_back(100000*(reference_pose_global_.longitude - current_position_global.longitude));
-            reference_joy.axes.push_back(100000*(reference_pose_global_.latitude - current_position_global.latitude));
+            reference_joy.axes.push_back(100000*(reference_pose_global_.longitude - current_position_global_.longitude));
+            reference_joy.axes.push_back(100000*(reference_pose_global_.latitude - current_position_global_.latitude));
             reference_joy.axes.push_back(reference_pose_global_.altitude);
             reference_joy.axes.push_back(yaw);
             reference_joy.axes.push_back(control_flag);
@@ -705,7 +719,12 @@ Pose BackendDji::pose() {
 }
 
 Velocity BackendDji::velocity() const {
-    // return cur_vel_;
+    Velocity out;
+
+    out.twist.linear = current_linear_velocity_.vector;
+    out.twist.angular = current_angular_velocity_.vector;
+
+    return out;
 }
 
 Odometry BackendDji::odometry() const {}
@@ -715,17 +734,12 @@ Transform BackendDji::transform() const {
     out.header.stamp = ros::Time::now();
     out.header.frame_id = "map";
     out.child_frame_id = "uav_" + std::to_string(robot_id_);
-    // out.transform.translation = current_position_.point;
-    // out.transform.rotation = current_attitude_.quaternion;
 
     out.transform.translation.x = current_position_.point.x;
     out.transform.translation.y = current_position_.point.y;
     out.transform.translation.z = current_position_.point.z;
     out.transform.rotation = current_attitude_.quaternion;        
-    // out.transform.rotation.x = current_attitude_.quaternion.x;
-    // out.transform.rotation.y = current_attitude_.quaternion.y;
-    // out.transform.rotation.z = current_attitude_.quaternion.z;
-    // out.transform.rotation.w = current_attitude_.quaternion.w;
+
     return out;
 }
 
