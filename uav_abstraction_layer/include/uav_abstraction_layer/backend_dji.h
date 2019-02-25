@@ -27,18 +27,10 @@
 
 #include <uav_abstraction_layer/backend.h>
 #include <ros/ros.h>
-
-//Mavros services
-// #include <mavros_msgs/CommandBool.h>
-// #include <mavros_msgs/SetMode.h>
-
-// //Mavros messages
-// #include <mavros_msgs/State.h>
-// #include <mavros_msgs/ExtendedState.h>
-// #include <mavros_msgs/GlobalPositionTarget.h>
-// #include <geometry_msgs/PoseStamped.h>
-// #include <geometry_msgs/TwistStamped.h>
-// #include <geometry_msgs/TransformStamped.h>
+// #include <ros/package.h>
+// #include <tf2_ros/transform_listener.h>
+// #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+// #include <tf2/LinearMath/Quaternion.h>
 // #include <tf2_ros/static_transform_broadcaster.h>
 
 #include <geometry_msgs/PoseStamped.h>
@@ -46,6 +38,19 @@
 #include <geometry_msgs/QuaternionStamped.h>
 #include <std_msgs/UInt8.h>
 #include <std_msgs/Float64.h>
+#include <sensor_msgs/Joy.h>
+
+#include <dji_sdk/dji_sdk.h>
+// #include <dji_sdk/dji_sdk_node.h>
+#include <dji_sdk/Activation.h>
+#include <dji_sdk/SetLocalPosRef.h>
+#include <dji_sdk/SDKControlAuthority.h>
+#include <dji_sdk/DroneTaskControl.h>
+#include <dji_sdk/DroneArmControl.h>
+#include <dji_sdk/MissionWpUpload.h>
+#include <dji_sdk/MissionWpSetSpeed.h>
+#include <dji_sdk/MissionWpAction.h>
+
 
 // std_msgs::UInt8 S_FLYING = 2;
 typedef double Quaterniond [4];
@@ -205,13 +210,15 @@ private:
     // HistoryBuffer position_error_;
     // HistoryBuffer orientation_error_;
 
-    // /// Ros Communication
-    // ros::ServiceClient flight_mode_client_;
+    /// Ros Communication
     ros::ServiceClient activation_client_;
     ros::ServiceClient arming_client_;
     ros::ServiceClient set_local_pos_ref_client_;
     ros::ServiceClient sdk_control_authority_client_;
     ros::ServiceClient drone_task_control_client_;
+    ros::ServiceClient mission_waypoint_upload_client;
+    ros::ServiceClient mission_waypoint_setSpeed_client;
+    ros::ServiceClient mission_waypoint_action_client;
 
     ros::Publisher flight_control_pub_;
     
@@ -219,17 +226,8 @@ private:
     ros::Subscriber position_global_sub_;
     ros::Subscriber attitude_sub_;
     ros::Subscriber laser_altitude_sub_;
-
     ros::Subscriber flight_status_sub_;
     ros::Subscriber display_mode_sub_;
-
-    // ros::Publisher mavros_ref_pose_pub_;
-    // ros::Publisher mavros_ref_pose_global_pub_;
-    // ros::Publisher mavros_ref_vel_pub_;
-    // ros::Subscriber mavros_cur_pose_sub_;
-    // ros::Subscriber mavros_cur_vel_sub_;
-    // ros::Subscriber mavros_cur_state_sub_;
-    // ros::Subscriber mavros_cur_extended_state_sub_;
 
     int robot_id_;
     std::string pose_frame_id_;
