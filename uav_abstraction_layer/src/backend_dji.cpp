@@ -131,12 +131,12 @@ BackendDji::BackendDji()
             this->current_laser_altitude_ = *_msg;
     });
 
-    linear_velocity_sub_ = nh.subscribe<geometry_msgs::Vector3Stamped>(get_position_topic.c_str(), 1, \
+    linear_velocity_sub_ = nh.subscribe<geometry_msgs::Vector3Stamped>(get_linear_velocity_topic.c_str(), 1, \
         [this](const geometry_msgs::Vector3Stamped::ConstPtr& _msg) {
             this->current_linear_velocity_ = *_msg;
     });
 
-    angular_velocity_sub_ = nh.subscribe<geometry_msgs::Vector3Stamped>(get_position_topic.c_str(), 1, \
+    angular_velocity_sub_ = nh.subscribe<geometry_msgs::Vector3Stamped>(get_angular_velocity_topic.c_str(), 1, \
         [this](const geometry_msgs::Vector3Stamped::ConstPtr& _msg) {
             this->current_angular_velocity_ = *_msg;
     });
@@ -622,44 +622,64 @@ void BackendDji::goToWaypoint(const Waypoint& _world) {
 }
 
 void	BackendDji::goToWaypointGeo(const WaypointGeo& _wp){
-    std::cout << "test" << std::endl;
     
     dji_sdk::MissionWpAction mission_waypoint_action;
-    dji_sdk::MissionWpUpload mission_waypoint_task;
-    std::cout << "test" << std::endl;
-
+    dji_sdk::MissionWpUpload mission_waypoint_upload;
+    
+    dji_sdk::MissionWaypointTask mission_waypoint_task;
+    dji_sdk::MissionWaypoint current_waypoint;
     dji_sdk::MissionWaypoint mission_waypoint;
-    std::cout << "test" << std::endl;
+    dji_sdk::MissionWaypointAction waypoint_action;
+
+    // waypoint_action.action_repeat = 0;
+
+    std::cout << "test2" << std::endl;
+
+    // current_waypoint.latitude = current_position_global_.latitude;
+    // current_waypoint.longitude = current_position_global_.longitude;
+    // current_waypoint.altitude = current_position_global_.altitude;
 
     mission_waypoint.latitude = _wp.latitude;
     mission_waypoint.longitude = _wp.longitude;
     mission_waypoint.altitude = _wp.altitude;
+    mission_waypoint.damping_distance = 0;
+    mission_waypoint.target_yaw = 0;
+    mission_waypoint.target_gimbal_pitch = 0;
+    mission_waypoint.turn_mode = 0;
+    mission_waypoint.has_action = 0;
+    // mission_waypoint.action_time_limit = 100;
+    // mission_waypoint.waypoint_action = waypoint_action;
 
-    mission_waypoint_task.request.waypoint_task.velocity_range = 2.0;
-    mission_waypoint_task.request.waypoint_task.idle_velocity = 1.0;
-    mission_waypoint_task.request.waypoint_task.yaw_mode = 0;
-    mission_waypoint_task.request.waypoint_task.mission_waypoint[0] = mission_waypoint;
+    mission_waypoint_task.mission_waypoint.push_back(mission_waypoint);
 
-    std::cout << "test" << std::endl;
-    mission_waypoint_upload_client.call(mission_waypoint_task);
-    // while (!mission_waypoint_upload_client.call(mission_waypoint_task)) {
-        // std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    // }
-    std::cout << "test" << std::endl;
-    
+    mission_waypoint_task.velocity_range = 2.0;
+    mission_waypoint_task.idle_velocity = 5;
+    mission_waypoint_task.action_on_finish = dji_sdk::MissionWaypointTask::FINISH_NO_ACTION;
+    mission_waypoint_task.mission_exec_times = 1;
+    mission_waypoint_task.yaw_mode = dji_sdk::MissionWaypointTask::YAW_MODE_AUTO;
+    mission_waypoint_task.trace_mode = dji_sdk::MissionWaypointTask::TRACE_POINT;
+    mission_waypoint_task.action_on_rc_lost = dji_sdk::MissionWaypointTask::ACTION_AUTO;
+    mission_waypoint_task.gimbal_pitch_mode =  dji_sdk::MissionWaypointTask::GIMBAL_PITCH_FREE;
+    std::cout << "test4" << std::endl;
+
+    // mission_waypoint_task.mission_waypoint[0] = mission_waypoint[0];
+    std::cout << "test5" << std::endl;
+
+    mission_waypoint_upload.request.waypoint_task = mission_waypoint_task;
+    std::cout << "test6" << std::endl;
+
+    mission_waypoint_upload_client.call(mission_waypoint_upload);
+   
     mission_waypoint_action.request.action = 0;
-    std::cout << "test" << std::endl;
-
     mission_waypoint_action_client.call(mission_waypoint_action);
-    std::cout << "test" << std::endl;
-
-    /*
-    control_mode_ = eControlMode::GLOBAL_POSE; // Control in position
     
-    reference_pose_global_.latitude = _wp.latitude;
-    reference_pose_global_.longitude = _wp.longitude;
-    reference_pose_global_.altitude = _wp.altitude;
-    */
+    
+    // control_mode_ = eControlMode::GLOBAL_POSE; // Control in position
+    
+    // reference_pose_global_.latitude = _wp.latitude;
+    // reference_pose_global_.longitude = _wp.longitude;
+    // reference_pose_global_.altitude = _wp.altitude;
+    
 
     // // Wait until we arrive: abortable
     // while(!referencePoseReached() && !abort_ && ros::ok()) {
