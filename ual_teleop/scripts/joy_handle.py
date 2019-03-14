@@ -46,12 +46,45 @@ def update_button_state(prev_state, value):
 
 class JoyHandle:
 
-    def __init__(self, config_file):
+    def __init__(self, joy_msg_map, act_joy_map):
+        found_axis_indices = []
+        found_button_indices = []
+        for key, index in joy_msg_map.items():
+            if key in expected_axes:
+                if index in found_axis_indices:
+                    raise ValueError('Axis index {} already used'.format(index))
+                else:
+                    found_axis_indices.append(index)
+            elif key in expected_buttons:
+                if index in found_button_indices:
+                    raise ValueError('Button index {} already used'.format(index))
+                else:
+                    found_button_indices.append(index)
+            else:
+                raise ValueError('Unexpected key: {}'.format(key))
+
         self.ros_data = Joy()
         self.buttons_state = []
-        with open(config_file, 'r') as config:
-            self.layout = yaml.load(config)['joy_layout']
-            self.action_map = yaml.load(config)['joy_action']
+        self.joy_msg_map = joy_msg_map
+        self.act_joy_map = act_joy_map
+        self.act_msg_axis_map = {}
+        self.act_msg_button_map = {}
+
+        for key, id in act_joy_map.items():
+            # TODO: Check for already used ids?
+            if id in expected_axes:
+                self.act_msg_axis_map[key] = joy_msg_map[id]
+            elif id in expected_buttons:
+                self.act_msg_button_map[key] = joy_msg_map[id]
+            else:
+                raise ValueError('Unexpected joy axis/button id: {}'.format(id))
+
+        # print self.act_msg_axis_map
+        # print self.act_msg_button_map
+
+        # with open(config_file, 'r') as config:
+        #     self.joy_msg_map = yaml.load(config)['joy_layout']
+        #     self.action_map = yaml.load(config)['joy_action']
 
     def update(self, data):
         self.ros_data = data
@@ -63,29 +96,29 @@ class JoyHandle:
 
     def get_axis(self, id):
         if id not in expected_axes:
-            raise IOError("Unexpected axis id")
-        if self.layout[id]['reversed']:
-            return -self.ros_data.axes[self.layout[id]['index']]
+            raise ValueError("Unexpected axis id: {}".format(id))
+        if self.joy_msg_map[id]['reversed']:
+            return -self.ros_data.axes[self.joy_msg_map[id]['index']]
         else:
-            return self.ros_data.axes[self.layout[id]['index']]
+            return self.ros_data.axes[self.joy_msg_map[id]['index']]
 
     def get_button(self, id):
         if id not in expected_buttons:
-            raise IOError("Unexpected button id")
-        return self.ros_data.buttons[self.layout[id]['index']]
+            raise ValueError("Unexpected button id: {}".format(id))
+        return self.ros_data.buttons[self.joy_msg_map[id]['index']]
 
     def get_button_state(self, id):
         if id not in expected_buttons:
-            raise IOError("Unexpected button id")
-        return self.buttons_state[self.layout[id]['index']]
+            raise ValueError("Unexpected button id: {}".format(id))
+        return self.buttons_state[self.joy_msg_map[id]['index']]
 
     def get_action_axis(self, action):
-        if self.action_map[action]['type'] != 'axis':
-            raise IOError("Unexpected type")
-        if self.action_map[id]['reversed']:
-            return -self.get_axis(self.action_map[action]['id'])
+        if action not in act_msg_axis_map:
+            raise ValueError("Action {} is not axis-type".format(action))
+        if self.action_joy_map[action]['reversed']:
+            return -self.ros_data.axes[self.act_msg_axis_map[action]]
         else:
-            return self.get_axis(self.action_map[action]['id'])
+            return self.ros_data.axes[self.act_msg_axis_map[action]]
 
     def get_action_button(self, action):
         if self.action_map[action]['type'] != 'button':
