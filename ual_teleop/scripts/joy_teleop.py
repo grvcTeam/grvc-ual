@@ -28,7 +28,7 @@ class JoyTeleop:
         self.land     = rospy.ServiceProxy(land_url,     Land)
         self.velocity_pub = rospy.Publisher(velocity_url, TwistStamped, queue_size=1)
         self.ual_state = State()
-        self.headless = True
+        self.headless = False
         self.uav_yaw = 0.0
         self.gains_table = [0.5, 0.8, 1.0, 1.3, 1.8, 2.1, 2.5]
         self.gain_index = 2
