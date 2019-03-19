@@ -67,10 +67,9 @@ def wait_axis(label):
 def main():
 
     # TODO: From file; reversed tag!!
-    joy_msg_dict = {'a':1, 'b':2, 'dpad_x':1, 'dpad_y':2}
-    act_joy_dict = {'jump':'a', 'run':'b', 'move_x':'dpad_x', 'move_y':'dpad_y'}
-    jh = JoyHandle(joy_msg_dict, act_joy_dict)
-    # print jh
+    act_joy_dict = {'jump':{'id': 'a'}, 'run':{'id': 'b'}, 'move_x':{'id': 'dpad_x', 'reversed': True}, 'move_y':{'id': 'dpad_y', 'reversed': False}}
+    jh = JoyHandle('saitek_p3200', act_joy_dict)
+    print jh
     # act_msg_dict = {}
     # for key, value in act_joy_dict.items():
     #     act_msg_dict[key] = joy_msg_dict[value]

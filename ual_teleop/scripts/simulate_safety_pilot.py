@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import yaml
 import argparse
 import rospy
 import rospkg
@@ -43,7 +44,7 @@ class RCSimulation:
         self.pub.publish(self.rc_in)
 
 class SafetyPilot:
-    def __init__(self, joy_file, id=1):
+    def __init__(self, joy_name, id=1):
         self.id = id
         self.ns = rospy.get_namespace()
         self.state_url = 'mavros/state'
@@ -51,7 +52,11 @@ class SafetyPilot:
         self.rc_url = 'mavros/rc/override'
         self.mavros_state = State()
         self.joy_is_connected = False
-        self.joy_handle = JoyHandle(joy_file)
+        # action_file = rospkg.RosPack().get_path('ual_teleop') + '/config/simulate_safety_pilot.yaml'
+        # with open(action_file, 'r') as action_config:
+        #     action_map = yaml.load(action_config)['joy_actions']
+        # self.joy_handle = JoyHandle(joy_name, action_map)
+        self.joy_handle = JoyHandle(joy_name)
         self.rc_simulation = RCSimulation(self.rc_url)
         self.sub_joy = rospy.Subscriber('/joy', Joy, self.joy_callback)
         self.sub_state = rospy.Subscriber(self.state_url, State, self.state_callback)
@@ -97,8 +102,8 @@ class SafetyPilot:
 def main():
     # Parse arguments
     parser = argparse.ArgumentParser(description='Simulate safety pilot. WARNING: use only in simulation!')
-    parser.add_argument('-joy_file', type=str, default=None,
-                        help='Configuration yaml file describing joystick buttons mapping')
+    parser.add_argument('-joy_name', type=str, default=None,
+                        help='Joystick name, must have a equally named .yaml file in ual_teleop/config/joysticks folder')
     parser.add_argument('-id', type=int, default=1,
                         help='robot id')
     args, unknown = parser.parse_known_args()
@@ -113,12 +118,12 @@ def main():
         rospy.logerr("Param /use_sim_time is false: Use safety pilot simulation only in simulation!")
         return
 
-    if args.joy_file is None:
-        default_joy_file = rospkg.RosPack().get_path('ual_teleop') + '/config/saitek_p3200.yaml'
-        rospy.loginfo("Using default joy map file [%s]", default_joy_file)
-        args.joy_file = default_joy_file
+    if args.joy_name is None:
+        default_joy = 'saitek_p3200'
+        rospy.loginfo("Using default joy [%s]", default_joy)
+        args.joy_name = default_joy
 
-    safety_pilot = SafetyPilot(args.joy_file, args.id)
+    safety_pilot = SafetyPilot(args.joy_name, args.id)
     rospy.spin()
 
 if __name__ == '__main__':

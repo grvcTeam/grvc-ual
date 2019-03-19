@@ -18,18 +18,18 @@ joy_actions:
   speed_up:
     id: right_trigger
 
-  throttle:
+  move_up:
     id: left_analog_y
     reversed: false
 
-  yaw:
+  move_yaw:
     id: left_analog_x
-    reversed: false
+    reversed: true
 
-  pitch:
+  move_forward:
     id: right_analog_y
     reversed: false
 
-  roll:
+  move_right:
     id: right_analog_x
-    reversed: false
+    reversed: true

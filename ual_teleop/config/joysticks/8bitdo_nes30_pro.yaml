@@ -1,67 +1,57 @@
 joy_layout:
   a:
-    type: button
-    index: 1
-  b:
-    type: button
     index: 0
+  b:
+    index: 1
   x:
-    type: button
     index: 3
   y:
-    type: button
-    index: 2
-
-  left_shoulder:
-    type: button
     index: 4
 
-  right_shoulder:
-    type: button
-    index: 5
-
-  select:
-    type: button
+  left_shoulder:
     index: 6
 
-  start:
-    type: button
+  right_shoulder:
     index: 7
 
-  left_thumb:
-    type: button
+  left_trigger:
+    index: 8
+
+  right_trigger:
     index: 9
 
-  right_thumb:
-    type: button
+  select:
     index: 10
 
+  start:
+    index: 11
+
+  left_thumb:
+    index: 13
+
+  right_thumb:
+    index: 14
+
   left_analog_x:
-    type: axis
     index: 0
     reversed: true
 
   left_analog_y:
-    type: axis
     index: 1
     reversed: false
 
   right_analog_x:
-    type: axis
-    index: 3
+    index: 2
     reversed: true
 
   right_analog_y:
-    type: axis
-    index: 4
+    index: 3
     reversed: false
 
   dpad_x:
-    type: axis
     index: 6
     reversed: true
 
   dpad_y:
-    type: axis
     index: 7
     reversed: false
