@@ -89,10 +89,10 @@ class JoyHandle:
                 self.act_msg_button_map[key] = {'index': joy_msg_map[id]['index']}
             else:
                 raise ValueError('Unexpected joy axis/button id: {}'.format(id))
-        print 'joy_msg_map: {}'.format(self.joy_msg_map)
-        print 'act_joy_map: {}'.format(act_joy_map)
-        print 'act_msg_axis_map: {}'.format(self.act_msg_axis_map)
-        print 'act_msg_button_map: {}'.format(self.act_msg_button_map)
+        # print 'joy_msg_map: {}'.format(self.joy_msg_map)
+        # print 'act_joy_map: {}'.format(act_joy_map)
+        # print 'act_msg_axis_map: {}'.format(self.act_msg_axis_map)
+        # print 'act_msg_button_map: {}'.format(self.act_msg_button_map)
         return
 
     # TODO: Self-callback?

@@ -1,0 +1,29 @@
+joy_actions:
+
+  throttle:
+    id: left_analog_y
+    reversed: false
+
+  yaw:
+    id: left_analog_x
+    reversed: false
+
+  pitch:
+    id: right_analog_y
+    reversed: false
+
+  roll:
+    id: right_analog_x
+    reversed: false
+
+  secure:
+    id: left_shoulder
+
+  set_mode_pwm_2100:
+    id: x
+
+  set_mode_pwm_1500:
+    id: y
+
+  set_mode_pwm_900:
+    id: b
