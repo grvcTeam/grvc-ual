@@ -37,7 +37,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         <!-- Run safety pilot simulator -->
         <!-- WARNING: Run only in simulation! -->
         <node pkg="ual_teleop" type="simulate_safety_pilot.py" name="safety_pilot" output="screen"
-        args="-id=$(arg id) -joy_file=$(find ual_teleop)/config/saitek_p3200.yaml"/>
+        args="-id=$(arg id) -joy_name=saitek_p3200"/>
     </group>
 
     <!-- Run mavros node -->
