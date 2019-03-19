@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import yaml
 import rospkg
+import rospy
 from enum import Enum
 from sensor_msgs.msg import Joy
 
@@ -76,17 +77,23 @@ class JoyHandle:
         self.joy_msg_map = joy_msg_map
         self.act_msg_axis_map = {}
         self.act_msg_button_map = {}
+        self.unreachable_ids = []
+        self.unreachable_actions = []
 
-        for key, info in act_joy_map.items():
+        for action, info in act_joy_map.items():
             # TODO: Check for already used ids?
             id = info['id']
-            reversed = False
+            if id not in joy_msg_map:
+                self.unreachable_ids.append(id)
+                self.unreachable_actions.append(action)
+                rospy.logwarn("Id [%s] undefined for this joystick, unable to use [%s] action", id, action)
+                continue
             if id in expected_axes:
                 if 'reversed' not in info:
                     info['reversed'] = False
-                self.act_msg_axis_map[key] = {'index': joy_msg_map[id]['index'], 'reversed': (bool(joy_msg_map[id]['reversed']) != bool(info['reversed']))}
+                self.act_msg_axis_map[action] = {'index': joy_msg_map[id]['index'], 'reversed': (bool(joy_msg_map[id]['reversed']) != bool(info['reversed']))}
             elif id in expected_buttons:
-                self.act_msg_button_map[key] = {'index': joy_msg_map[id]['index']}
+                self.act_msg_button_map[action] = {'index': joy_msg_map[id]['index']}
             else:
                 raise ValueError('Unexpected joy axis/button id: {}'.format(id))
         # print 'joy_msg_map: {}'.format(self.joy_msg_map)
@@ -105,6 +112,8 @@ class JoyHandle:
             self.buttons_state[i] = update_button_state(state, self.ros_data.buttons[i])
 
     def get_axis(self, id):
+        if id in self.unreachable_ids:
+            return 0.0
         if id not in expected_axes:
             raise ValueError("Unexpected axis id: {}".format(id))
         if self.joy_msg_map[id]['reversed']:
@@ -113,16 +122,22 @@ class JoyHandle:
             return self.ros_data.axes[self.joy_msg_map[id]['index']]
 
     def get_button(self, id):
+        if id in self.unreachable_ids:
+            return 0
         if id not in expected_buttons:
             raise ValueError("Unexpected button id: {}".format(id))
         return self.ros_data.buttons[self.joy_msg_map[id]['index']]
 
     def get_button_state(self, id):
+        if id in self.unreachable_ids:
+            return ButtonState.RELEASED
         if id not in expected_buttons:
             raise ValueError("Unexpected button id: {}".format(id))
         return self.buttons_state[self.joy_msg_map[id]['index']]
 
     def get_action_axis(self, action):
+        if action in self.unreachable_actions:
+            return 0.0
         if action not in self.act_msg_axis_map:
             raise ValueError("Action {} of type axis is unknown".format(action))
         if self.act_msg_axis_map[action]['reversed']:
@@ -131,11 +146,15 @@ class JoyHandle:
             return self.ros_data.axes[self.act_msg_axis_map[action]['index']]
 
     def get_action_button(self, action):
+        if action in self.unreachable_actions:
+            return 0
         if action not in self.act_msg_button_map:
             raise ValueError("Action {} of type button is unknown".format(action))
         return self.ros_data.buttons[self.act_msg_button_map[action]['index']]
 
     def get_action_button_state(self, action):
+        if action in self.unreachable_actions:
+            return ButtonState.RELEASED
         if action not in self.act_msg_button_map:
             raise ValueError("Action {} of type button is unknown".format(action))
         return self.buttons_state[self.act_msg_button_map[action]['index']]
