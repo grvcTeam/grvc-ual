@@ -80,14 +80,18 @@ class JoyHandle:
         self.unreachable_ids = []
         self.unreachable_actions = []
 
+        found_ids = []
         for action, info in act_joy_map.items():
-            # TODO: Check for already used ids?
             id = info['id']
             if id not in joy_msg_map:
                 self.unreachable_ids.append(id)
                 self.unreachable_actions.append(action)
                 rospy.logwarn("Id [%s] undefined for this joystick, unable to use [%s] action", id, action)
                 continue
+            if id in found_ids:
+                rospy.logwarn("Id [%s] already in use, you may have unexpected behaviours", id)
+            else:
+                found_ids.append(id)
             if id in expected_axes:
                 if 'reversed' not in info:
                     info['reversed'] = False
