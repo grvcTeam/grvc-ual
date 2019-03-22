@@ -204,7 +204,9 @@ bool UAL::setPose(const geometry_msgs::PoseStamped& _pose) {
     if (!backend_->isIdle()) { backend_->abort(false); }
 
     // Function is non-blocking in backend TODO: non-thread-safe-call?
-    backend_->threadSafeCall(&Backend::setPose, _pose);
+    geometry_msgs::PoseStamped ref_pose = _pose;
+    validateOrientation(ref_pose.pose.orientation);
+    backend_->threadSafeCall(&Backend::setPose, ref_pose);
     return true;
 }
 bool UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {
@@ -216,16 +218,18 @@ bool UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {
     // Override any previous FLYING function
     if (!backend_->isIdle()) { backend_->abort(false); }
 
+    geometry_msgs::PoseStamped ref_wp = _wp;
+    validateOrientation(ref_wp.pose.orientation);
     if (_blocking) {
-        if (!backend_->threadSafeCall(&Backend::goToWaypoint, _wp)) {
+        if (!backend_->threadSafeCall(&Backend::goToWaypoint, ref_wp)) {
             ROS_INFO("Blocking goToWaypoint rejected!");
             return false;
         }
     } else {
         if (running_thread_.joinable()) running_thread_.join();
         // Call function on a thread:
-        running_thread_ = std::thread ([this, _wp]() {
-            if (!this->backend_->threadSafeCall(&Backend::goToWaypoint, _wp)) {
+        running_thread_ = std::thread ([this, ref_wp]() {
+            if (!this->backend_->threadSafeCall(&Backend::goToWaypoint, ref_wp)) {
                 ROS_INFO("Non-blocking goToWaypoint rejected!");
             }
         });
@@ -382,6 +386,26 @@ bool UAL::setHome(bool set_z) {
     backend_->setHome(set_z);
 
     return true;
+}
+
+// TODO: inline?
+void UAL::validateOrientation(geometry_msgs::Quaternion& _q) {
+    double norm2 = _q.x*_q.x  + _q.y*_q.y  + _q.z*_q.z  + _q.w*_q.w;
+    if (fabs(norm2 - 1) > 0.01) {  // Threshold for norm2
+        if (norm2 == 0) {  // Exactly 0, set current orientation
+            ROS_INFO("Orientation quaternion norm is zero, holding current orientation");
+            _q = this->pose().pose.orientation;
+        } else {
+            double norm = sqrt(norm2);
+            ROS_WARN("Orientation quaternion norm is %lf, nomalizing it", norm);
+            _q.x /= norm;
+            _q.y /= norm;
+            _q.z /= norm;
+            _q.w /= norm;
+        }
+    }
+    // TODO: Other checks? E.g. yaw-only orientation shoud have x = y = 0
+    // ROS_INFO("q = [%lf, %lf, %lf, %lf]", _q.x, _q.y, _q.z, _q.w);  // Debug!
 }
 
 }}	// namespace grvc::ual

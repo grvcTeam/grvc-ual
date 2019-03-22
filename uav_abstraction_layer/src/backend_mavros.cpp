@@ -60,7 +60,12 @@ BackendMavros::BackendMavros()
     std::string set_vel_topic = mavros_ns + "/setpoint_velocity/cmd_vel";
     std::string pose_topic = mavros_ns + "/local_position/pose";
     std::string geo_pose_topic = mavros_ns + "/global_position/global";
-    std::string vel_topic = mavros_ns + "/local_position/velocity";
+#ifdef MAVROS_VERSION_BELOW_0_29_0
+    std::string vel_topic_local = mavros_ns + "/local_position/velocity";
+#else
+    std::string vel_topic_local = mavros_ns + "/local_position/velocity_local";
+#endif
+    std::string vel_topic_body = mavros_ns + "/local_position/velocity_body";
     std::string state_topic = mavros_ns + "/state";
     std::string extended_state_topic = mavros_ns + "/extended_state";
 
@@ -76,10 +81,19 @@ BackendMavros::BackendMavros()
             this->cur_pose_ = *_msg;
             this->mavros_has_pose_ = true;
     });
-    mavros_cur_vel_sub_ = nh.subscribe<geometry_msgs::TwistStamped>(vel_topic.c_str(), 1, \
+    mavros_cur_vel_sub_ = nh.subscribe<geometry_msgs::TwistStamped>(vel_topic_local.c_str(), 1, \
         [this](const geometry_msgs::TwistStamped::ConstPtr& _msg) {
             this->cur_vel_ = *_msg;
             this->cur_vel_.header.frame_id = this->uav_home_frame_id_;
+#ifdef MAVROS_VERSION_BELOW_0_29_0
+            this->cur_vel_body_ = *_msg;
+            this->cur_vel_body_.header.frame_id = this->uav_frame_id_;
+#endif
+    });
+    mavros_cur_vel_body_sub_ = nh.subscribe<geometry_msgs::TwistStamped>(vel_topic_body.c_str(), 1, \
+        [this](const geometry_msgs::TwistStamped::ConstPtr& _msg) {
+            this->cur_vel_body_ = *_msg;
+            this->cur_vel_body_.header.frame_id = this->uav_frame_id_;
     });
     mavros_cur_geo_pose_sub_ = nh.subscribe<sensor_msgs::NavSatFix>(geo_pose_topic.c_str(), 1, \
         [this](const sensor_msgs::NavSatFix::ConstPtr& _msg) {
@@ -656,7 +670,7 @@ Odometry BackendMavros::odometry() const {
     odom.pose.pose.position.y = cur_pose_.pose.position.y + local_start_pos_[1];
     odom.pose.pose.position.z = cur_pose_.pose.position.z + local_start_pos_[2];
     odom.pose.pose.orientation = cur_pose_.pose.orientation;
-    odom.twist.twist = cur_vel_.twist;
+    odom.twist.twist = cur_vel_body_.twist;
 
     return odom;
 }
@@ -698,9 +712,16 @@ void BackendMavros::initHomeFrame() {
 
     local_start_pos_ << 0.0, 0.0, 0.0;
 
-    // Get frames from rosparam
-    ros::param::param<std::string>("~uav_frame",uav_frame_id_,"uav_" + std::to_string(robot_id_));
-    ros::param::param<std::string>("~uav_home_frame",uav_home_frame_id_, "uav_" + std::to_string(robot_id_) + "_home");
+    // Get frame prefix from namespace
+    std::string ns = ros::this_node::getNamespace();
+    uav_frame_id_ = ns + "/base_link";
+    uav_home_frame_id_ = ns + "/odom";
+    while (uav_frame_id_[0]=='/') {
+        uav_frame_id_.erase(0,1);
+    }
+    while (uav_home_frame_id_[0]=='/') {
+        uav_home_frame_id_.erase(0,1);
+    }
     std::string parent_frame;
     ros::param::param<std::string>("~home_pose_parent_frame", parent_frame, "map");
     
