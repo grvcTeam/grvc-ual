@@ -9,17 +9,17 @@ from uav_abstraction_layer.srv import TakeOff, Land
 from uav_abstraction_layer.msg import State
 from geometry_msgs.msg import TwistStamped, PoseStamped
 
-TeleopState = Enum('TeleopState', 'IDLE VELOCITY_CONTROL POSE_CONTROL')
+TeleopState = Enum('TeleopState', 'MAIN VELOCITY_CONTROL POSE_CONTROL')
 
 class ConsoleInterface(object):
 
     def __init__(self, stdscr):    
         self.screen = stdscr
         self.screen.nodelay(True)
-        # curses.curs_set(0)
-        self.win_y = 2
+        self.header_lines = 1
         self.win_x = 2
-        self.head_y = self.win_y-2
+        self.win_y = self.header_lines+1
+        self.head_y = 0
         self.foot_y = self.win_y+2
         self.win = curses.newwin(1, 16, self.win_y, self.win_x)
         textpad.rectangle(self.screen, self.win_y-1, self.win_x-1, self.win_y+1, self.win_x+16)
@@ -84,7 +84,6 @@ class KeyAxis(object):
 class KeyJoystick(object):
 
     def __init__(self):
-        # self.expected_keys = [curses.KEY_UP, curses.KEY_DOWN, curses.KEY_LEFT, curses.KEY_RIGHT, ord('a'), ord('s'), ord('d'), ord('w')]
         self.axis = {}
         self.axis["move_forward"] = KeyAxis(curses.KEY_UP, curses.KEY_DOWN)
         self.axis["move_right"] = KeyAxis(curses.KEY_RIGHT, curses.KEY_LEFT)
@@ -103,7 +102,6 @@ class KeyJoystick(object):
         output = "[ "
         for key, axis in self.axis.items():
             output += "{:.3f}".format(axis.value) + " "
-            # axis.update()
         output += "]"
         return output
 
@@ -125,9 +123,8 @@ class KeyTeleop(object):
         self.ual_state = State()
         self.uav_pose = PoseStamped()
         self.uav_yaw = 0.0
-        self.telop_state = TeleopState.VELOCITY_CONTROL
+        self.telop_state = TeleopState.MAIN
         # self.headless = False
-        # rospy.Timer(rospy.Duration(0.1), self.timer_callback)  # [s]
 
     def state_callback(self, data):
         self.ual_state = data
@@ -142,26 +139,23 @@ class KeyTeleop(object):
         vel_control_cmd  = "velocity"
         pose_control_cmd = "pose"
         quit_cmd         = "quit"
-        idle_msg = "Idle: [{}] [{}] [{}] [{}] [{}]".format(takeoff_cmd, land_cmd, vel_control_cmd, pose_control_cmd, quit_cmd)
-        velocity_msg = "Velocity control: [q] to return to idle"
-        pose_msg = "Pose control: [q] to return to idle"
-        # move_msg = "[w][s]/[a][d] to move in z/yaw, [arrows] to move forward-backwards-sideways"
+        main_msg = "Main: [{}] [{}] [{}] [{}] [{}]".format(takeoff_cmd, land_cmd, vel_control_cmd, pose_control_cmd, quit_cmd)
+        velocity_msg = "Velocity control: [q] to return to main"
+        pose_msg = "Pose control: [q] to return to main"
         joy = KeyJoystick()
 
         rate = rospy.Rate(10) # [Hz]
         while not rospy.is_shutdown():
             rate.sleep()
-            # self.console.refresh()
-            if self.telop_state == TeleopState.IDLE:
-                self.console.set_header(idle_msg)
+            if self.telop_state == TeleopState.MAIN:
+                self.console.set_header(main_msg)
                 command = self.console.get_string()
-                # print command
                 if command == takeoff_cmd:
                     self.console.set_footer("Taking off...")
-                    # self.take_off(2.0, False)  # TODO(franreal): takeoff height?
+                    self.take_off(2.0, False)  # TODO(franreal): takeoff height? param mode?
                 elif command == land_cmd:
                     self.console.set_footer("Landing...")
-                    # self.land(False)
+                    self.land(False)
                 elif command == vel_control_cmd:
                     self.telop_state = TeleopState.VELOCITY_CONTROL
                 elif command == pose_control_cmd:
@@ -171,14 +165,10 @@ class KeyTeleop(object):
                 else:
                     self.console.set_footer("Unknown command [{}]".format(command))
             else:
-                # self.console.set_footer(move_msg)
                 keycode = self.console.get_key()
                 if keycode == ord('q'):
-                    self.telop_state = TeleopState.IDLE
+                    self.telop_state = TeleopState.MAIN
                     self.console.set_footer("")
-                # if keycode == -1:
-                #     pass
-                # elif keycode in joy.expected_keys:
                 else:
                     joy.press(keycode)
                 self.console.set_footer(str(joy))
@@ -188,63 +178,34 @@ class KeyTeleop(object):
                 vel_cmd = TwistStamped()
                 vel_cmd.header.stamp = rospy.Time.now()
                 vel_cmd.header.frame_id = 'map'
-                x = joy.axis['move_forward'].value
-                y = joy.axis['move_right'].value
-                vel_cmd.twist.linear.x = (x*math.cos(self.uav_yaw) - y*math.sin(self.uav_yaw))
-                vel_cmd.twist.linear.y = (x*math.sin(self.uav_yaw) + y*math.cos(self.uav_yaw))
-                vel_cmd.twist.linear.z = joy.axis['move_up'].value
-                vel_cmd.twist.angular.z = joy.axis['move_yaw'].value
+                vx = +joy.axis['move_forward'].value
+                vy = -joy.axis['move_right'].value
+                vz = +joy.axis['move_up'].value
+                yaw_rate = -joy.axis['move_yaw'].value
+                vel_cmd.twist.linear.x = (vx*math.cos(self.uav_yaw) - vy*math.sin(self.uav_yaw))
+                vel_cmd.twist.linear.y = (vx*math.sin(self.uav_yaw) + vy*math.cos(self.uav_yaw))
+                vel_cmd.twist.linear.z = vz
+                vel_cmd.twist.angular.z = yaw_rate
                 self.velocity_pub.publish(vel_cmd)
 
             if self.telop_state == TeleopState.POSE_CONTROL:
                 self.console.set_header(pose_msg)
-
-    # def timer_callback(self, event):
-    #     # print self.buffer
-
-        # if self.headless == True and (self.joy_handle.get_action_button_state('toggle_headless') is ButtonState.JUST_PRESSED):
-        #     rospy.loginfo("Exiting headless mode")
-        #     self.headless = False
-        # elif self.headless == False and (self.joy_handle.get_action_button_state('toggle_headless') is ButtonState.JUST_PRESSED):
-        #     rospy.loginfo("Entering headless mode")
-        #     self.headless = True
-
-        # if self.joy_handle.get_action_button_state('speed_down') is ButtonState.JUST_PRESSED:
-        #     self.gain_index = self.gain_index - 1 if self.gain_index > 0 else 0
-        #     rospy.loginfo("Speed level: %d", self.gain_index)
-        # if self.joy_handle.get_action_button_state('speed_up') is ButtonState.JUST_PRESSED:
-        #     max_index = len(self.gains_table) - 1
-        #     self.gain_index = self.gain_index + 1 if self.gain_index < max_index else max_index
-        #     rospy.loginfo("Speed level: %d", self.gain_index)
-            
-        # if self.ual_state.state == State.FLYING_AUTO:
-        #     vel_cmd = TwistStamped()
-        #     vel_cmd.header.stamp = rospy.Time.now()
-        #     # TODO: Use frame_id = 'uav_1' in not-headless mode?
-        #     vel_cmd.header.frame_id = 'map'
-        #     if self.headless:
-        #         vel_cmd.twist.linear.x = self.gains_table[self.gain_index] * self.joy_handle.get_action_axis('move_forward')
-        #         vel_cmd.twist.linear.y = self.gains_table[self.gain_index] * self.joy_handle.get_action_axis('move_right')
-        #         vel_cmd.twist.linear.z = self.gains_table[self.gain_index] * self.joy_handle.get_action_axis('move_up')
-        #         vel_cmd.twist.angular.z = self.joy_handle.get_action_axis('move_yaw')
-        #     else:
-        #         x = self.gains_table[self.gain_index] * self.joy_handle.get_action_axis('move_forward')
-        #         y = self.gains_table[self.gain_index] * self.joy_handle.get_action_axis('move_right')
-        #         vel_cmd.twist.linear.x = (x*math.cos(self.uav_yaw) - y*math.sin(self.uav_yaw))
-        #         vel_cmd.twist.linear.y = (x*math.sin(self.uav_yaw) + y*math.cos(self.uav_yaw))
-        #         vel_cmd.twist.linear.z = self.gains_table[self.gain_index] * self.joy_handle.get_action_axis('move_up')
-        #         vel_cmd.twist.angular.z = self.joy_handle.get_action_axis('move_yaw')
-        #     self.velocity_pub.publish(vel_cmd)
-        # del self.buffer[:]
+                pose_cmd = self.uav_pose
+                pose_cmd.header.stamp = rospy.Time.now()
+                # pose_cmd.header.frame_id = 'map'
+                dx = +joy.axis['move_forward'].value
+                dy = -joy.axis['move_right'].value
+                dz = +joy.axis['move_up'].value
+                delta_yaw = -joy.axis['move_yaw'].value
+                pose_cmd.pose.position.x += (dx*math.cos(self.uav_yaw) - dy*math.sin(self.uav_yaw))
+                pose_cmd.pose.position.y += (dx*math.sin(self.uav_yaw) + dy*math.cos(self.uav_yaw))
+                pose_cmd.pose.position.z += dz
+                yaw = self.uav_yaw + delta_yaw
+                pose_cmd.pose.orientation.z = math.sin(0.5*yaw)
+                pose_cmd.pose.orientation.w = math.cos(0.5*yaw)
+                self.pose_pub.publish(pose_cmd)
 
 def main(stdscr):
-    # Parse arguments
-    # parser = argparse.ArgumentParser(description='Teleoperate ual with a joystick')
-    # parser.add_argument('-joy_name', type=str, default=None,
-                        # help='Joystick name, must have a equally named .yaml file in ual_teleop/config/joysticks folder')
-    # args, unknown = parser.parse_known_args()
-    # utils.check_unknown_args(unknown)
-
     rospy.init_node('key_teleop')
 
     console = ConsoleInterface(stdscr)
