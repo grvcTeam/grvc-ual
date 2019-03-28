@@ -30,7 +30,7 @@ class ConsoleInterface(object):
         curses.flushinp()
         return c
 
-    def get_string(self):
+    def get_box(self):
         cmd = self.box.edit().strip()
         return cmd
 
@@ -47,6 +47,10 @@ class ConsoleInterface(object):
         self.screen.move(self.foot_y, 0)
         self.screen.clrtoeol()
         self.screen.addstr(self.foot_y, self.win_x, msg)
+        self.screen.refresh()
+
+    def reset_box(self):
+        self.win.clear()
         self.screen.refresh()
 
 class KeyAxis(object):
@@ -134,12 +138,12 @@ class KeyTeleop(object):
         self.uav_yaw = 2.0 * math.atan2(data.pose.orientation.z, data.pose.orientation.w)
 
     def run(self):
-        takeoff_cmd      = "takeoff"
-        land_cmd         = "land"
-        vel_control_cmd  = "velocity"
-        pose_control_cmd = "pose"
-        quit_cmd         = "quit"
-        main_msg = "Main: [{}] [{}] [{}] [{}] [{}]".format(takeoff_cmd, land_cmd, vel_control_cmd, pose_control_cmd, quit_cmd)
+        takeoff_cmd      = ("takeoff", "t")
+        land_cmd         = ("land", "l")
+        vel_control_cmd  = ("velocity", "v")
+        pose_control_cmd = ("pose", "p")
+        quit_cmd         = ("quit", "q")
+        main_msg = "Main: [{}] [{}] [{}] [{}] [{}]".format(takeoff_cmd[0], land_cmd[0], vel_control_cmd[0], pose_control_cmd[0], quit_cmd[0])
         velocity_msg = "Velocity control: [q] to return to main"
         pose_msg = "Pose control: [q] to return to main"
         joy = KeyJoystick()
@@ -149,18 +153,22 @@ class KeyTeleop(object):
             rate.sleep()
             if self.telop_state == TeleopState.MAIN:
                 self.console.set_header(main_msg)
-                command = self.console.get_string()
-                if command == takeoff_cmd:
+                command = self.console.get_box()
+                if command in takeoff_cmd:
+                    self.console.reset_box()
                     self.console.set_footer("Taking off...")
                     self.take_off(2.0, False)  # TODO(franreal): takeoff height? param mode?
-                elif command == land_cmd:
+                elif command in land_cmd:
+                    self.console.reset_box()
                     self.console.set_footer("Landing...")
                     self.land(False)
-                elif command == vel_control_cmd:
+                elif command in vel_control_cmd:
+                    self.console.reset_box()
                     self.telop_state = TeleopState.VELOCITY_CONTROL
-                elif command == pose_control_cmd:
+                elif command in pose_control_cmd:
+                    self.console.reset_box()
                     self.telop_state = TeleopState.POSE_CONTROL
-                elif command == quit_cmd:
+                elif command in quit_cmd:
                     break
                 else:
                     self.console.set_footer("Unknown command [{}]".format(command))
@@ -171,7 +179,7 @@ class KeyTeleop(object):
                     self.console.set_footer("")
                 else:
                     joy.press(keycode)
-                self.console.set_footer(str(joy))
+                    self.console.set_footer(str(joy))
 
             if self.telop_state == TeleopState.VELOCITY_CONTROL:
                 self.console.set_header(velocity_msg)
