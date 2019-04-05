@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import rospy
-import smach
+# import smach
 import curses
 import time
 # import math
@@ -78,8 +78,11 @@ class ConsoleInterface(object):
         self.screen.refresh()
 
     def reset_box(self):
+        self.screen.move(self.win_y-1, 0)
+        self.screen.clrtoeol()
         textpad.rectangle(self.screen, self.win_y-1, self.win_x-1, self.win_y+1, self.win_x+16)
         self.win.clear()
+        self.screen.move(self.win_y, self.win_x)
         self.screen.refresh()
 
 class KeyAxis(object):
@@ -136,37 +139,39 @@ class KeyJoystick(object):
         output += "]"
         return output
 
-
-class StateOutcome(object):
+class State(object):
     def __init__(self):
-        self.names = []
-        self.labels = {}
+        self.outcomes = []
+        self.out_labels = {}
 
-    def add(self, name):
-        self.names.append(name)
-        self.labels[name] = name
-        self.labels[name[0]] = name  # TODO: Check if repeated
+    def add_outcome(self, name):
+        self.outcomes.append(name)
+        self.out_labels[name] = name
+        self.out_labels[name[0]] = name  # TODO: Check if repeated
 
-class MainState(smach.State):
+    def execute(self):
+        raise NotImplementedError()
+
+class MainState(State):
     def __init__(self, console):
+        State.__init__(self)
         self.console = console
-        self.out = StateOutcome()
-        self.out.add('set_params')
-        self.out.add('takeoff')
-        self.out.add('land')
-        self.out.add('vel')
-        self.out.add('pose')
-        self.out.add('quit')
-        smach.State.__init__(self, outcomes=self.out.names)
+        self.add_outcome('set_params')
+        self.add_outcome('takeoff')
+        self.add_outcome('land')
+        self.add_outcome('vel')
+        self.add_outcome('pose')
+        self.add_outcome('quit')
 
-    def execute(self, userdata):
-        self.console.set_header('Main: {}'.format(self.out.names))
+    def execute(self):
+        main_msg = '[' + '] ['.join(self.outcomes) + ']'
+        self.console.set_header('Main: {}'.format(main_msg))
         self.console.set_footer('')
         self.console.reset_box()
         while not rospy.is_shutdown():
             current_cmd = self.console.get_box()
-            if current_cmd in self.out.labels:
-                return self.out.labels[current_cmd]
+            if current_cmd in self.out_labels:
+                return self.out_labels[current_cmd]
             self.console.set_footer('Unknown command [{}]'.format(current_cmd))
 
 def set_param(param, console):
@@ -182,34 +187,37 @@ def set_param(param, console):
     except ValueError:
         console.set_footer("Invalid value [{}]".format(value))
 
-class SetParamsState(smach.State):
+class SetParamsState(State):
     def __init__(self, console):
+        State.__init__(self)
+        self.add_outcome('quit')
         self.console = console
-        smach.State.__init__(self, outcomes=['quit'])
 
-    def execute(self, userdata):
-        params = StateOutcome()
+    def execute(self):
+        params = State()
         for p in global_params:
-            params.add(p)
+            params.add_outcome(p)
         self.console.set_footer('')
         self.console.reset_box()
         while not rospy.is_shutdown():
-            self.console.set_header('Set params: {} or {}'.format(params.names, 'quit'))
+            param_msg = '[' + '] ['.join(params.outcomes) + ']'
+            self.console.set_header('Set param: {} [{}]'.format(param_msg, 'quit'))
             current_cmd = self.console.get_box()
             if current_cmd in ('quit', 'q'):
                 return 'quit'
-            if current_cmd in params.labels:
-                cmd = params.labels[current_cmd]
+            if current_cmd in params.out_labels:
+                cmd = params.out_labels[current_cmd]
                 set_param(global_params[cmd], self.console)
             else :
                 self.console.set_footer('Unknown command [{}]'.format(current_cmd))
 
-class TakeoffState(smach.State):
+class TakeoffState(State):
     def __init__(self, console):
+        State.__init__(self)
+        self.add_outcome('quit')
         self.console = console
-        smach.State.__init__(self, outcomes=['quit'])
 
-    def execute(self, userdata):
+    def execute(self):
         z_takeoff = global_params['z_takeoff'].val
         self.console.set_header('Taking off at {} [m]...'.format(z_takeoff))
         self.console.set_footer('')
@@ -218,12 +226,13 @@ class TakeoffState(smach.State):
         # Call takeoff (blocking?)
         return 'quit'
 
-class LandState(smach.State):
+class LandState(State):
     def __init__(self, console):
+        State.__init__(self)
+        self.add_outcome('quit')
         self.console = console
-        smach.State.__init__(self, outcomes=['quit'])
 
-    def execute(self, userdata):
+    def execute(self):
         self.console.set_header('Landing...')
         self.console.set_footer('')
         self.console.reset_box()
@@ -231,12 +240,13 @@ class LandState(smach.State):
         # Call land (blocking?)
         return 'quit'
 
-class VelState(smach.State):
+class VelState(State):
     def __init__(self, console):
+        State.__init__(self)
+        self.add_outcome('quit')
         self.console = console
-        smach.State.__init__(self, outcomes=['quit'])
 
-    def execute(self, userdata):
+    def execute(self):
         self.console.set_header('Velocity control: [q] to quit to main')
         self.console.set_footer('')
         self.console.reset_box()
@@ -251,12 +261,13 @@ class VelState(smach.State):
                 joy.press(keycode)
                 self.console.set_footer(str(joy))
 
-class PoseState(smach.State):
+class PoseState(State):
     def __init__(self, console):
+        State.__init__(self)
+        self.add_outcome('quit')
         self.console = console
-        smach.State.__init__(self, outcomes=['quit'])
 
-    def execute(self, userdata):
+    def execute(self):
         self.console.set_header('Pose control: [q] to quit to main')
         self.console.set_footer('')
         self.console.reset_box()
@@ -270,6 +281,30 @@ class PoseState(smach.State):
             else:
                 joy.press(keycode)
                 self.console.set_footer(str(joy))
+
+class StateMachine(object):
+    def __init__(self):
+        self.states = {}
+        self.transitions = {}
+        self.current_state = ''
+        self.final_state = ''
+
+    def set_current_state(self, state_label):
+        self.current_state = state_label
+
+    def set_final_state(self, state_label):
+        self.final_state = state_label
+
+    def add(self, state_label, state_object, transitions):
+        self.states[state_label] = state_object
+        self.transitions[state_label] = transitions
+
+    def execute(self):
+        while not rospy.is_shutdown():
+            out = self.states[self.current_state].execute()
+            self.current_state = self.transitions[self.current_state][out]
+            if self.final_state == self.current_state:
+                break
 
 # def main(stdscr):
     # rospy.init_node('key_teleop')
@@ -285,31 +320,32 @@ def main(stdscr):
     rospy.init_node('key_teleop', log_level=rospy.DEBUG)
     
     console = ConsoleInterface(stdscr)
-    sm = smach.StateMachine(outcomes=['end'])
-    with sm:
-        smach.StateMachine.add('MAIN', MainState(console), 
-                               transitions={'set_params':'PARAMS', 
-                                            'takeoff':'TAKEOFF', 
-                                            'land':'LAND', 
-                                            'vel':'VEL', 
-                                            'pose':'POSE', 
-                                            'quit':'end'})
+    sm = StateMachine()
+    sm.add('MAIN', MainState(console),
+            transitions={'set_params':'PARAMS', 
+                         'takeoff':'TAKEOFF', 
+                         'land':'LAND', 
+                         'vel':'VEL', 
+                         'pose':'POSE', 
+                         'quit':'END'})
 
-        smach.StateMachine.add('PARAMS', SetParamsState(console), 
-                               transitions={'quit':'MAIN'})
+    sm.add('PARAMS', SetParamsState(console), 
+            transitions={'quit':'MAIN'})
 
-        smach.StateMachine.add('TAKEOFF', TakeoffState(console), 
-                               transitions={'quit':'MAIN'})
+    sm.add('TAKEOFF', TakeoffState(console), 
+            transitions={'quit':'MAIN'})
 
-        smach.StateMachine.add('LAND', LandState(console), 
-                               transitions={'quit':'MAIN'})
+    sm.add('LAND', LandState(console), 
+            transitions={'quit':'MAIN'})
 
-        smach.StateMachine.add('VEL', VelState(console), 
-                               transitions={'quit':'MAIN'})
+    sm.add('VEL', VelState(console), 
+            transitions={'quit':'MAIN'})
 
-        smach.StateMachine.add('POSE', PoseState(console), 
-                               transitions={'quit':'MAIN'})
+    sm.add('POSE', PoseState(console), 
+            transitions={'quit':'MAIN'})
 
+    sm.set_current_state('MAIN')
+    sm.set_final_state('END')
     sm.execute()
 
 
