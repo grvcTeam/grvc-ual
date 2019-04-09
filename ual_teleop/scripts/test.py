@@ -37,8 +37,8 @@ global_params = collections.OrderedDict()
 global_params['z_takeoff'] = NumericalParam('z_takeoff', 0.0, 5.0, 2.0)
 global_params['vel_mul'] = NumericalParam('vel_mul', 0.0, 3.0, 1.0)
 global_params['rate_mul'] = NumericalParam('rate_mul', 0.0, 3.0, 1.0)
-global_params['xyz_mul'] = NumericalParam('xyz_mul', 0.0, 3.0, 1.0)
-global_params['yaw_mul'] = NumericalParam('xyz_mul', 0.0, 3.0, 1.0)
+global_params['xyz_mul'] = NumericalParam('xyz_mul', 0.0, 0.3, 0.1)
+global_params['yaw_mul'] = NumericalParam('xyz_mul', 0.0, 0.3, 0.1)
 
 class ConsoleInterface(object):
     def __init__(self, stdscr):    
@@ -270,7 +270,7 @@ class VelState(State):
                 return 'quit'
             else:
                 joy.press(keycode)
-                self.console.set_footer(str(joy))
+                self.console.set_footer('axes: ' + str(joy))
                 vel_mul = global_params['vel_mul'].val
                 rate_mul = global_params['rate_mul'].val
                 vel_cmd = TwistStamped()
@@ -306,6 +306,7 @@ class PoseState(State):
         self.console.reset_box()
         joy = KeyJoystick()
         rate = rospy.Rate(10)  # [Hz]
+        pose_cmd = self.uav_pose
         while not rospy.is_shutdown():
             rate.sleep()
             keycode = self.console.get_key()
@@ -313,10 +314,9 @@ class PoseState(State):
                 return 'quit'
             else:
                 joy.press(keycode)
-                self.console.set_footer(str(joy))
+                self.console.set_footer('axes: ' + str(joy))
                 xyz_mul = global_params['xyz_mul'].val
                 yaw_mul = global_params['yaw_mul'].val
-                pose_cmd = self.uav_pose
                 pose_cmd.header.stamp = rospy.Time.now()
                 # pose_cmd.header.frame_id = 'map'
                 dx = +xyz_mul * joy.axis['move_forward'].value
