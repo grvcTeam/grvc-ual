@@ -35,10 +35,10 @@ class NumericalParam(object):
 
 global_params = collections.OrderedDict()
 global_params['z_takeoff'] = NumericalParam('z_takeoff', 0.0, 5.0, 2.0)
-global_params['vel_max'] = NumericalParam('vel_max', 0.0, 3.0, 1.0)
-global_params['rate_max'] = NumericalParam('rate_max', 0.0, 3.0, 1.0)
-global_params['xyz_step'] = NumericalParam('xyz_step', 0.0, 3.0, 1.0)
-global_params['yaw_step'] = NumericalParam('xyz_step', 0.0, 3.0, 1.0)
+global_params['vel_mul'] = NumericalParam('vel_mul', 0.0, 3.0, 1.0)
+global_params['rate_mul'] = NumericalParam('rate_mul', 0.0, 3.0, 1.0)
+global_params['xyz_mul'] = NumericalParam('xyz_mul', 0.0, 3.0, 1.0)
+global_params['yaw_mul'] = NumericalParam('xyz_mul', 0.0, 3.0, 1.0)
 
 class ConsoleInterface(object):
     def __init__(self, stdscr):    
@@ -271,15 +271,15 @@ class VelState(State):
             else:
                 joy.press(keycode)
                 self.console.set_footer(str(joy))
-                vel_max = global_params['vel_max'].val
-                rate_max = global_params['rate_max'].val
+                vel_mul = global_params['vel_mul'].val
+                rate_mul = global_params['rate_mul'].val
                 vel_cmd = TwistStamped()
                 vel_cmd.header.stamp = rospy.Time.now()
                 vel_cmd.header.frame_id = 'map'
-                vx = +vel_max * joy.axis['move_forward'].value
-                vy = -vel_max * joy.axis['move_right'].value
-                vz = +vel_max * joy.axis['move_up'].value
-                yaw_rate = -rate_max * joy.axis['move_yaw'].value
+                vx = +vel_mul * joy.axis['move_forward'].value
+                vy = -vel_mul * joy.axis['move_right'].value
+                vz = +vel_mul * joy.axis['move_up'].value
+                yaw_rate = -rate_mul * joy.axis['move_yaw'].value
                 vel_cmd.twist.linear.x = (vx*math.cos(self.uav_yaw) - vy*math.sin(self.uav_yaw))
                 vel_cmd.twist.linear.y = (vx*math.sin(self.uav_yaw) + vy*math.cos(self.uav_yaw))
                 vel_cmd.twist.linear.z = vz
@@ -314,15 +314,15 @@ class PoseState(State):
             else:
                 joy.press(keycode)
                 self.console.set_footer(str(joy))
-                xyz_step = global_params['xyz_step'].val
-                yaw_step = global_params['yaw_step'].val
+                xyz_mul = global_params['xyz_mul'].val
+                yaw_mul = global_params['yaw_mul'].val
                 pose_cmd = self.uav_pose
                 pose_cmd.header.stamp = rospy.Time.now()
                 # pose_cmd.header.frame_id = 'map'
-                dx = +xyz_step * joy.axis['move_forward'].value
-                dy = -xyz_step * joy.axis['move_right'].value
-                dz = +xyz_step * joy.axis['move_up'].value
-                delta_yaw = -yaw_step * joy.axis['move_yaw'].value
+                dx = +xyz_mul * joy.axis['move_forward'].value
+                dy = -xyz_mul * joy.axis['move_right'].value
+                dz = +xyz_mul * joy.axis['move_up'].value
+                delta_yaw = -yaw_mul * joy.axis['move_yaw'].value
                 pose_cmd.pose.position.x += (dx*math.cos(self.uav_yaw) - dy*math.sin(self.uav_yaw))
                 pose_cmd.pose.position.y += (dx*math.sin(self.uav_yaw) + dy*math.cos(self.uav_yaw))
                 pose_cmd.pose.position.z += dz
