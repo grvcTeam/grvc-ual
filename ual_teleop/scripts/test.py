@@ -1,16 +1,13 @@
 #!/usr/bin/env python
 
 import rospy
-# import smach
 import curses
 import time
-# import math
+import math
 import collections
 from curses import textpad
-# from enum import Enum
-# from uav_abstraction_layer.srv import TakeOff, Land
-# from uav_abstraction_layer.msg import State
-# from geometry_msgs.msg import TwistStamped, PoseStamped
+from uav_abstraction_layer.srv import TakeOff, Land
+from geometry_msgs.msg import TwistStamped, PoseStamped
 
 class NumericalParam(object):
     def __init__(self, name, min_value, max_value, value):
@@ -216,14 +213,17 @@ class TakeoffState(State):
         State.__init__(self)
         self.add_outcome('quit')
         self.console = console
+        take_off_url = 'ual/take_off'
+        # rospy.wait_for_service(take_off_url)
+        self.take_off = rospy.ServiceProxy(take_off_url, TakeOff)
 
     def execute(self):
         z_takeoff = global_params['z_takeoff'].val
         self.console.set_header('Taking off at {} [m]...'.format(z_takeoff))
         self.console.set_footer('')
         self.console.reset_box()
-        time.sleep(2)
-        # Call takeoff (blocking?)
+        # time.sleep(2)
+        self.take_off(z_takeoff, True)  # TODO: Non-blocking?
         return 'quit'
 
 class LandState(State):
@@ -231,13 +231,16 @@ class LandState(State):
         State.__init__(self)
         self.add_outcome('quit')
         self.console = console
+        land_url = 'ual/land'
+        # rospy.wait_for_service(land_url)
+        self.land = rospy.ServiceProxy(land_url, Land)
 
     def execute(self):
         self.console.set_header('Landing...')
         self.console.set_footer('')
         self.console.reset_box()
-        time.sleep(2)
-        # Call land (blocking?)
+        # time.sleep(2)
+        self.land(True)  # TODO: Non-blocking?
         return 'quit'
 
 class VelState(State):
@@ -245,6 +248,14 @@ class VelState(State):
         State.__init__(self)
         self.add_outcome('quit')
         self.console = console
+        self.uav_pose = PoseStamped()
+        self.uav_yaw = 0.0
+        self.pose_sub = rospy.Subscriber('ual/pose', PoseStamped, self.pose_callback)
+        self.velocity_pub = rospy.Publisher('ual/set_velocity', TwistStamped, queue_size=1)
+
+    def pose_callback(self, data):
+        self.uav_pose = data
+        self.uav_yaw = 2.0 * math.atan2(data.pose.orientation.z, data.pose.orientation.w)
 
     def execute(self):
         self.console.set_header('Velocity control: [q] to quit to main')
@@ -260,12 +271,34 @@ class VelState(State):
             else:
                 joy.press(keycode)
                 self.console.set_footer(str(joy))
+                vel_max = global_params['vel_max'].val
+                rate_max = global_params['rate_max'].val
+                vel_cmd = TwistStamped()
+                vel_cmd.header.stamp = rospy.Time.now()
+                vel_cmd.header.frame_id = 'map'
+                vx = +vel_max * joy.axis['move_forward'].value
+                vy = -vel_max * joy.axis['move_right'].value
+                vz = +vel_max * joy.axis['move_up'].value
+                yaw_rate = -rate_max * joy.axis['move_yaw'].value
+                vel_cmd.twist.linear.x = (vx*math.cos(self.uav_yaw) - vy*math.sin(self.uav_yaw))
+                vel_cmd.twist.linear.y = (vx*math.sin(self.uav_yaw) + vy*math.cos(self.uav_yaw))
+                vel_cmd.twist.linear.z = vz
+                vel_cmd.twist.angular.z = yaw_rate
+                self.velocity_pub.publish(vel_cmd)
 
 class PoseState(State):
     def __init__(self, console):
         State.__init__(self)
         self.add_outcome('quit')
         self.console = console
+        self.uav_pose = PoseStamped()
+        self.uav_yaw = 0.0
+        self.pose_sub = rospy.Subscriber('ual/pose', PoseStamped, self.pose_callback)
+        self.pose_pub = rospy.Publisher('ual/set_pose', PoseStamped, queue_size=1)
+
+    def pose_callback(self, data):
+        self.uav_pose = data
+        self.uav_yaw = 2.0 * math.atan2(data.pose.orientation.z, data.pose.orientation.w)
 
     def execute(self):
         self.console.set_header('Pose control: [q] to quit to main')
@@ -281,6 +314,22 @@ class PoseState(State):
             else:
                 joy.press(keycode)
                 self.console.set_footer(str(joy))
+                xyz_step = global_params['xyz_step'].val
+                yaw_step = global_params['yaw_step'].val
+                pose_cmd = self.uav_pose
+                pose_cmd.header.stamp = rospy.Time.now()
+                # pose_cmd.header.frame_id = 'map'
+                dx = +xyz_step * joy.axis['move_forward'].value
+                dy = -xyz_step * joy.axis['move_right'].value
+                dz = +xyz_step * joy.axis['move_up'].value
+                delta_yaw = -yaw_step * joy.axis['move_yaw'].value
+                pose_cmd.pose.position.x += (dx*math.cos(self.uav_yaw) - dy*math.sin(self.uav_yaw))
+                pose_cmd.pose.position.y += (dx*math.sin(self.uav_yaw) + dy*math.cos(self.uav_yaw))
+                pose_cmd.pose.position.z += dz
+                yaw = self.uav_yaw + delta_yaw
+                pose_cmd.pose.orientation.z = math.sin(0.5*yaw)
+                pose_cmd.pose.orientation.w = math.cos(0.5*yaw)
+                self.pose_pub.publish(pose_cmd)
 
 class StateMachine(object):
     def __init__(self):
@@ -306,18 +355,9 @@ class StateMachine(object):
             if self.final_state == self.current_state:
                 break
 
-# def main(stdscr):
-    # rospy.init_node('key_teleop')
-
-    # console = ConsoleInterface(stdscr)
-    # teleop = KeyTeleop(console)
-
-    # rospy.Subscriber('ual/state', State, teleop.state_callback)
-    # rospy.Subscriber('ual/pose', PoseStamped, teleop.pose_callback)
-    # teleop.run()
 
 def main(stdscr):
-    rospy.init_node('key_teleop', log_level=rospy.DEBUG)
+    rospy.init_node('key_teleop')
     
     console = ConsoleInterface(stdscr)
     sm = StateMachine()
