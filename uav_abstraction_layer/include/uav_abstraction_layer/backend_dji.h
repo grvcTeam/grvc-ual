@@ -23,7 +23,7 @@
 
 #include <thread>
 // #include <deque>
-// #include <Eigen/Core>
+#include <Eigen/Core>
 
 #include <uav_abstraction_layer/backend.h>
 #include <ros/ros.h>
@@ -59,47 +59,75 @@ typedef double Quaterniond [4];
 
 namespace grvc { namespace ual {
 
-// class HistoryBuffer {  // TODO: template? utils?
-// public:
-//     void set_size(size_t _size) { buffer_size_ = _size; }
+class DjiHistoryBuffer {  // TODO: template? utils?
+public:
+    void set_size(size_t _size) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        buffer_size_ = _size;
+        buffer_.clear();
+        current_ = 0;
+    }
 
-//     void reset() {
-//         std::lock_guard<std::mutex> lock(mutex_);
-//         buffer_.clear();
-//     }
+    void reset() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        buffer_.clear();
+        current_ = 0;
+    }
 
-//     void update(double _value) {
-//         std::lock_guard<std::mutex> lock(mutex_);
-//         buffer_.push_back(_value);
-//         if (buffer_.size() > buffer_size_) {
-//             buffer_.pop_front();
-//         }
-//     }
+    void update(double _value) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (buffer_.size() < buffer_size_) {
+            buffer_.push_back(_value);
+        } else {
+            buffer_[current_] = _value;
+            current_ = (current_ + 1) % buffer_size_;
+        }
+    }
 
-//     bool metrics(double& _min, double& _mean, double& _max) {
-//         std::lock_guard<std::mutex> lock(mutex_);
-//         if (buffer_.size() >= buffer_size_) {
-//             double min_value = +std::numeric_limits<double>::max();
-//             double max_value = -std::numeric_limits<double>::max();
-//             double sum = 0;
-//             for (int i = 0; i < buffer_.size(); i++) {
-//                 if (buffer_[i] < min_value) { min_value = buffer_[i]; }
-//                 if (buffer_[i] > max_value) { max_value = buffer_[i]; }
-//                 sum += buffer_[i];
-//             }
-//             _min = min_value;
-//             _max = max_value;
-//             _mean = sum / buffer_.size();
-//             return true;
-//         }
-//         return false;
-//     }
+    bool get_stats(double& _min, double& _mean, double& _max) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (buffer_.size() >= buffer_size_) {
+            double min_value = +std::numeric_limits<double>::max();
+            double max_value = -std::numeric_limits<double>::max();
+            double sum = 0;
+            for (int i = 0; i < buffer_.size(); i++) {
+                if (buffer_[i] < min_value) { min_value = buffer_[i]; }
+                if (buffer_[i] > max_value) { max_value = buffer_[i]; }
+                sum += buffer_[i];
+            }
+            _min = min_value;
+            _max = max_value;
+            _mean = sum / buffer_.size();
+            return true;
+        }
+        return false;
+    }
 
-// protected:
-//     size_t buffer_size_ = 0;
-//     std::deque<double> buffer_;
-//     std::mutex mutex_;
-// };
+    bool get_variance(double& _var) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (buffer_.size() >= buffer_size_) {
+            double mean = 0;
+            double sum = 0;
+            _var = 0;
+            for (int i = 0; i < buffer_.size(); i++) {
+                sum += buffer_[i];
+            }
+            mean = sum / buffer_.size();
+            for (int i = 0; i < buffer_.size(); i++) {
+                _var += (buffer_[i]-mean)*(buffer_[i]-mean);
+            }
+            return true;
+        }
+        return false;
+    }
+
+protected:
+    size_t buffer_size_ = 0;
+    unsigned int current_ = 0;
+    std::vector<double> buffer_;
+    std::mutex mutex_;
+};
+
  
 class BackendDji : public Backend {
 
@@ -150,34 +178,13 @@ private:
     void controlThread();
     void setArmed(bool _value);
     // void initHomeFrame();
-    // bool referencePoseReached();
+    bool referencePoseReached();
     // void setFlightMode(const std::string& _flight_mode);
     State guessState();
     
     void Quaternion2EulerAngle(const geometry_msgs::Pose::_orientation_type& _q, double& _roll, double& _pitch, double& _yaw);
     bool altimeter_fail(void);
-
-
-// {
-// 	// roll (x-axis rotation)
-// 	double sinr = +2.0 * (q.w() * q.x() + q.y() * q.z());
-// 	double cosr = +1.0 - 2.0 * (q.x() * q.x() + q.y() * q.y());
-// 	roll = atan2(sinr, cosr);
-
-// 	// pitch (y-axis rotation)
-// 	double sinp = +2.0 * (q.w() * q.y() - q.z() * q.x());
-// 	if (fabs(sinp) >= 1)
-// 		pitch = copysign(M_PI / 2, sinp); // use 90 degrees if out of range
-// 	else
-// 		pitch = asin(sinp);
-
-// 	// yaw (z-axis rotation)
-// 	double siny = +2.0 * (q.w() * q.z() + q.x() * q.y());
-// 	double cosy = +1.0 - 2.0 * (q.y() * q.y() + q.z() * q.z());  
-// 	yaw = atan2(siny, cosy);
-// }
-    
-    
+  
     void goHome();
 
     geometry_msgs::PoseStamped reference_pose_;
@@ -188,14 +195,17 @@ private:
     sensor_msgs::NavSatFix     reference_pose_global_;
     geometry_msgs::TwistStamped reference_vel_;
     geometry_msgs::TwistStamped current_vel_;
-    // mavros_msgs::State mavros_state_;
-    // mavros_msgs::ExtendedState mavros_extended_state_;
 
     geometry_msgs::PointStamped current_position_;
     sensor_msgs::NavSatFix      current_position_global_;
     geometry_msgs::Vector3Stamped current_linear_velocity_;
     geometry_msgs::Vector3Stamped current_angular_velocity_;
     geometry_msgs::QuaternionStamped current_attitude_;
+
+    geometry_msgs::PoseStamped  cur_pose_;
+    // geometry_msgs::PoseStamped  ref_pose_;
+    geometry_msgs::TwistStamped cur_vel_;
+
     std_msgs::UInt8 flight_status_;
     std_msgs::UInt8 display_mode_;
     std_msgs::Float64 current_laser_altitude_;
@@ -209,8 +219,14 @@ private:
     float vel_factor;
     bool laser_altimeter;
     bool self_arming;
-    // HistoryBuffer position_error_;
-    // HistoryBuffer orientation_error_;
+
+    float mpc_xy_vel_max;
+    float mpc_z_vel_max_up;
+    float mpc_z_vel_max_dn;
+    float mc_yawrate_max;
+
+    DjiHistoryBuffer position_error_;
+    DjiHistoryBuffer orientation_error_;
 
     /// Ros Communication
     ros::ServiceClient activation_client_;
@@ -223,6 +239,12 @@ private:
     ros::ServiceClient mission_waypoint_action_client;
 
     ros::Publisher flight_control_pub_;
+    
+    //test publishers
+    ros::Publisher lookahead_pub;
+    ros::Publisher ref_pose_pub;
+    ros::Publisher offset_y_pub;
+    
     
     ros::Subscriber position_sub_;
     ros::Subscriber position_global_sub_;
