@@ -102,6 +102,8 @@ protected:
 
     int robot_id_;
     bool id_is_unique_;
+
+    void validateOrientation(geometry_msgs::Quaternion& _q);
 };
 
 }}	// namespace grvc::ual

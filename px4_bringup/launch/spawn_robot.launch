@@ -23,6 +23,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     <arg name="y" default="0"/>
     <arg name="z" default="0"/>
     <arg name="yaw" default="0"/>
+    <arg name="rtcm_topic" default=""/>
 
     <group if="$(eval mode == 'sitl')">
         <!-- Spawn model in Gazebo -->
@@ -37,11 +38,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         <!-- Run safety pilot simulator -->
         <!-- WARNING: Run only in simulation! -->
         <node pkg="ual_teleop" type="simulate_safety_pilot.py" name="safety_pilot" output="screen"
-        args="-id=$(arg id) -joy_file=$(find ual_teleop)/config/saitek_p3200.yaml"/>
+        args="-id=$(arg id) -joy_name=saitek_p3200"/>
     </group>
 
     <!-- Run mavros node -->
     <node pkg="px4_bringup" type="run_mavros.py" name="run_mavros_$(arg id)" output="screen"
-    args="-id=$(arg id) -mode=$(arg mode) -target_ip=$(arg target_ip) -own_ip=$(arg own_ip) -fcu_url=$(arg fcu_url) -gcs_url=$(arg gcs_url)" />
+    args="-id=$(arg id) -mode=$(arg mode) -target_ip=$(arg target_ip) -own_ip=$(arg own_ip) -fcu_url=$(arg fcu_url) -gcs_url=$(arg gcs_url) -rtcm_topic=$(arg rtcm_topic)" />
 
 </launch>

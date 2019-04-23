@@ -1,0 +1,35 @@
+joy_actions:
+
+  secure:
+    id: left_shoulder
+
+  take_off:
+    id: x
+
+  land:
+    id: b
+
+  toggle_headless:
+    id: right_shoulder
+
+  speed_down:
+    id: left_trigger
+
+  speed_up:
+    id: right_trigger
+
+  move_up:
+    id: left_analog_y
+    reversed: false
+
+  move_yaw:
+    id: left_analog_x
+    reversed: true
+
+  move_forward:
+    id: right_analog_y
+    reversed: false
+
+  move_right:
+    id: right_analog_x
+    reversed: true

@@ -173,6 +173,7 @@ private:
     sensor_msgs::NavSatFix      cur_geo_pose_;
     geometry_msgs::TwistStamped ref_vel_;
     geometry_msgs::TwistStamped cur_vel_;
+    geometry_msgs::TwistStamped cur_vel_body_;
     mavros_msgs::State          mavros_state_;
     mavros_msgs::ExtendedState  mavros_extended_state_;
 
@@ -196,6 +197,7 @@ private:
     ros::Subscriber mavros_cur_pose_sub_;
     ros::Subscriber mavros_cur_geo_pose_sub_;
     ros::Subscriber mavros_cur_vel_sub_;
+    ros::Subscriber mavros_cur_vel_body_sub_;
     ros::Subscriber mavros_cur_state_sub_;
     ros::Subscriber mavros_cur_extended_state_sub_;
 
