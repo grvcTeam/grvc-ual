@@ -47,7 +47,7 @@ BackendDji::BackendDji()
     pnh.param<std::string>("pose_frame_id", pose_frame_id_, "");
     float position_th_param, orientation_th_param;
     pnh.param<float>("position_th", position_th_param, 0.33);
-    pnh.param<float>("orientation_th", orientation_th_param, 0.65);
+    pnh.param<float>("orientation_th", orientation_th_param, 0.6);
     position_th_ = position_th_param*position_th_param;
     orientation_th_ = 0.5*(1 - cos(orientation_th_param));
 
@@ -702,8 +702,11 @@ void BackendDji::goToWaypoint(const Waypoint& _world) {
         ros::Rate rate(30);  // [Hz]
         float next_to_final_distance = linear_distance;
         float lookahead = 0.05;
+        float error_xy_vel;
         
-        std_msgs::Float64 lookah;
+        //test
+        std_msgs::Float64 msg_lookahead;
+        ///
 
         while (next_to_final_distance > linear_threshold && !abort_ && ros::ok()) {
             float current_xy_vel = sqrt(cur_vel_.twist.linear.x*cur_vel_.twist.linear.x + cur_vel_.twist.linear.y*cur_vel_.twist.linear.y);
@@ -713,8 +716,10 @@ void BackendDji::goToWaypoint(const Waypoint& _world) {
                 if (current_z_vel < 0.95*mpc_z_vel_max) { lookahead += 0.05; }  // TODO: Other thesholds, other update politics?
                 // ROS_INFO("current_z_vel = %f", current_z_vel);
             } else {
-                if (current_xy_vel > 1.0*mpc_xy_vel_max) { lookahead -= 0.05; }  // TODO: Other thesholds, other update politics?
-                if (current_xy_vel < 0.95*mpc_xy_vel_max) { lookahead += 0.05; }  // TODO: Other thesholds, other update politics?
+                // if (current_xy_vel > 1.0*mpc_xy_vel_max) { lookahead -= 0.05; }  // TODO: Other thesholds, other update politics?
+                // if (current_xy_vel < 0.95*mpc_xy_vel_max) { lookahead += 0.05; }  // TODO: Other thesholds, other update politics?
+                error_xy_vel = mpc_xy_vel_max - current_xy_vel;
+                lookahead += 0.05*error_xy_vel;
                 // ROS_INFO("current_xy_vel = %f", current_xy_vel);
             }
             PurePursuitOutput pp = DjiPurePursuit(cur_pose_.pose.position, initial_position, final_position, lookahead);
@@ -732,8 +737,8 @@ void BackendDji::goToWaypoint(const Waypoint& _world) {
             // ROS_INFO("next_to_final_distance = %f", next_to_final_distance);
 
             //test
-            lookah.data = lookahead;
-            lookahead_pub.publish(lookah);
+            msg_lookahead.data = lookahead;
+            lookahead_pub.publish(msg_lookahead);
             ///
 
             rate.sleep();
