@@ -52,7 +52,7 @@ BackendDji::BackendDji()
     orientation_th_ = 0.5*(1 - cos(orientation_th_param));
 
     float vel_factor_param;
-    pnh.param<float>("vel_factor", vel_factor_param, 0.6);
+    pnh.param<float>("vel_factor", vel_factor_param, 0.7);
     vel_factor_max = vel_factor_param;
     
     pnh.param<bool>("laser_altimeter", laser_altimeter, false);
@@ -732,9 +732,10 @@ void BackendDji::goToWaypoint(const Waypoint& _world) {
 
             error_xy_vel = mpc_xy_vel_max - current_xy_vel;
             if (error_xy_vel > 0 && vel_factor < vel_factor_max) {
-                vel_factor += 0.0025*error_xy_vel;
+                vel_factor += 0.003;
+                // vel_factor += 0.0025*error_xy_vel;
             } else if (error_xy_vel < 0.2) {
-                vel_factor -= 0.001;
+                // vel_factor -= 0.001;
             }
 
 
