@@ -190,8 +190,11 @@ private:
     geometry_msgs::PoseStamped reference_pose_;
     double offset_x;
     double offset_y;
-    // std_msgs::Float64 offset_x;
-    // std_msgs::Float64 offset_y;
+    double offset_xy;
+
+    double offset_x1;
+    double offset_y1;
+
     sensor_msgs::NavSatFix     reference_pose_global_;
     geometry_msgs::TwistStamped reference_vel_;
     geometry_msgs::TwistStamped current_vel_;
@@ -217,6 +220,7 @@ private:
     float position_th_;
     float orientation_th_;
     float vel_factor;
+    float vel_factor_max;
     bool laser_altimeter;
     bool self_arming;
 

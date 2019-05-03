@@ -53,7 +53,7 @@ BackendDji::BackendDji()
 
     float vel_factor_param;
     pnh.param<float>("vel_factor", vel_factor_param, 0.6);
-    vel_factor = vel_factor_param;
+    vel_factor_max = vel_factor_param;
     
     pnh.param<bool>("laser_altimeter", laser_altimeter, false);
     pnh.param<bool>("self_arming", self_arming, false);
@@ -230,8 +230,11 @@ void BackendDji::controlThread() {
 
             offset_x = reference_pose_.pose.position.x - current_position_.point.x;
             offset_y = reference_pose_.pose.position.y - current_position_.point.y;
-            reference_joy.axes.push_back(vel_factor * offset_x);
-            reference_joy.axes.push_back(vel_factor * offset_y);
+            offset_xy = sqrt(offset_x*offset_x + offset_y*offset_y);
+            offset_x1 = offset_x / offset_xy * std::min(10.0, offset_xy);
+            offset_y1 = offset_y / offset_xy * std::min(10.0, offset_xy);
+            reference_joy.axes.push_back(vel_factor * offset_x1);
+            reference_joy.axes.push_back(vel_factor * offset_y1);
             
             //test
             offset_y_.data = offset_y;
@@ -566,6 +569,7 @@ void BackendDji::setPose(const geometry_msgs::PoseStamped& _world) {
     
     control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
 
+    vel_factor = vel_factor_max;
     reference_pose_ = _world;
     q.x = reference_pose_.pose.orientation.x;
     q.y = reference_pose_.pose.orientation.y;
@@ -631,11 +635,13 @@ PurePursuitOutput DjiPurePursuit(geometry_msgs::Point _current, geometry_msgs::P
 void BackendDji::goToWaypoint(const Waypoint& _world) {
     control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
 
-    // reference_pose_ = _world;
-    // q.x = reference_pose_.pose.orientation.x;
-    // q.y = reference_pose_.pose.orientation.y;
-    // q.z = reference_pose_.pose.orientation.z;
-    // q.w = reference_pose_.pose.orientation.w;
+    vel_factor = 0.001;
+
+    reference_pose_ = _world;
+    q.x = reference_pose_.pose.orientation.x;
+    q.y = reference_pose_.pose.orientation.y;
+    q.z = reference_pose_.pose.orientation.z;
+    q.w = reference_pose_.pose.orientation.w;
 
     geometry_msgs::PoseStamped homogen_world_pos;
 
@@ -708,38 +714,49 @@ void BackendDji::goToWaypoint(const Waypoint& _world) {
         std_msgs::Float64 msg_lookahead;
         ///
 
+        
         while (next_to_final_distance > linear_threshold && !abort_ && ros::ok()) {
             float current_xy_vel = sqrt(cur_vel_.twist.linear.x*cur_vel_.twist.linear.x + cur_vel_.twist.linear.y*cur_vel_.twist.linear.y);
             float current_z_vel = fabs(cur_vel_.twist.linear.z);
-            if (z_vel_is_limit) {
-                if (current_z_vel > 1.0*mpc_z_vel_max) { lookahead -= 0.05; }  // TODO: Other thesholds, other update politics?
-                if (current_z_vel < 0.95*mpc_z_vel_max) { lookahead += 0.05; }  // TODO: Other thesholds, other update politics?
-                // ROS_INFO("current_z_vel = %f", current_z_vel);
-            } else {
-                // if (current_xy_vel > 1.0*mpc_xy_vel_max) { lookahead -= 0.05; }  // TODO: Other thesholds, other update politics?
-                // if (current_xy_vel < 0.95*mpc_xy_vel_max) { lookahead += 0.05; }  // TODO: Other thesholds, other update politics?
-                error_xy_vel = mpc_xy_vel_max - current_xy_vel;
-                lookahead += 0.05*error_xy_vel;
-                // ROS_INFO("current_xy_vel = %f", current_xy_vel);
-            }
-            PurePursuitOutput pp = DjiPurePursuit(cur_pose_.pose.position, initial_position, final_position, lookahead);
-            Waypoint wp_i;
-            wp_i.pose.position.x = pp.next.x;
-            wp_i.pose.position.y = pp.next.y;
-            wp_i.pose.position.z = pp.next.z;
-            Eigen::Quaterniond q_i = initial_orientation.slerp(pp.t_lookahead, final_orientation);
-            wp_i.pose.orientation.w = q_i.w();
-            wp_i.pose.orientation.x = q_i.x();
-            wp_i.pose.orientation.y = q_i.y();
-            wp_i.pose.orientation.z = q_i.z();
-            reference_pose_.pose = wp_i.pose;
-            next_to_final_distance = (1.0 - pp.t_lookahead) * linear_distance;
-            // ROS_INFO("next_to_final_distance = %f", next_to_final_distance);
+            // if (z_vel_is_limit) {
+            //     if (current_z_vel > 1.0*mpc_z_vel_max) { lookahead -= 0.05; }  // TODO: Other thesholds, other update politics?
+            //     if (current_z_vel < 0.95*mpc_z_vel_max) { lookahead += 0.05; }  // TODO: Other thesholds, other update politics?
+            //     // ROS_INFO("current_z_vel = %f", current_z_vel);
+            // } else {
+            //     // if (current_xy_vel > 1.0*mpc_xy_vel_max) { lookahead -= 0.05; }  // TODO: Other thesholds, other update politics?
+            //     // if (current_xy_vel < 0.95*mpc_xy_vel_max) { lookahead += 0.05; }  // TODO: Other thesholds, other update politics?
+            //     error_xy_vel = mpc_xy_vel_max - current_xy_vel;
+            //     lookahead += 0.05*error_xy_vel;
+            //     // ROS_INFO("current_xy_vel = %f", current_xy_vel);
+            // }
 
-            //test
-            msg_lookahead.data = lookahead;
-            lookahead_pub.publish(msg_lookahead);
-            ///
+            error_xy_vel = mpc_xy_vel_max - current_xy_vel;
+            if (error_xy_vel > 0 && vel_factor < vel_factor_max) {
+                vel_factor += 0.0025*error_xy_vel;
+            } else if (error_xy_vel < 0.2) {
+                vel_factor -= 0.001;
+            }
+
+
+
+            // PurePursuitOutput pp = DjiPurePursuit(cur_pose_.pose.position, initial_position, final_position, lookahead);
+            // Waypoint wp_i;
+            // wp_i.pose.position.x = pp.next.x;
+            // wp_i.pose.position.y = pp.next.y;
+            // wp_i.pose.position.z = pp.next.z;
+            // Eigen::Quaterniond q_i = initial_orientation.slerp(pp.t_lookahead, final_orientation);
+            // wp_i.pose.orientation.w = q_i.w();
+            // wp_i.pose.orientation.x = q_i.x();
+            // wp_i.pose.orientation.y = q_i.y();
+            // wp_i.pose.orientation.z = q_i.z();
+            // reference_pose_.pose = wp_i.pose;
+            // next_to_final_distance = (1.0 - pp.t_lookahead) * linear_distance;
+            // // ROS_INFO("next_to_final_distance = %f", next_to_final_distance);
+
+            // //test
+            // msg_lookahead.data = lookahead;
+            // lookahead_pub.publish(msg_lookahead);
+            // ///
 
             rate.sleep();
         }
