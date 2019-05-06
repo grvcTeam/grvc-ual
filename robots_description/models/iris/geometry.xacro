@@ -5,12 +5,11 @@
   <xacro:property name="model_name" value="iris" />
   <xacro:property name="namespace" value="" />
   <xacro:property name="rotor_velocity_slowdown_sim" value="10" />
-  <xacro:property name="mesh_file" value="multirotor.dae" />
+  <xacro:property name="visual_mesh" value="visual.dae" />
+  <xacro:property name="collision_mesh" value="collision.dae" />
   <xacro:property name="mesh_scale" value="1 1 1"/>
   <xacro:property name="mesh_scale_prop" value="1 1 1"/>
   <xacro:property name="mass" value="1.5" /> <!-- [kg] -->
-  <xacro:property name="body_width" value="0.47" /> <!-- [m] -->
-  <xacro:property name="body_height" value="0.11" /> <!-- [m] -->
   <xacro:property name="mass_rotor" value="0.005" /> <!-- [kg] -->
   <xacro:property name="arm_length_front_x" value="0.13" /> <!-- [m] -->
   <xacro:property name="arm_length_back_x" value="0.13" /> <!-- [m] -->
@@ -52,9 +51,8 @@
     model_name="${model_name}"
     robot_namespace="${namespace}"
     mass="${mass}"
-    body_width="${body_width}"
-    body_height="${body_height}"
-    mesh_file="${mesh_file}"
+    visual_mesh="${visual_mesh}"
+    collision_mesh="${collision_mesh}"
     mesh_scale="${mesh_scale}"
     color="${color}"
     >
