@@ -405,13 +405,23 @@ bool BackendLight::referencePoseReached() const {
 
 void BackendLight::initHomeFrame() {
 
-    // Get frame from rosparam
-    ros::param::param<std::string>("~uav_frame",uav_frame_id_,"uav_" + std::to_string(robot_id_));
-    ros::param::param<std::string>("~uav_home_frame",uav_home_frame_id_, "uav_" + std::to_string(robot_id_) + "_home");
+    // Get frame prefix from namespace
+    std::string ns = ros::this_node::getNamespace();
+    while ((ns.length() > 0) && (ns[0] == '/')) {
+        ns.erase(0,1);  // Remove all leading '/'
+    }
+    uav_frame_id_ = ns + "/base_link";
+    uav_home_frame_id_ = ns + "/odom";
+
     std::string parent_frame;
-    std::vector<double> home_pose(4, 0.0);
-    ros::param::get("~home_pose",home_pose);
     ros::param::param<std::string>("~home_pose_parent_frame", parent_frame, "map");
+
+    std::vector<double> home_pose(3, 0.0);
+    if (ros::param::has("~home_pose")) {
+        ros::param::get("~home_pose", home_pose);
+    } else {
+        ROS_WARN("No home pose or map origin was defined. Home frame will be equal to map.");
+    }
 
     geometry_msgs::TransformStamped static_transformStamped;
 
@@ -422,13 +432,12 @@ void BackendLight::initHomeFrame() {
     static_transformStamped.transform.translation.y = home_pose[1];
     static_transformStamped.transform.translation.z = home_pose[2];
 
-    if(parent_frame == "map" || parent_frame == "") {
+    if (parent_frame == "map" || parent_frame == "") {
         static_transformStamped.transform.rotation.x = 0;
         static_transformStamped.transform.rotation.y = 0;
         static_transformStamped.transform.rotation.z = 0;
         static_transformStamped.transform.rotation.w = 1;
-    }
-    else {
+    } else {
         tf2_ros::Buffer tfBuffer;
         tf2_ros::TransformListener tfListener(tfBuffer);
         geometry_msgs::TransformStamped transform_to_map;
@@ -443,12 +452,11 @@ void BackendLight::initHomeFrame() {
     cur_pose_.pose.position.x = 0.0;
     cur_pose_.pose.position.y = 0.0;
     cur_pose_.pose.position.z = 0.0;
-    tf2::Quaternion quat;
-    quat.setRPY(0.0,0.0,home_pose[3]);
-    cur_pose_.pose.orientation.x = quat.x();
-    cur_pose_.pose.orientation.y = quat.y();
-    cur_pose_.pose.orientation.z = quat.z();
-    cur_pose_.pose.orientation.w = quat.w();
+    // TODO: get orientation from Gazebo!
+    cur_pose_.pose.orientation.x = 0;
+    cur_pose_.pose.orientation.y = 0;
+    cur_pose_.pose.orientation.z = 0;
+    cur_pose_.pose.orientation.w = 1;
     ref_pose_ = cur_pose_;
 }
 
