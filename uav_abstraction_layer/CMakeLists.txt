@@ -3,6 +3,8 @@ project(uav_abstraction_layer)
 
 set(GRVC_UAL_VERSION 2.2)
 
+option(ENABLE_UAL_UE "Enable Unreal Engine Backend" ON)
+
 ## Add support for C++11, supported in ROS Kinetic and newer
 add_definitions(-std=c++11)
 
@@ -148,13 +150,26 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
+if(ENABLE_UAL_UE)
+  link_directories("/usr/local/lib/AirSim")
+endif()
+
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
 #   src/${PROJECT_NAME}/uav_abstraction_layer.cpp
 # )
 add_library(${PROJECT_NAME}
-  src/backend.cpp src/backend_mavros.cpp src/backend_light.cpp src/ual.cpp
+  src/backend.cpp src/backend_mavros.cpp src/backend_light.cpp src/backend_ue.cpp src/ual.cpp
 )
+
+if(ENABLE_UAL_UE)
+  target_compile_definitions(${PROJECT_NAME} PUBLIC UAL_UE_COMPATIBILITY)
+  target_include_directories(${PROJECT_NAME} PUBLIC "/usr/local/include/AirSim")
+  target_link_libraries(${PROJECT_NAME} LINK_PUBLIC c++)
+  target_link_libraries(${PROJECT_NAME} LINK_PUBLIC AirLib)
+  target_link_libraries(${PROJECT_NAME} LINK_PUBLIC MavLinkCom)
+  target_link_libraries(${PROJECT_NAME} LINK_PUBLIC rpc)
+endif()
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
