@@ -80,7 +80,7 @@ private:
     void initHomeFrame();
     bool referencePoseReached() const;
     void move();
-    Velocity calcVel(Pose _target_pose);
+    Velocity calculateRefVel(Pose _target_pose);
 
     geometry_msgs::PoseStamped home_pose_;
     geometry_msgs::PoseStamped ref_pose_;
@@ -92,7 +92,10 @@ private:
 
     //Gazebo animated link
     std::string link_name_;
+    bool has_pose_ = false;
+    geometry_msgs::Pose link_pose_;
     ros::Publisher link_state_publisher_;
+    ros::Subscriber link_state_subscriber_;
 
     //Noise
     std::default_random_engine generator_;
@@ -101,11 +104,11 @@ private:
     //Control
     bool flying_ = false;
     bool control_in_vel_ = false;
-    float max_h_vel_;
-    float max_v_vel_;
-    float max_yaw_vel_;
-    float max_pose_error_;
-    float max_orient_error_;
+    float max_horizontal_velocity_;
+    float max_vertical_velocity_;
+    float max_yaw_rate_;
+    float max_position_error_;
+    float max_orientation_error_;
 
     int robot_id_;
     std::string pose_frame_id_;

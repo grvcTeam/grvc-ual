@@ -31,6 +31,7 @@
 #include <algorithm>
 #include <cmath>
 #include <gazebo_msgs/LinkState.h>
+#include <gazebo_msgs/LinkStates.h>
 #include <random>
 
 // Frames/s for publishing in gazebo topics
@@ -50,26 +51,43 @@ BackendLight::BackendLight()
     ros::NodeHandle pnh("~");
     pnh.param<int>("uav_id", robot_id_, 1);
     pnh.param<std::string>("pose_frame_id", pose_frame_id_, "");
-    pnh.param<float>("max_h_vel", max_h_vel_, 1.6); // m/s
-    pnh.param<float>("max_v_vel", max_v_vel_, 1.2); // m/s
-    pnh.param<float>("max_yaw_vel", max_yaw_vel_, 1.0); // rad/s
-    pnh.param<float>("max_pose_error", max_pose_error_, 0.1); // m
-    pnh.param<float>("max_orient_error", max_orient_error_, 0.01); // rad
+    pnh.param<float>("max_horizontal_velocity", max_horizontal_velocity_, 1.6);  // [m/s]
+    pnh.param<float>("max_vertical_velocity",   max_vertical_velocity_,   1.2);  // [m/s]
+    pnh.param<float>("max_yaw_rate", max_yaw_rate_, 1.0);  // [rad/s]
+    pnh.param<float>("max_position_error",    max_position_error_,    0.1);   // [m]
+    pnh.param<float>("max_orientation_error", max_orientation_error_, 0.01);  // [rad]
     float noise_var;
     pnh.param<float>("noise_var", noise_var, 0.0);
 
-    distribution_ = new std::normal_distribution<double>(0.0,noise_var);
+    distribution_ = new std::normal_distribution<double>(0.0, noise_var);
+
+    // This backend will animate a link named link_name inside Gazebo (TODO: Use model instead?)
+    pnh.param<std::string>("link_name", link_name_, std::string("mbzirc_") + std::to_string(robot_id_) + std::string("::base_link"));
+    // ROS_INFO("Gazebo link name: %s", link_name_.c_str());
+
+    std::string link_state_pub_topic = "/gazebo/set_link_state";
+    std::string link_state_sub_topic = "/gazebo/link_states";
+    link_state_publisher_ = nh.advertise<gazebo_msgs::LinkState>(link_state_pub_topic, 1);
+    link_state_subscriber_ = nh.subscribe<gazebo_msgs::LinkStates>(link_state_sub_topic, 1, \
+        [this](const gazebo_msgs::LinkStatesConstPtr& _msg) {
+            for (int i = 0; i < _msg->name.size(); i++) {
+                if (_msg->name[i] == this->link_name_) {
+                    this->link_pose_ = _msg->pose[i];
+                    this->has_pose_ = true;
+                    break;
+                }
+            }
+    });
+
+    // Wait until link has pose
+    while (!has_pose_) {
+        ROS_INFO("Waiting for Gazebo link named: %s", link_name_.c_str());
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    }
 
     initHomeFrame();
 
-    // Create GazeboAnimatedLink object.
-    pnh.param<std::string>( "link_name", link_name_, std::string("mbzirc_") + std::to_string(robot_id_) + std::string("::base_link") );
-    ROS_INFO("Gazebo link name: %s",link_name_.c_str());
-
-    std::string link_state_pub_topic = "/gazebo/set_link_state";
-    link_state_publisher_ = nh.advertise<gazebo_msgs::LinkState>(link_state_pub_topic, 1);
-
-    // Thread publishing target pose at 25Hz
+    // Thread publishing target pose at FPS [Hz]
     offboard_thread_ = std::thread([this]() {
         ros::Rate rate(FPS);
         gazebo_msgs::LinkState current;
@@ -77,11 +95,11 @@ BackendLight::BackendLight()
         while (ros::ok()) {
             if (control_in_vel_) {
                 ref_pose_ = cur_pose_;
-                if ( ros::Time::now().toSec() - last_command_time_.toSec() >=0.5 ) {
-                    control_in_vel_ = false;
-                }
+                bool timeout = ((ros::Time::now().toSec() - last_command_time_.toSec()) >= 0.5);
+                if (timeout) { control_in_vel_ = false; }
+
             } else {
-                ref_vel_ = calcVel(ref_pose_);
+                ref_vel_ = calculateRefVel(ref_pose_);
             }
             move();
             
@@ -99,11 +117,11 @@ BackendLight::BackendLight()
 }
 
 bool BackendLight::isReady() const {
-    return true;
+    return has_pose_;
 }
 
 void BackendLight::move() {
-    double t = 1 / FPS;
+    double dt = 1 / FPS;
 
     cur_vel_.header.frame_id = uav_home_frame_id_;
     cur_vel_.twist.linear.x = (0.2 * ref_vel_.twist.linear.x + 0.8 * cur_vel_.twist.linear.x);
@@ -111,27 +129,20 @@ void BackendLight::move() {
     cur_vel_.twist.linear.z = (0.2 * ref_vel_.twist.linear.z + 0.8 * cur_vel_.twist.linear.z);
     cur_vel_.twist.angular.z = (0.5 * ref_vel_.twist.angular.z + 0.5 * cur_vel_.twist.angular.z);
 
-    cur_pose_.pose.position.x += t * cur_vel_.twist.linear.x;
-    cur_pose_.pose.position.y += t * cur_vel_.twist.linear.y;
-    cur_pose_.pose.position.z += t * cur_vel_.twist.linear.z;
+    cur_pose_.pose.position.x += dt * cur_vel_.twist.linear.x;
+    cur_pose_.pose.position.y += dt * cur_vel_.twist.linear.y;
+    cur_pose_.pose.position.z += dt * cur_vel_.twist.linear.z;
 
     cur_pose_noisy_.pose.position.x = cur_pose_.pose.position.x + distribution_->operator()(generator_);
     cur_pose_noisy_.pose.position.y = cur_pose_.pose.position.y + distribution_->operator()(generator_);
     cur_pose_noisy_.pose.position.z = cur_pose_.pose.position.z + distribution_->operator()(generator_);
 
-    tf2::Quaternion quat1(cur_pose_.pose.orientation.x,cur_pose_.pose.orientation.y,cur_pose_.pose.orientation.z,cur_pose_.pose.orientation.w);
-    tf2::Matrix3x3 m(quat1);
-    double cur_yaw, cur_pitch, cur_roll;
-    m.getRPY(cur_roll, cur_pitch, cur_yaw);
-    cur_roll += t * cur_vel_.twist.angular.x;
-    cur_pitch += t * cur_vel_.twist.angular.y;
-    cur_yaw += t * cur_vel_.twist.angular.z;
-    tf2::Quaternion quat2;
-    quat2.setRPY(cur_roll, cur_pitch, cur_yaw);
-    cur_pose_.pose.orientation.x = quat2.x();
-    cur_pose_.pose.orientation.y = quat2.y();
-    cur_pose_.pose.orientation.z = quat2.z();
-    cur_pose_.pose.orientation.w = quat2.w();
+    double cur_yaw = 2.0 * atan2(cur_pose_.pose.orientation.z, cur_pose_.pose.orientation.w);
+    cur_yaw += dt * cur_vel_.twist.angular.z;
+    cur_pose_.pose.orientation.x = 0;
+    cur_pose_.pose.orientation.y = 0;
+    cur_pose_.pose.orientation.z = sin(0.5*cur_yaw);
+    cur_pose_.pose.orientation.w = cos(0.5*cur_yaw);
     cur_pose_noisy_.pose.orientation = cur_pose_.pose.orientation;
 
     // Transform to map
@@ -148,9 +159,37 @@ void BackendLight::move() {
         transformToGazeboFrame = cached_transforms_["inv_map"];
     }
     tf2::doTransform(cur_pose_, gazebo_pose_, transformToGazeboFrame);
+
+    // Resolve link shakiness
+    double dx = gazebo_pose_.pose.position.x - link_pose_.position.x;
+    double dy = gazebo_pose_.pose.position.y - link_pose_.position.y;
+    double dz = gazebo_pose_.pose.position.z - link_pose_.position.z;
+    double shakiness_metric = dx*dx + dy*dy + dz*dz;  // TODO: Other metric? orientation?
+    double shakiness_threshold = 0.06;  // TODO: Tune?
+    if (shakiness_metric > shakiness_threshold) {
+        ROS_WARN("Resolving pose conflict: [%lf, %lf, %lf, %lf, %lf, %lf, %lf] -> [%lf, %lf, %lf, %lf, %lf, %lf, %lf]", 
+            gazebo_pose_.pose.position.x, gazebo_pose_.pose.position.y, gazebo_pose_.pose.position.z, 
+            gazebo_pose_.pose.orientation.x, gazebo_pose_.pose.orientation.y, gazebo_pose_.pose.orientation.z, gazebo_pose_.pose.orientation.w, 
+            link_pose_.position.x, link_pose_.position.y, link_pose_.position.z, 
+            link_pose_.orientation.x, link_pose_.orientation.y, link_pose_.orientation.z, link_pose_.orientation.w);
+        gazebo_pose_.pose = link_pose_;  // TODO: Or something in between?
+
+        // Update also internal pose
+        geometry_msgs::TransformStamped transformToHomeFrame;
+        if ( cached_transforms_.find("map") == cached_transforms_.end() ) {
+            transformToHomeFrame = tfBuffer.lookupTransform(uav_home_frame_id_, "map", ros::Time(0), ros::Duration(0.2));
+            cached_transforms_["map"] = transformToHomeFrame; // Save transform in cache
+        } else {
+            transformToHomeFrame = cached_transforms_["map"];
+        }
+        tf2::doTransform(gazebo_pose_, cur_pose_, transformToHomeFrame);
+
+        // Do not add noise
+        cur_pose_noisy_ = cur_pose_;
+    }
 }
 
-Velocity BackendLight::calcVel(Pose _target_pose) {
+Velocity BackendLight::calculateRefVel(Pose _target_pose) {
     Velocity vel;
 
     if(flying_) {
@@ -161,9 +200,9 @@ Velocity BackendLight::calcVel(Pose _target_pose) {
         while (dYaw < -M_PI) dYaw += 2*M_PI;
         while (dYaw >  M_PI) dYaw -= 2*M_PI;
 
-        double Th = sqrt( dx*dx + dy*dy ) / max_h_vel_;
-        double Tz = std::abs( dz / max_v_vel_ );
-        double TYaw = std::abs( dYaw / max_yaw_vel_);
+        double Th = sqrt( dx*dx + dy*dy ) / max_horizontal_velocity_;
+        double Tz = std::abs( dz / max_vertical_velocity_ );
+        double TYaw = std::abs( dYaw / max_yaw_rate_);
         double T = std::max(Th, Tz);
         T = std::max(T, TYaw);
 
@@ -176,10 +215,10 @@ Velocity BackendLight::calcVel(Pose _target_pose) {
         vel.twist.linear.z = dz / T;
         vel.twist.angular.z = dYaw / T;
 
-        if ( std::abs( dx ) < max_pose_error_ ) { vel.twist.linear.x = 0.0; }
-        if ( std::abs( dy ) < max_pose_error_ ) { vel.twist.linear.y = 0.0; }
-        if ( std::abs( dz ) < max_pose_error_ ) { vel.twist.linear.z = 0.0; }
-        if ( std::abs( dYaw ) < max_orient_error_ ) { vel.twist.angular.z = 0.0; }
+        if ( std::abs( dx ) < max_position_error_ ) { vel.twist.linear.x = 0.0; }
+        if ( std::abs( dy ) < max_position_error_ ) { vel.twist.linear.y = 0.0; }
+        if ( std::abs( dz ) < max_position_error_ ) { vel.twist.linear.z = 0.0; }
+        if ( std::abs( dYaw ) < max_orientation_error_ ) { vel.twist.angular.z = 0.0; }
     }
     else {
         vel.twist.linear.x = 0;
@@ -348,6 +387,7 @@ Pose BackendLight::pose() {
             tf2::doTransform(aux, out, transformToPoseFrame);
             out.header.frame_id = pose_frame_id_;
         }
+        out.header.stamp = ros::Time::now();
 
         return out;
 }
@@ -452,11 +492,7 @@ void BackendLight::initHomeFrame() {
     cur_pose_.pose.position.x = 0.0;
     cur_pose_.pose.position.y = 0.0;
     cur_pose_.pose.position.z = 0.0;
-    // TODO: get orientation from Gazebo!
-    cur_pose_.pose.orientation.x = 0;
-    cur_pose_.pose.orientation.y = 0;
-    cur_pose_.pose.orientation.z = 0;
-    cur_pose_.pose.orientation.w = 1;
+    cur_pose_.pose.orientation = link_pose_.orientation;
     ref_pose_ = cur_pose_;
 }
 
