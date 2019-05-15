@@ -32,6 +32,7 @@
 #include <cmath>
 #include <gazebo_msgs/ModelState.h>
 #include <gazebo_msgs/ModelStates.h>
+#include <gazebo_msgs/ApplyBodyWrench.h>
 #include <random>
 
 // Frames/s for publishing in gazebo topics
@@ -108,6 +109,30 @@ BackendLight::BackendLight()
             
             ros::spinOnce();
             rate.sleep();
+        }
+    });
+
+    int rotors_count = 6;  // TODO: Start big and decrease if response.status_message == "ApplyBodyWrench: body does not exist"?
+    std::string wrench_uri = "/gazebo/apply_body_wrench";
+    wrench_client_ = nh.serviceClient<gazebo_msgs::ApplyBodyWrench>(wrench_uri);
+    rotors_timer_ = nh.createTimer(ros::Duration(1.0), [this, rotors_count, wrench_uri](const ros::TimerEvent&) {
+        gazebo_msgs::ApplyBodyWrench wrench_srv;
+        wrench_srv.request.reference_frame = "map";
+        wrench_srv.request.duration = ros::Duration(2.0);
+
+        float torque = this->flying_? 10.0: 2.0;
+        int rotors_sign[] = {+1, -1, +1, -1, -1, +1};  // TODO: depends on rotors_count
+        for (int i = 0; i < rotors_count; i++) {
+            wrench_srv.request.body_name = model_name_ + "::rotor_" + std::to_string(i);
+            wrench_srv.request.wrench.torque.z = rotors_sign[i] * torque;  // TODO: Use cur_vel_?
+            if (this->wrench_client_.call(wrench_srv)) {
+                // ROS_INFO("success: %s, status_message: %s", wrench_srv.response.success? "true": "false", wrench_srv.response.status_message.c_str());
+                if (!wrench_srv.response.success) {
+                    ROS_WARN("[%s] status_message: %s", wrench_srv.request.body_name.c_str(), wrench_srv.response.status_message.c_str());
+                }
+            } else {
+                ROS_ERROR("Failed to call service %s", wrench_uri.c_str());
+            }
         }
     });
 

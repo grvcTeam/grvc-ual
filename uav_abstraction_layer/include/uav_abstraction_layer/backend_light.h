@@ -97,6 +97,8 @@ private:
     geometry_msgs::Pose model_pose_;
     ros::Publisher model_state_publisher_;
     ros::Subscriber model_state_subscriber_;
+    ros::ServiceClient wrench_client_;
+    ros::Timer rotors_timer_;
 
     //Noise
     std::default_random_engine generator_;
