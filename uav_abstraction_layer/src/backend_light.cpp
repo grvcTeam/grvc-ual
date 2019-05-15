@@ -115,9 +115,9 @@ BackendLight::BackendLight()
     this->state_ = LANDED_ARMED;
 }
 
-/*BackendLight::~BackendLight() {
+BackendLight::~BackendLight() {
     if (offboard_thread_.joinable()) { offboard_thread_.join(); }
-}*/
+}
 
 bool BackendLight::isReady() const {
     return has_pose_;

@@ -33,6 +33,10 @@ Backend::Backend() {
     });
 }
 
+Backend::~Backend() {
+    if (spin_thread_.joinable()) { spin_thread_.join(); }
+}
+
 Backend* Backend::createBackend() {
     Backend* be = nullptr;
     // Decide backend from arguments:

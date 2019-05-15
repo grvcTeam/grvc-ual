@@ -38,7 +38,7 @@ class BackendLight : public Backend {
 
 public:
     BackendLight();
-    // ~BackendLight();
+    ~BackendLight();
 
     /// Backend is initialized and ready to run tasks?
     bool	         isReady() const override;

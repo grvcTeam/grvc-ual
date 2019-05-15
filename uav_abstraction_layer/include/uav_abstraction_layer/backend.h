@@ -121,7 +121,7 @@ public:
     /// Cancel execution of the current task
     void	        abort(bool _freeze = true);
 
-    virtual ~Backend() = default; // Ensure proper destructor calling for derived classes
+    virtual ~Backend();  // Ensure proper destructor calling for derived classes
 
     /// \brief Create an adequate Backend depending on current platform and command arguments
     /// \param _argc number of arguments in _argv
