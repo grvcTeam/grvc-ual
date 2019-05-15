@@ -30,8 +30,8 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <algorithm>
 #include <cmath>
-#include <gazebo_msgs/LinkState.h>
-#include <gazebo_msgs/LinkStates.h>
+#include <gazebo_msgs/ModelState.h>
+#include <gazebo_msgs/ModelStates.h>
 #include <random>
 
 // Frames/s for publishing in gazebo topics
@@ -61,27 +61,26 @@ BackendLight::BackendLight()
 
     distribution_ = new std::normal_distribution<double>(0.0, noise_var);
 
-    // This backend will animate a link named link_name inside Gazebo (TODO: Use model instead?)
-    pnh.param<std::string>("link_name", link_name_, std::string("mbzirc_") + std::to_string(robot_id_) + std::string("::base_link"));
-    // ROS_INFO("Gazebo link name: %s", link_name_.c_str());
+    // This backend will animate a model named model_name inside Gazebo
+    pnh.param<std::string>("model_name", model_name_, std::string("mbzirc_") + std::to_string(robot_id_));
 
-    std::string link_state_pub_topic = "/gazebo/set_link_state";
-    std::string link_state_sub_topic = "/gazebo/link_states";
-    link_state_publisher_ = nh.advertise<gazebo_msgs::LinkState>(link_state_pub_topic, 1);
-    link_state_subscriber_ = nh.subscribe<gazebo_msgs::LinkStates>(link_state_sub_topic, 1, \
-        [this](const gazebo_msgs::LinkStatesConstPtr& _msg) {
+    std::string model_state_pub_topic = "/gazebo/set_model_state";
+    std::string model_state_sub_topic = "/gazebo/model_states";
+    model_state_publisher_ = nh.advertise<gazebo_msgs::ModelState>(model_state_pub_topic, 1);
+    model_state_subscriber_ = nh.subscribe<gazebo_msgs::ModelStates>(model_state_sub_topic, 1, \
+        [this](const gazebo_msgs::ModelStatesConstPtr& _msg) {
             for (int i = 0; i < _msg->name.size(); i++) {
-                if (_msg->name[i] == this->link_name_) {
-                    this->link_pose_ = _msg->pose[i];
+                if (_msg->name[i] == this->model_name_) {
+                    this->model_pose_ = _msg->pose[i];
                     this->has_pose_ = true;
                     break;
                 }
             }
     });
 
-    // Wait until link has pose
+    // Wait until model has pose
     while (!has_pose_) {
-        ROS_INFO("Waiting for Gazebo link named: %s", link_name_.c_str());
+        ROS_INFO("Waiting for Gazebo model named: %s", model_name_.c_str());
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 
@@ -90,8 +89,8 @@ BackendLight::BackendLight()
     // Thread publishing target pose at FPS [Hz]
     offboard_thread_ = std::thread([this]() {
         ros::Rate rate(FPS);
-        gazebo_msgs::LinkState current;
-        current.link_name = link_name_;
+        gazebo_msgs::ModelState current;
+        current.model_name = model_name_;
         while (ros::ok()) {
             if (control_in_vel_) {
                 ref_pose_ = cur_pose_;
@@ -105,7 +104,7 @@ BackendLight::BackendLight()
             
             current.pose = gazebo_pose_.pose;
             current.reference_frame = "map";
-            link_state_publisher_.publish(current);
+            model_state_publisher_.publish(current);
             
             ros::spinOnce();
             rate.sleep();
@@ -115,6 +114,10 @@ BackendLight::BackendLight()
     ROS_INFO("BackendLight %d running!", robot_id_);
     this->state_ = LANDED_ARMED;
 }
+
+/*BackendLight::~BackendLight() {
+    if (offboard_thread_.joinable()) { offboard_thread_.join(); }
+}*/
 
 bool BackendLight::isReady() const {
     return has_pose_;
@@ -160,19 +163,19 @@ void BackendLight::move() {
     }
     tf2::doTransform(cur_pose_, gazebo_pose_, transformToGazeboFrame);
 
-    // Resolve link shakiness
-    double dx = gazebo_pose_.pose.position.x - link_pose_.position.x;
-    double dy = gazebo_pose_.pose.position.y - link_pose_.position.y;
-    double dz = gazebo_pose_.pose.position.z - link_pose_.position.z;
+    // Resolve model shakiness
+    double dx = gazebo_pose_.pose.position.x - model_pose_.position.x;
+    double dy = gazebo_pose_.pose.position.y - model_pose_.position.y;
+    double dz = gazebo_pose_.pose.position.z - model_pose_.position.z;
     double shakiness_metric = dx*dx + dy*dy + dz*dz;  // TODO: Other metric? orientation?
     double shakiness_threshold = 0.06;  // TODO: Tune?
     if (shakiness_metric > shakiness_threshold) {
         ROS_WARN("Resolving pose conflict: [%lf, %lf, %lf, %lf, %lf, %lf, %lf] -> [%lf, %lf, %lf, %lf, %lf, %lf, %lf]", 
             gazebo_pose_.pose.position.x, gazebo_pose_.pose.position.y, gazebo_pose_.pose.position.z, 
             gazebo_pose_.pose.orientation.x, gazebo_pose_.pose.orientation.y, gazebo_pose_.pose.orientation.z, gazebo_pose_.pose.orientation.w, 
-            link_pose_.position.x, link_pose_.position.y, link_pose_.position.z, 
-            link_pose_.orientation.x, link_pose_.orientation.y, link_pose_.orientation.z, link_pose_.orientation.w);
-        gazebo_pose_.pose = link_pose_;  // TODO: Or something in between?
+            model_pose_.position.x, model_pose_.position.y, model_pose_.position.z, 
+            model_pose_.orientation.x, model_pose_.orientation.y, model_pose_.orientation.z, model_pose_.orientation.w);
+        gazebo_pose_.pose = model_pose_;  // TODO: Or something in between?
 
         // Update also internal pose
         geometry_msgs::TransformStamped transformToHomeFrame;
@@ -492,7 +495,7 @@ void BackendLight::initHomeFrame() {
     cur_pose_.pose.position.x = 0.0;
     cur_pose_.pose.position.y = 0.0;
     cur_pose_.pose.position.z = 0.0;
-    cur_pose_.pose.orientation = link_pose_.orientation;
+    cur_pose_.pose.orientation = model_pose_.orientation;
     ref_pose_ = cur_pose_;
 }
 

@@ -38,6 +38,7 @@ class BackendLight : public Backend {
 
 public:
     BackendLight();
+    // ~BackendLight();
 
     /// Backend is initialized and ready to run tasks?
     bool	         isReady() const override;
@@ -90,12 +91,12 @@ private:
     geometry_msgs::TwistStamped ref_vel_;
     geometry_msgs::TwistStamped cur_vel_;
 
-    //Gazebo animated link
-    std::string link_name_;
+    //Gazebo animated model
+    std::string model_name_;
     bool has_pose_ = false;
-    geometry_msgs::Pose link_pose_;
-    ros::Publisher link_state_publisher_;
-    ros::Subscriber link_state_subscriber_;
+    geometry_msgs::Pose model_pose_;
+    ros::Publisher model_state_publisher_;
+    ros::Subscriber model_state_subscriber_;
 
     //Noise
     std::default_random_engine generator_;
