@@ -121,7 +121,7 @@ BackendLight::BackendLight()
         wrench_srv.request.duration = ros::Duration(2.0);
 
         float torque = this->flying_? 10.0: 2.0;
-        int rotors_sign[] = {+1, -1, +1, -1, -1, +1};  // TODO: depends on rotors_count
+        int rotors_sign[] = {-1, +1, -1, +1, +1, -1};  // TODO: depends on rotors_count
         for (int i = 0; i < rotors_count; i++) {
             wrench_srv.request.body_name = model_name_ + "::rotor_" + std::to_string(i);
             wrench_srv.request.wrench.torque.z = rotors_sign[i] * torque;  // TODO: Use cur_vel_?
