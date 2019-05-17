@@ -49,6 +49,8 @@ BackendUE::BackendUE() : Backend()
     airsim_client_.enableApiControl(true);
     airsim_client_.armDisarm(true);
 
+    state_ = LANDED_ARMED;
+
 }
 
 BackendUE::~BackendUE() {
@@ -102,17 +104,36 @@ grvc::ual::Transform BackendUE::transform() const {
 
 void BackendUE::setPose(const geometry_msgs::PoseStamped& _pose) {}
 
-void BackendUE::goToWaypoint(const Waypoint& _wp) {}
+void BackendUE::goToWaypoint(const Waypoint& _wp) {
+    // Get heading
+    Eigen::Quaternionf q(_wp.pose.orientation.w, _wp.pose.orientation.x, _wp.pose.orientation.y, _wp.pose.orientation.z);
+    auto angles = q.toRotationMatrix().eulerAngles(0, 1, 2);
+    double yaw = angles[2] * 180.0/ M_PI;
+    std::cout << "Heading: " << yaw << std::endl;
+    // Move UAV
+    airsim_client_.moveToPositionAsync( _wp.pose.position.x, 
+                                        _wp.pose.position.y,
+                                        _wp.pose.position.z, 
+                                        5   ,  // Speed m/s 
+                                        Utils::max<float>(),
+                                        DrivetrainType::MaxDegreeOfFreedom, 
+                                        { false, yaw }
+                                        );
+}
 
 void BackendUE::goToWaypointGeo(const WaypointGeo& _wp) {}
 
 void BackendUE::takeOff(double _height) {
     /// 666 TODO: Check altitude
     airsim_client_.takeoffAsync()->waitOnLastTask();
+
+    state_ = FLYING_AUTO;
 }
 
 void BackendUE::land() {
     airsim_client_.landAsync()->waitOnLastTask();
+    
+    state_ = LANDED_ARMED;
 }
 
 void BackendUE::setVelocity(const Velocity& _vel) {}
