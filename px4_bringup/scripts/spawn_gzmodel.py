@@ -69,6 +69,7 @@ def main():
         temp_urdf = temp_dir + "/" + args.model + ".urdf"
         xacro_args = "xacro --inorder -o " + temp_urdf + " " + \
         xacro_description + \
+        " robot_id:=" + str(args.id) + \
         " enable_mavlink_interface:=true" + \
         " enable_gps_plugin:=true" + \
         " enable_ground_truth:=false" + \
