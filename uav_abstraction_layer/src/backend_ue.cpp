@@ -109,7 +109,6 @@ void BackendUE::goToWaypoint(const Waypoint& _wp) {
     Eigen::Quaternionf q(_wp.pose.orientation.w, _wp.pose.orientation.x, _wp.pose.orientation.y, _wp.pose.orientation.z);
     auto angles = q.toRotationMatrix().eulerAngles(0, 1, 2);
     double yaw = angles[2] * 180.0/ M_PI;
-    std::cout << "Heading: " << yaw << std::endl;
     // Move UAV
     airsim_client_.moveToPositionAsync( _wp.pose.position.x, 
                                         _wp.pose.position.y,
@@ -136,7 +135,14 @@ void BackendUE::land() {
     state_ = LANDED_ARMED;
 }
 
-void BackendUE::setVelocity(const Velocity& _vel) {}
+void BackendUE::setVelocity(const Velocity& _vel) {
+    airsim_client_.moveByVelocityAsync(     _vel.twist.linear.x, 
+                                            _vel.twist.linear.y, 
+                                            _vel.twist.linear.z, 
+                                            Utils::max<float>(),
+                                            DrivetrainType::MaxDegreeOfFreedom, 
+                                            {true, _vel.twist.angular.z * 180.0/ M_PI});
+}
 
 void BackendUE::recoverFromManual() {}
 
