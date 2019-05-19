@@ -48,7 +48,7 @@ class StateMachine:
             self.state = "landed"
         else:
             cmd = TwistStamped()
-            cmd.twist.linear.x = self.lastJoy.axes[3]*5
+            cmd.twist.linear.x = -self.lastJoy.axes[3]*5
             cmd.twist.linear.y = self.lastJoy.axes[4]*5
             cmd.twist.linear.z = self.lastJoy.axes[1]*5
             cmd.twist.angular.z = self.lastJoy.axes[0]*5

@@ -84,6 +84,7 @@ public:
 
 private:
     msr::airlib::MultirotorRpcLibClient airsim_client_;
+    Eigen::Matrix3f ned2enu_;
 };
 
 }}	// namespace grvc::ual

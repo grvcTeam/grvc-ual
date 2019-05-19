@@ -42,6 +42,8 @@ namespace grvc { namespace ual {
 
 BackendUE::BackendUE() : Backend()
 {
+    ned2enu_ =  Eigen::AngleAxisf(M_PI/2, Eigen::Vector3f::UnitZ())*
+                Eigen::AngleAxisf(M_PI, Eigen::Vector3f::UnitX());
     // Check connection with simulation
     airsim_client_.confirmConnection();
 
@@ -65,16 +67,27 @@ bool BackendUE::isReady() const {
 
 grvc::ual::Pose BackendUE::pose() {
     auto pose_ue  = airsim_client_.simGetVehiclePose();
+    Eigen::Vector3f position = {pose_ue.position[0],
+                                pose_ue.position[1],
+                                pose_ue.position[2]};
+    Eigen::Quaternionf ori( pose_ue.orientation.w(),
+                            pose_ue.orientation.x(),
+                            pose_ue.orientation.y(),
+                            pose_ue.orientation.z());
+
+    Eigen::Vector3f newPos = ned2enu_*position;
+    Eigen::Quaternionf newOri(ned2enu_*ori.matrix());
+
     Pose pose_ual;
     pose_ual.header.stamp = ros::Time::now();
     pose_ual.header.frame_id = "";
-    pose_ual.pose.position.x = pose_ue.position[0];
-    pose_ual.pose.position.y = pose_ue.position[1];
-    pose_ual.pose.position.z = pose_ue.position[2];
-    pose_ual.pose.orientation.x = pose_ue.orientation.x();
-    pose_ual.pose.orientation.y = pose_ue.orientation.y();
-    pose_ual.pose.orientation.z = pose_ue.orientation.z();
-    pose_ual.pose.orientation.w = pose_ue.orientation.w();
+    pose_ual.pose.position.x = newPos[0];
+    pose_ual.pose.position.y = newPos[1];
+    pose_ual.pose.position.z = newPos[2];
+    pose_ual.pose.orientation.x = newOri.x();
+    pose_ual.pose.orientation.y = newOri.y();
+    pose_ual.pose.orientation.z = newOri.z();
+    pose_ual.pose.orientation.w = newOri.w();
     return pose_ual;
 }
 
@@ -88,17 +101,29 @@ grvc::ual::Odometry BackendUE::odometry() const {
 
 grvc::ual::Transform BackendUE::transform() const {
     auto pose_ue  = airsim_client_.simGetVehiclePose();
+    
+    Eigen::Vector3f position = {pose_ue.position[0],
+                                pose_ue.position[1],
+                                pose_ue.position[2]};
+    Eigen::Quaternionf ori( pose_ue.orientation.w(),
+                            pose_ue.orientation.x(),
+                            pose_ue.orientation.y(),
+                            pose_ue.orientation.z());
+
+    Eigen::Vector3f newPos = ned2enu_*position;
+    Eigen::Quaternionf newOri(ned2enu_*ori.matrix());
+
     Transform out;
     out.header.stamp = ros::Time::now();
     out.header.frame_id = "";
     out.child_frame_id = "";
-    out.transform.translation.x = pose_ue.position[0];
-    out.transform.translation.y = pose_ue.position[1];
-    out.transform.translation.z = pose_ue.position[2];
-    out.transform.rotation.x = pose_ue.orientation.x();
-    out.transform.rotation.y = pose_ue.orientation.y();
-    out.transform.rotation.z = pose_ue.orientation.z();
-    out.transform.rotation.w = pose_ue.orientation.w();
+    out.transform.translation.x = newPos[0];
+    out.transform.translation.y = newPos[1];
+    out.transform.translation.z = newPos[2];
+    out.transform.rotation.x = newOri.x();
+    out.transform.rotation.y = newOri.y();
+    out.transform.rotation.z = newOri.z();
+    out.transform.rotation.w = newOri.w();
     return out;
 }
 
@@ -108,7 +133,7 @@ void BackendUE::goToWaypoint(const Waypoint& _wp) {
     // Get heading
     Eigen::Quaternionf q(_wp.pose.orientation.w, _wp.pose.orientation.x, _wp.pose.orientation.y, _wp.pose.orientation.z);
     auto angles = q.toRotationMatrix().eulerAngles(0, 1, 2);
-    double yaw = angles[2] * 180.0/ M_PI;
+    double yaw = angles[2] * 180.0f/ M_PI;
     // Move UAV
     airsim_client_.moveToPositionAsync( _wp.pose.position.x, 
                                         _wp.pose.position.y,
@@ -136,12 +161,17 @@ void BackendUE::land() {
 }
 
 void BackendUE::setVelocity(const Velocity& _vel) {
-    airsim_client_.moveByVelocityAsync(     _vel.twist.linear.x, 
-                                            _vel.twist.linear.y, 
-                                            _vel.twist.linear.z, 
+    Eigen::Vector3f rotvel = {  _vel.twist.linear.x,
+                                _vel.twist.linear.y,
+                                _vel.twist.linear.z };
+    rotvel = ned2enu_*rotvel;
+
+    airsim_client_.moveByVelocityAsync(    rotvel[0], 
+                                           rotvel[1], 
+                                           rotvel[2], 
                                             Utils::max<float>(),
                                             DrivetrainType::MaxDegreeOfFreedom, 
-                                            {true, _vel.twist.angular.z * 180.0/ M_PI});
+                                            {true, -_vel.twist.angular.z * 180.0f/ M_PI});
 }
 
 void BackendUE::recoverFromManual() {}
