@@ -273,14 +273,14 @@ bool UAL::takeOff(double _height, bool _blocking) {
         ROS_ERROR("Unable to takeOff: height must be positive!");
         return false;
     }
-
+    if (!backend_->isIdle()) { backend_->abort(false); }
     if (_blocking) {
         if (!backend_->threadSafeCall(&Backend::takeOff, _height)) {
             ROS_INFO("Blocking takeOff rejected!");
             return false;
         }
     } else {
-        if (running_thread_.joinable()) running_thread_.join();
+        if (running_thread_.joinable()) { running_thread_.join(); }
         // Call function on a thread:
         running_thread_ = std::thread ([this, _height]() {
             if (!this->backend_->threadSafeCall(&Backend::takeOff, _height)) {
