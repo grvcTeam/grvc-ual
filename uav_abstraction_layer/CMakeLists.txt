@@ -20,6 +20,7 @@ find_package(catkin REQUIRED COMPONENTS
   gazebo_msgs
   sensor_msgs
   geodesy
+  crazyflie_driver
 )
 
 ## System dependencies are found with CMake's conventions

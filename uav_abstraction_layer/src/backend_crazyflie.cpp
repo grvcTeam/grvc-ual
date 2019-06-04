@@ -40,18 +40,18 @@ BackendCrazyflie::BackendCrazyflie()
     ros::NodeHandle pnh("~");
     pnh.param<int>("uav_id", robot_id_, 1);
     pnh.param<std::string>("pose_frame_id", pose_frame_id_, "");
-    // float position_th_param, orientation_th_param;
-    // pnh.param<float>("position_th", position_th_param, 0.33);
-    // pnh.param<float>("orientation_th", orientation_th_param, 0.65);
-    // position_th_ = position_th_param * position_th_param;
-    // orientation_th_ = 0.5 * (1 - cos(orientation_th_param));
+    float position_th_param, orientation_th_param;
+    pnh.param<float>("position_th", position_th_param, 0.33);
+    pnh.param<float>("orientation_th", orientation_th_param, 0.65);
+    position_th_ = position_th_param * position_th_param;
+    orientation_th_ = 0.5 * (1 - cos(orientation_th_param));
 
     ROS_INFO("BackendCrazyflie constructor with id %d", robot_id_);
     // ROS_INFO("BackendCrazyflie: thresholds = %f %f", position_th_, orientation_th_);
 
     // Init ros communications
     ros::NodeHandle nh;
-    std::string crazyflie_ns = "/crazyflie" + std::to_string(robot_id_);
+    std::string crazyflie_ns = "/cf" + std::to_string(robot_id_);
    
     // std::string set_mode_srv = crazyflie_ns + "/set_mode";
     // std::string arming_srv = crazyflie_ns + "/cmd/arming";
@@ -67,17 +67,18 @@ BackendCrazyflie::BackendCrazyflie()
 
     // flight_mode_client_ = nh.serviceClient<mavros_msgs::SetMode>(set_mode_srv.c_str());
     // arming_client_ = nh.serviceClient<mavros_msgs::CommandBool>(arming_srv.c_str());
-    takeoff_client_ = nh.serviceClient<std_srvs::Empty>(crazyflie_ns + "/takeoff");
-    land_client_ = nh.serviceClient<std_srvs::Empty>(crazyflie_ns + "/land");
+    takeoff_client_ = nh.serviceClient<crazyflie_driver::Takeoff>(crazyflie_ns + "/takeoff");
+    land_client_ = nh.serviceClient<crazyflie_driver::Land>(crazyflie_ns + "/land");
+    go_to_client_ = nh.serviceClient<crazyflie_driver::GoTo>(crazyflie_ns + "/goto");
 
-    crazyflie_ref_pose_pub_ = nh.advertise<geometry_msgs::PoseStamped>(set_pose_topic.c_str(), 1);
-    // mavros_ref_pose_global_pub_ = nh.advertise<mavros_msgs::GlobalPositionTarget>(set_pose_global_topic.c_str(), 1);
-    crazyflie_ref_vel_pub_ = nh.advertise<geometry_msgs::Twist>(set_vel_topic.c_str(), 1);
+    // crazyflie_ref_pose_pub_ = nh.advertise<geometry_msgs::PoseStamped>(set_pose_topic.c_str(), 1);
+    // // mavros_ref_pose_global_pub_ = nh.advertise<mavros_msgs::GlobalPositionTarget>(set_pose_global_topic.c_str(), 1);
+    // crazyflie_ref_vel_pub_ = nh.advertise<geometry_msgs::Twist>(set_vel_topic.c_str(), 1);
 
     crazyflie_cur_pose_sub_ = nh.subscribe<geometry_msgs::PoseStamped>(pose_topic.c_str(), 1,
                                                                        [this](const geometry_msgs::PoseStamped::ConstPtr& _msg) {
                                                                            this->cur_pose_ = *_msg;
-                                                                           this->mavros_has_pose_ = true;
+                                                                           this->cf_has_pose_ = true;
                                                                        });
     // crazyflie_cur_vel_sub_ = nh.subscribe<geometry_msgs::TwistStamped>(vel_topic.c_str(), 1,
     //                                                                    [this](const geometry_msgs::TwistStamped::ConstPtr& _msg) {
@@ -280,61 +281,19 @@ void BackendCrazyflie::takeOff(double _height) {
     calling_takeoff = true;
 
     control_mode_ = eControlMode::LOCAL_POSE;  // Take off control is performed in position (not velocity)
-    ref_pose_ = cur_pose_;
-    ref_pose_.pose.position.z = _height;
-    crazyflie_ref_pose_pub_.publish(ref_pose_);
-    std_srvs::Empty empty;
-    takeoff_client_.call(empty);
+
+    double takeoff_vel = 1.0;
+    crazyflie_driver::Takeoff takeoff_service;
+    takeoff_service.request.groupMask = 0;
+    takeoff_service.request.height = _height;
+    takeoff_service.request.duration = ros::Duration( _height / takeoff_vel );
+
+    takeoff_client_.call(takeoff_service);
     ROS_INFO("Taking off!");
-    // float acc_max = 1.0;  // TODO: From param?
-    // float vel_max = updateParam("MPC_TKO_SPEED");
 
-    // float a = sqrt(_height * acc_max);
-    // if (a < vel_max) {
-    //     vel_max = a;
-    // }
-    // float t1 = vel_max / acc_max;
-    // float h1 = 0.5 * acc_max * t1 * t1;
-    // float t2 = t1 + (_height - 2.0 * h1) / vel_max;
-    // // float h2 = _height - h1;
-    // float t3 = t2 + t1;
-
-    // float t = 0.0;
-    // float delta_t = 0.1;  // [s]
-    // ros::Rate rate(1.0 / delta_t);
-
-    // ref_pose_ = cur_pose_;
-    // float base_z = cur_pose_.pose.position.z;
-    // float delta_z = 0;
-
-    // // setFlightMode("OFFBOARD");
-    // while ((t < t3) && ros::ok()) {  // Unabortable!
-    //     if (t < t1) {
-    //         delta_z = 0.5 * acc_max * t * t;
-    //     } else if (t < t2) {
-    //         delta_z = h1 + vel_max * (t - t1);
-    //     } else {
-    //         delta_z = _height - 0.5 * acc_max * (t3 - t) * (t3 - t);
-    //     }
-
-    //     if (delta_z > _height) {
-    //         ROS_WARN("Unexpected delta_z value [%f]", delta_z);
-    //     } else {
-    //         ref_pose_.pose.position.z = base_z + delta_z;
-    //     }
-
-    //     rate.sleep();
-    //     t += delta_t;
-    // }
-    // ref_pose_.pose.position.z = base_z + _height;
-
-    // Now wait (unabortable!)
-    // while (!referencePoseReached() && (this->crazyflie_state_.mode == "OFFBOARD") && ros::ok()) {
+    // while (crazyflie_state_.data == 2 && ros::ok()) {
     //     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     // }
-    while (crazyflie_state_.data == 2 && ros::ok()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
     ROS_INFO("Flying!");
     calling_takeoff = false;
 
@@ -346,25 +305,15 @@ void BackendCrazyflie::land() {
     calling_land = true;
 
     control_mode_ = eControlMode::LOCAL_POSE;  // Back to control in position (just in case)
-    // Set land mode
-    // setFlightMode("AUTO.LAND");
-    ref_pose_ = cur_pose_;
-    ref_pose_.pose.position.z = 0;
-    // Landing is unabortable!
-    // while ((this->crazyflie_state_.mode == "AUTO.LAND") && ros::ok()) {
+
+    crazyflie_driver::Land land_service;
+
+    takeoff_client_.call(land_service);
+    ROS_INFO("Landing!");
+
+    // while (crazyflie_state_.data == 3 && ros::ok()) {
     //     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    //     if (mavros_extended_state_.landed_state == mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND) {
-    //         // setArmed(false);  // Disabled for safety and symmetry
-    //         ROS_INFO("Landed!");
-    //         break;  // Out-of-while condition
-    //     }
     // }
-    std_srvs::Empty empty;
-    ROS_INFO("Landing...");
-    land_client_.call(empty);
-    while (crazyflie_state_.data == 3 && ros::ok()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
     ROS_INFO("Landed!");
     calling_land = false;
 
@@ -423,7 +372,7 @@ bool BackendCrazyflie::isReady() const {
     // if (ros::param::has("~map_origin_geo")) {
     //     return mavros_has_geo_pose_;
     // } else {
-    //     return mavros_has_pose_ && (fabs(this->cur_pose_.pose.position.y) > 1e-8);  // Means the filter has converged!
+    //     return cf_has_pose_ && (fabs(this->cur_pose_.pose.position.y) > 1e-8);  // Means the filter has converged!
     // }
     return true;
 }
@@ -631,6 +580,34 @@ void BackendCrazyflie::goToWaypoint(const Waypoint& _world) {
     //     if (abort_ && freeze_) {
     //         ref_pose_ = cur_pose_;
     //     }
+
+    double go_to_vel = 1.0;
+    crazyflie_driver::GoTo go_to_service;
+    geometry_msgs::Point goal_point;
+    goal_point.x = _world.pose.position.x - init_pose_.pose.position.x;
+    goal_point.y = _world.pose.position.y - init_pose_.pose.position.y;
+    goal_point.z = _world.pose.position.z - init_pose_.pose.position.z;
+
+    geometry_msgs::Pose pose_to_goal;
+    pose_to_goal.position.x = goal_point.x - cur_pose_.pose.position.x;
+    pose_to_goal.position.y = goal_point.y - cur_pose_.pose.position.y;
+    pose_to_goal.position.z = goal_point.z - cur_pose_.pose.position.z;
+
+    float dist_to_goal = sqrt(pose_to_goal.position.x*pose_to_goal.position.x + pose_to_goal.position.y*pose_to_goal.position.y + pose_to_goal.position.z*pose_to_goal.position.z);
+
+    go_to_service.request.groupMask = 0;
+    go_to_service.request.relative = false;
+    go_to_service.request.goal = goal_point;
+    go_to_service.request.yaw = 0.0;
+    go_to_service.request.duration = ros::Duration( dist_to_goal / go_to_vel );
+
+    takeoff_client_.call(go_to_service);
+    ROS_INFO("Going to waypoint!");
+
+    // while (crazyflie_state_.data == 3 && ros::ok()) {
+    //     std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    // }
+    ROS_INFO("Arrived to waypoint!");
 }
 
 void BackendCrazyflie::goToWaypointGeo(const WaypointGeo& _wp) {
@@ -731,23 +708,23 @@ Transform BackendCrazyflie::transform() const {
 }
 
 bool BackendCrazyflie::referencePoseReached() {
-    // double position_min, position_mean, position_max;
-    // double orientation_min, orientation_mean, orientation_max;
-    // // if (!position_error_.get_stats(position_min, position_mean, position_max)) { return false; }
-    // // if (!orientation_error_.get_stats(orientation_min, orientation_mean, orientation_max)) { return false; }
+    double position_min, position_mean, position_max;
+    double orientation_min, orientation_mean, orientation_max;
+    // if (!position_error_.get_stats(position_min, position_mean, position_max)) { return false; }
+    // if (!orientation_error_.get_stats(orientation_min, orientation_mean, orientation_max)) { return false; }
 
-    // double position_diff = position_max - position_min;
-    // double orientation_diff = orientation_max - orientation_min;
-    // bool position_holds = (position_diff < position_th_) && (fabs(position_mean) < 0.5 * position_th_);
-    // bool orientation_holds = (orientation_diff < orientation_th_) && (fabs(orientation_mean) < 0.5 * orientation_th_);
+    double position_diff = position_max - position_min;
+    double orientation_diff = orientation_max - orientation_min;
+    bool position_holds = (position_diff < position_th_) && (fabs(position_mean) < 0.5 * position_th_);
+    bool orientation_holds = (orientation_diff < orientation_th_) && (fabs(orientation_mean) < 0.5 * orientation_th_);
 
-    // // if (position_holds && orientation_holds) {  // DEBUG
-    // //     ROS_INFO("position: %f < %f) && (%f < %f)", position_diff, position_th_, fabs(position_mean), 0.5*position_th_);
-    // //     ROS_INFO("orientation: %f < %f) && (%f < %f)", orientation_diff, orientation_th_, fabs(orientation_mean), 0.5*orientation_th_);
-    // //     ROS_INFO("Arrived!");
-    // // }
+    // if (position_holds && orientation_holds) {  // DEBUG
+    //     ROS_INFO("position: %f < %f) && (%f < %f)", position_diff, position_th_, fabs(position_mean), 0.5*position_th_);
+    //     ROS_INFO("orientation: %f < %f) && (%f < %f)", orientation_diff, orientation_th_, fabs(orientation_mean), 0.5*orientation_th_);
+    //     ROS_INFO("Arrived!");
+    // }
 
-    // return position_holds && orientation_holds;
+    return position_holds && orientation_holds;
 }
 
 void BackendCrazyflie::initHomeFrame() {
@@ -759,59 +736,63 @@ void BackendCrazyflie::initHomeFrame() {
     std::string parent_frame;
     ros::param::param<std::string>("~home_pose_parent_frame", parent_frame, "map");
 
-    // std::vector<double> home_pose(3, 0.0);
-    // if (ros::param::has("~home_pose")) {
-    //     ros::param::get("~home_pose", home_pose);
-    // } else if (ros::param::has("~map_origin_geo")) {
-    //     ROS_WARN("Be careful, you should only use this mode with RTK GPS!");
-    //     while (!this->mavros_has_geo_pose_) {
-    //         std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    //     }
-    //     std::vector<double> map_origin_geo(3, 0.0);
-    //     ros::param::get("~map_origin_geo", map_origin_geo);
-    //     geographic_msgs::GeoPoint origin_geo, actual_coordinate_geo;
-    //     origin_geo.latitude = map_origin_geo[0];
-    //     origin_geo.longitude = map_origin_geo[1];
-    //     origin_geo.altitude = 0;  //map_origin_geo[2];
-    //     actual_coordinate_geo.latitude = cur_geo_pose_.latitude;
-    //     actual_coordinate_geo.longitude = cur_geo_pose_.longitude;
-    //     actual_coordinate_geo.altitude = 0;  //cur_geo_pose_.altitude;
-    //     if (map_origin_geo[0] == 0 && map_origin_geo[1] == 0) {
-    //         ROS_WARN("Map origin is set to 0. Define map_origin_geo param by a vector in format [lat,lon,alt].");
-    //     }
-    //     geometry_msgs::Point32 map_origin_cartesian = geographic_to_cartesian(actual_coordinate_geo, origin_geo);
+    std::vector<double> home_pose(3, 0.0);
+    if (ros::param::has("~home_pose")) {
+        ros::param::get("~home_pose", home_pose);
+    } else if (ros::param::has("~map_origin_geo")) {
+        ROS_WARN("Be careful, you should only use this mode with RTK GPS!");
+        while (!this->mavros_has_geo_pose_) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        }
+        std::vector<double> map_origin_geo(3, 0.0);
+        ros::param::get("~map_origin_geo", map_origin_geo);
+        geographic_msgs::GeoPoint origin_geo, actual_coordinate_geo;
+        origin_geo.latitude = map_origin_geo[0];
+        origin_geo.longitude = map_origin_geo[1];
+        origin_geo.altitude = 0;  //map_origin_geo[2];
+        actual_coordinate_geo.latitude = cur_geo_pose_.latitude;
+        actual_coordinate_geo.longitude = cur_geo_pose_.longitude;
+        actual_coordinate_geo.altitude = 0;  //cur_geo_pose_.altitude;
+        if (map_origin_geo[0] == 0 && map_origin_geo[1] == 0) {
+            ROS_WARN("Map origin is set to 0. Define map_origin_geo param by a vector in format [lat,lon,alt].");
+        }
+        geometry_msgs::Point32 map_origin_cartesian = geographic_to_cartesian(actual_coordinate_geo, origin_geo);
 
-    //     home_pose[0] = map_origin_cartesian.x;
-    //     home_pose[1] = map_origin_cartesian.y;
-    //     home_pose[2] = map_origin_cartesian.z;
-    // } else {
-    //     ROS_WARN("No home pose or map origin was defined. Home frame will be equal to map.");
-    // }
+        home_pose[0] = map_origin_cartesian.x;
+        home_pose[1] = map_origin_cartesian.y;
+        home_pose[2] = map_origin_cartesian.z;
+    } else {
+        ROS_WARN("No home pose or map origin was defined. Home frame will be equal to map.");
+    }
 
-    // geometry_msgs::TransformStamped static_transformStamped;
+    geometry_msgs::TransformStamped static_transformStamped;
 
-    // static_transformStamped.header.stamp = ros::Time::now();
-    // static_transformStamped.header.frame_id = parent_frame;
-    // static_transformStamped.child_frame_id = uav_home_frame_id_;
-    // static_transformStamped.transform.translation.x = home_pose[0];
-    // static_transformStamped.transform.translation.y = home_pose[1];
-    // static_transformStamped.transform.translation.z = home_pose[2];
+    static_transformStamped.header.stamp = ros::Time::now();
+    static_transformStamped.header.frame_id = parent_frame;
+    static_transformStamped.child_frame_id = uav_home_frame_id_;
+    static_transformStamped.transform.translation.x = home_pose[0];
+    static_transformStamped.transform.translation.y = home_pose[1];
+    static_transformStamped.transform.translation.z = home_pose[2];
 
-    // if (parent_frame == "map" || parent_frame == "") {
-    //     static_transformStamped.transform.rotation.x = 0;
-    //     static_transformStamped.transform.rotation.y = 0;
-    //     static_transformStamped.transform.rotation.z = 0;
-    //     static_transformStamped.transform.rotation.w = 1;
-    // } else {
-    //     tf2_ros::Buffer tfBuffer;
-    //     tf2_ros::TransformListener tfListener(tfBuffer);
-    //     geometry_msgs::TransformStamped transform_to_map;
-    //     transform_to_map = tfBuffer.lookupTransform(parent_frame, "map", ros::Time(0), ros::Duration(2.0));
-    //     static_transformStamped.transform.rotation = transform_to_map.transform.rotation;
-    // }
+    if (parent_frame == "map" || parent_frame == "") {
+        static_transformStamped.transform.rotation.x = 0;
+        static_transformStamped.transform.rotation.y = 0;
+        static_transformStamped.transform.rotation.z = 0;
+        static_transformStamped.transform.rotation.w = 1;
+    } else {
+        tf2_ros::Buffer tfBuffer;
+        tf2_ros::TransformListener tfListener(tfBuffer);
+        geometry_msgs::TransformStamped transform_to_map;
+        transform_to_map = tfBuffer.lookupTransform(parent_frame, "map", ros::Time(0), ros::Duration(2.0));
+        static_transformStamped.transform.rotation = transform_to_map.transform.rotation;
+    }
 
-    // static_tf_broadcaster_ = new tf2_ros::StaticTransformBroadcaster();
-    // static_tf_broadcaster_->sendTransform(static_transformStamped);
+    static_tf_broadcaster_ = new tf2_ros::StaticTransformBroadcaster();
+    static_tf_broadcaster_->sendTransform(static_transformStamped);
+
+    init_pose_.pose.position.x = home_pose[0];
+    init_pose_.pose.position.y = home_pose[1];
+    init_pose_.pose.position.z = home_pose[2];
 }
 
 double BackendCrazyflie::updateParam(const std::string& _param_id) {

@@ -29,8 +29,11 @@
 #include <ros/ros.h>
 
 //Mavros services
-#include <mavros_msgs/CommandBool.h>
-#include <mavros_msgs/SetMode.h>
+#include <crazyflie_driver/Takeoff.h>
+#include <crazyflie_driver/Land.h>
+#include <crazyflie_driver/GoTo.h>
+#include <crazyflie_driver/AddCrazyflie.h>
+
 
 //Mavros messages
 #include <mavros_msgs/State.h>
@@ -175,6 +178,7 @@ private:
     sensor_msgs::NavSatFix      ref_pose_global_;
     geometry_msgs::PoseStamped  cur_pose_;
     sensor_msgs::NavSatFix      cur_geo_pose_;
+    geometry_msgs::PoseStamped  init_pose_;
     geometry_msgs::TwistStamped ref_vel_;
     geometry_msgs::TwistStamped cur_vel_;
     std_msgs::Int8              crazyflie_state_;
@@ -183,7 +187,7 @@ private:
     //Control
     enum class eControlMode {LOCAL_VEL, LOCAL_POSE, GLOBAL_POSE};
     eControlMode control_mode_ = eControlMode::LOCAL_POSE;
-    bool mavros_has_pose_ = false;
+    bool cf_has_pose_ = false;
     bool mavros_has_geo_pose_ = false;
     float position_th_;
     float orientation_th_;
@@ -196,6 +200,7 @@ private:
     ros::ServiceClient get_param_client_;
     ros::ServiceClient takeoff_client_;
     ros::ServiceClient land_client_;
+    ros::ServiceClient go_to_client_;
     ros::Publisher crazyflie_ref_pose_pub_;
     ros::Publisher crazyflie_ref_pose_global_pub_;
     ros::Publisher crazyflie_ref_vel_pub_;
@@ -214,6 +219,7 @@ private:
     std::map<std::string, double> mavros_params_;
     Eigen::Vector3d local_start_pos_;
     ros::Time last_command_time_;
+
 
     std::thread offboard_thread_;
     double offboard_thread_frequency_;
