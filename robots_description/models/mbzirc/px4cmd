@@ -62,6 +62,7 @@ param set RC_MAP_PITCH 3
 param set RC_MAP_ROLL 4
 param set RC_MAP_THROTTLE 1
 param set RC_MAP_YAW 2
+param set MAV_SYS_ID _MAVSYSID_
 replay tryapplyparams
 simulator start -s -u _SIMPORT_
 rgbledsim start

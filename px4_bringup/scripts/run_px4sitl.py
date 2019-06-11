@@ -24,6 +24,7 @@ def main():
     # Create temporary directory for robot sitl stuff
     temp_dir = utils.temp_dir(args.id)
     subprocess.call("mkdir -p " + temp_dir, shell=True)
+    subprocess.call("rm -rf " + temp_dir + "/rootfs", shell=True)
 
     # Get udp configuration, depending on id
     udp_config = utils.udp_config(args.id)
@@ -38,7 +39,8 @@ def main():
             .replace("_MAVPORT_", str(udp_config["u_port"][0]))\
             .replace("_MAVPORT2_", str(udp_config["u_port"][1]))\
             .replace("_MAVOPORT_", str(udp_config["o_port"][0]))\
-            .replace("_MAVOPORT2_", str(udp_config["o_port"][1]))
+            .replace("_MAVOPORT2_", str(udp_config["o_port"][1]))\
+            .replace("_MAVSYSID_", str(args.id))
             modified.write(modified_line)
 
     # Spawn px4
