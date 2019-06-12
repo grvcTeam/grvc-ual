@@ -34,6 +34,8 @@ double yaw;
 double altitude_offset;
 double alt_1;
 int alt_counter = 0;
+float target_z;
+bool going_up;
 
 
 namespace grvc { namespace ual {
@@ -59,6 +61,7 @@ BackendDji::BackendDji()
     pnh.param<bool>("self_arming", self_arming, false);
 
     pnh.param<float>("xy_vel_max", mpc_xy_vel_max, 3.0);
+    // pnh.param<float>("z_vel_max", mpc_z_vel_max, 1.0);
     pnh.param<float>("z_vel_max_up", mpc_z_vel_max_up, 2.0);
     pnh.param<float>("z_vel_max_dn", mpc_z_vel_max_dn, 2.0);
     pnh.param<float>("yawrate_max", mc_yawrate_max, 0.8);
@@ -242,20 +245,44 @@ void BackendDji::controlThread() {
             ref_pose_pub.publish(reference_pose_);
             ///
 
-            if (laser_altimeter == true) {
-                // ROS_INFO("laser alt on: %s", laser_altimeter ? "true":"false");
-                if ( current_laser_altitude_.data == 0.0 || altimeter_fail() ) {
-                    reference_joy.axes.push_back(reference_pose_.pose.position.z);
-                }   
-                else {
-                    altitude_offset = reference_pose_.pose.position.z - current_laser_altitude_.data;
-                    reference_joy.axes.push_back(current_position_.point.z + 2*altitude_offset);
+            // if (laser_altimeter == true) {
+            //     // ROS_INFO("laser alt on: %s", laser_altimeter ? "true":"false");
+            //     if ( current_laser_altitude_.data == 0.0 || altimeter_fail() ) {
+            //         reference_joy.axes.push_back(reference_pose_.pose.position.z);
+            //     }   
+            //     else {
+            //         altitude_offset = reference_pose_.pose.position.z - current_laser_altitude_.data;
+            //         reference_joy.axes.push_back(current_position_.point.z + 2*altitude_offset);
+            //     }
+            // } else {
+            //     reference_joy.axes.push_back(reference_pose_.pose.position.z);
+            // }
+
+            // if (laser_altimeter == true && current_laser_altitude_.data != 0.0 && !altimeter_fail()) {
+            //     altitude_offset = reference_pose_.pose.position.z - current_laser_altitude_.data;
+            //     reference_joy.axes.push_back(current_position_.point.z + 2*altitude_offset);
+            // } else {
+            //     reference_joy.axes.push_back(reference_pose_.pose.position.z);
+            // }
+
+            
+            if (going_up) {
+                if (fabs(cur_vel_.twist.linear.z) - mpc_z_vel_max_up < 0 && target_z < reference_pose_.pose.position.z) {
+                    target_z += 0.04*mpc_z_vel_max_up;
+                } else if (fabs(cur_vel_.twist.linear.z) - mpc_z_vel_max_up > 0.1 && target_z < reference_pose_.pose.position.z) {
+                    // target_z -= 0.02*mpc_z_vel_max_up;
                 }
             } else {
-                reference_joy.axes.push_back(reference_pose_.pose.position.z);
+                if (fabs(cur_vel_.twist.linear.z) - mpc_z_vel_max_dn < 0 && target_z > reference_pose_.pose.position.z) {
+                    target_z -= 0.04*mpc_z_vel_max_dn;
+                } else if (fabs(cur_vel_.twist.linear.z) - mpc_z_vel_max_dn > 0.1 && target_z > reference_pose_.pose.position.z) {
+                    // target_z += 0.02*mpc_z_vel_max_dn;
+                }
             }
+            // std::cout << "target_z: " << target_z << std::endl;
 
-
+            // reference_joy.axes.push_back(reference_pose_.pose.position.z);
+            reference_joy.axes.push_back(target_z);
             reference_joy.axes.push_back(yaw);
             reference_joy.axes.push_back(control_flag);
 
@@ -475,7 +502,15 @@ void BackendDji::takeOff(double _height) {
     q.z = current_attitude_.quaternion.z;
     q.w = current_attitude_.quaternion.w;
 
+    while (current_position_.point.z < 1.0) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    target_z = 2.0;
+    // going_up = true;
+    if (_height > 1.2) {going_up = true;}
+    else {going_up = false;}
     control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
+
 
     while ( !(fabs(_height - current_position_.point.z) < 1.5*position_th_) ) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -642,6 +677,10 @@ void BackendDji::goToWaypoint(const Waypoint& _world) {
     q.y = reference_pose_.pose.orientation.y;
     q.z = reference_pose_.pose.orientation.z;
     q.w = reference_pose_.pose.orientation.w;
+
+    target_z = cur_pose_.pose.position.z;
+    if (reference_pose_.pose.position.z > cur_pose_.pose.position.z) {going_up = true;}
+    else {going_up = false;}
 
     geometry_msgs::PoseStamped homogen_world_pos;
 
