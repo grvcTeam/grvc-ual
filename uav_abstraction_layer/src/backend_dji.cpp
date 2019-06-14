@@ -60,7 +60,7 @@ BackendDji::BackendDji()
     pnh.param<bool>("laser_altimeter", laser_altimeter, false);
     pnh.param<bool>("self_arming", self_arming, false);
 
-    pnh.param<float>("xy_vel_max", mpc_xy_vel_max, 3.0);
+    pnh.param<float>("xy_vel_max", mpc_xy_vel_max, 2.3);
     // pnh.param<float>("z_vel_max", mpc_z_vel_max, 1.0);
     pnh.param<float>("z_vel_max_up", mpc_z_vel_max_up, 2.0);
     pnh.param<float>("z_vel_max_dn", mpc_z_vel_max_dn, 2.0);
@@ -773,8 +773,8 @@ void BackendDji::goToWaypoint(const Waypoint& _world) {
             if (error_xy_vel > 0 && vel_factor < vel_factor_max) {
                 vel_factor += 0.003;
                 // vel_factor += 0.0025*error_xy_vel;
-            } else if (error_xy_vel < 0.2) {
-                // vel_factor -= 0.001;
+            } else if (error_xy_vel < 0.2 && vel_factor > 0.2) {
+                vel_factor -= 0.001;
             }
 
 
