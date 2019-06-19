@@ -279,7 +279,7 @@ void BackendDji::controlThread() {
                     // target_z += 0.02*mpc_z_vel_max_dn;
                 }
             }
-            // std::cout << "target_z: " << target_z << std::endl;
+            // std::cout << "UAL reference_joy yaw:  " << yaw << std::endl;
 
             // reference_joy.axes.push_back(reference_pose_.pose.position.z);
             reference_joy.axes.push_back(target_z);
@@ -670,7 +670,10 @@ PurePursuitOutput DjiPurePursuit(geometry_msgs::Point _current, geometry_msgs::P
 void BackendDji::goToWaypoint(const Waypoint& _world) {
     control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
 
-    vel_factor = 0.001;
+    float current_xy_vel = sqrt(cur_vel_.twist.linear.x*cur_vel_.twist.linear.x + cur_vel_.twist.linear.y*cur_vel_.twist.linear.y);
+    float current_z_vel = fabs(cur_vel_.twist.linear.z);
+    // vel_factor = 0.001;
+    vel_factor = std::min(current_xy_vel/6, vel_factor_max);
 
     reference_pose_ = _world;
     q.x = reference_pose_.pose.orientation.x;
@@ -755,8 +758,8 @@ void BackendDji::goToWaypoint(const Waypoint& _world) {
 
         
         while (next_to_final_distance > linear_threshold && !abort_ && ros::ok()) {
-            float current_xy_vel = sqrt(cur_vel_.twist.linear.x*cur_vel_.twist.linear.x + cur_vel_.twist.linear.y*cur_vel_.twist.linear.y);
-            float current_z_vel = fabs(cur_vel_.twist.linear.z);
+            current_xy_vel = sqrt(cur_vel_.twist.linear.x*cur_vel_.twist.linear.x + cur_vel_.twist.linear.y*cur_vel_.twist.linear.y);
+            current_z_vel = fabs(cur_vel_.twist.linear.z);
             // if (z_vel_is_limit) {
             //     if (current_z_vel > 1.0*mpc_z_vel_max) { lookahead -= 0.05; }  // TODO: Other thesholds, other update politics?
             //     if (current_z_vel < 0.95*mpc_z_vel_max) { lookahead += 0.05; }  // TODO: Other thesholds, other update politics?
@@ -774,9 +777,9 @@ void BackendDji::goToWaypoint(const Waypoint& _world) {
                 vel_factor += 0.003;
                 // vel_factor += 0.0025*error_xy_vel;
             } else if (error_xy_vel < 0.2 && vel_factor > 0.2) {
-                vel_factor -= 0.001;
+                // vel_factor -= 0.001;
             }
-
+            // std::cout << "vel_factor: " << vel_factor << std::endl;
 
 
             // PurePursuitOutput pp = DjiPurePursuit(cur_pose_.pose.position, initial_position, final_position, lookahead);
@@ -816,6 +819,7 @@ void BackendDji::goToWaypoint(const Waypoint& _world) {
     if (abort_ && freeze_) {
         reference_pose_ = cur_pose_;
     }
+    
 
 
 }
