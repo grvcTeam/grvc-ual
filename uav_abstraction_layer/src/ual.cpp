@@ -203,6 +203,14 @@ bool UAL::setPose(const geometry_msgs::PoseStamped& _pose) {
     // Override any previous FLYING function
     if (!backend_->isIdle()) { backend_->abort(false); }
 
+    // Check consistency of pose data (isnan?)
+    if ( std::isnan(_pose.pose.position.x) || std::isnan(_pose.pose.position.y) || std::isnan(_pose.pose.position.z) ||
+         std::isnan(_pose.pose.orientation.x) || std::isnan(_pose.pose.orientation.y) || std::isnan(_pose.pose.orientation.z) ||
+         std::isnan(_pose.pose.orientation.w) ) {
+        ROS_ERROR("Unable to setPose: NaN received");
+        return false;
+    }
+
     // Function is non-blocking in backend TODO: non-thread-safe-call?
     geometry_msgs::PoseStamped ref_pose = _pose;
     validateOrientation(ref_pose.pose.orientation);
@@ -217,6 +225,14 @@ bool UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {
     }
     // Override any previous FLYING function
     if (!backend_->isIdle()) { backend_->abort(false); }
+
+    // Check consistency of pose data (isnan?)
+    if ( std::isnan(_wp.pose.position.x) || std::isnan(_wp.pose.position.y) || std::isnan(_wp.pose.position.z) ||
+         std::isnan(_wp.pose.orientation.x) || std::isnan(_wp.pose.orientation.y) || std::isnan(_wp.pose.orientation.z) ||
+         std::isnan(_wp.pose.orientation.w) ) {
+        ROS_ERROR("Unable to goToWaypoint: NaN received");
+        return false;
+    }
 
     geometry_msgs::PoseStamped ref_wp = _wp;
     validateOrientation(ref_wp.pose.orientation);
@@ -245,6 +261,12 @@ bool UAL::goToWaypointGeo(const WaypointGeo& _wp, bool _blocking) {
     // Override any previous FLYING function
     if (!backend_->isIdle()) { backend_->abort(false); }
 
+    // Check consistency of geo pose data (isnan?)
+    if ( std::isnan(_wp.latitude) || std::isnan(_wp.longitude) || std::isnan(_wp.altitude) ) {
+        ROS_ERROR("Unable to goToWaypointGeo: NaN received");
+        return false;
+    }
+
     if (_blocking) {
         if (!backend_->threadSafeCall(&Backend::goToWaypointGeo, _wp)) {
             ROS_INFO("Blocking goToWaypoint rejected!");
@@ -269,7 +291,7 @@ bool UAL::takeOff(double _height, bool _blocking) {
         return false;
     }
     // Check input
-    if (_height < 0.0) {
+    if ( _height < 0.0 || std::isnan(_height) ) {
         ROS_ERROR("Unable to takeOff: height must be positive!");
         return false;
     }
@@ -325,6 +347,13 @@ bool UAL::setVelocity(const Velocity& _vel) {
     }
     // Override any previous FLYING function
     if (!backend_->isIdle()) { backend_->abort(); }
+
+    // Check consistency of velocity data (isnan?)
+    if ( std::isnan(_vel.twist.linear.x) || std::isnan(_vel.twist.linear.y) || std::isnan(_vel.twist.linear.z) ||
+         std::isnan(_vel.twist.angular.x) || std::isnan(_vel.twist.angular.y) || std::isnan(_vel.twist.angular.z) ) {
+        ROS_ERROR("Unable to setVelocity: NaN received");
+        return false;
+    }
 
     // Function is non-blocking in backend TODO: non-thread-safe-call?
     backend_->threadSafeCall(&Backend::setVelocity, _vel);
