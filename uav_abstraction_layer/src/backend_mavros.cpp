@@ -46,7 +46,7 @@ BackendMavros::BackendMavros()
     position_th_ = position_th_param*position_th_param;
     orientation_th_ = 0.5*(1 - cos(orientation_th_param));
 
-    ROS_INFO("BackendMavros constructor with id %d",robot_id_);
+    ROS_INFO("BackendMavros constructor with id [%d]", robot_id_);
     // ROS_INFO("BackendMavros: thresholds = %f %f", position_th_, orientation_th_);
 
     // Init ros communications
@@ -134,7 +134,7 @@ BackendMavros::BackendMavros()
     mavros_params_["MPC_TKO_SPEED"]    =   1.5;  // [m/s]   Default value
     // Updating here is non-sense as service seems to be slow in waking up
 
-    ROS_INFO("BackendMavros %d running!",robot_id_);
+    ROS_INFO("BackendMavros [%d] running!", robot_id_);
 }
 
 BackendMavros::~BackendMavros() {
@@ -319,7 +319,7 @@ void BackendMavros::takeOff(double _height) {
     while (!referencePoseReached() && (this->mavros_state_.mode == "OFFBOARD") && ros::ok()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-    ROS_INFO("Flying!");
+    ROS_INFO("[%d]: Flying!", robot_id_);
     calling_takeoff = false;
 
     // Update state right now!
@@ -789,9 +789,9 @@ double BackendMavros::updateParam(const std::string& _param_id) {
     if (get_param_client_.call(get_param_service) && get_param_service.response.success) {
         mavros_params_[_param_id] = get_param_service.response.value.integer? 
             get_param_service.response.value.integer : get_param_service.response.value.real;
-        ROS_INFO("Parameter [%s] value is [%f]", get_param_service.request.param_id.c_str(), mavros_params_[_param_id]);
+        ROS_DEBUG("Parameter [%s] value is [%f]", get_param_service.request.param_id.c_str(), mavros_params_[_param_id]);
     } else if (mavros_params_.count(_param_id)) {
-        ROS_ERROR("Error in get param [%s] service calling, leaving current value [%f]", 
+        ROS_WARN("Error in get param [%s] service calling, leaving current value [%f]", 
             get_param_service.request.param_id.c_str(), mavros_params_[_param_id]);
     } else {
         mavros_params_[_param_id] = 0.0;
