@@ -184,6 +184,7 @@ private:
     bool mavros_has_geo_pose_ = false;
     float position_th_;
     float orientation_th_;
+    float hold_pose_time_;
     HistoryBuffer position_error_;
     HistoryBuffer orientation_error_;
 

@@ -40,11 +40,13 @@ BackendMavros::BackendMavros()
     ros::NodeHandle pnh("~");
     pnh.param<int>("uav_id", robot_id_, 1);
     pnh.param<std::string>("pose_frame_id", pose_frame_id_, "");
-    float position_th_param, orientation_th_param;
+    float position_th_param, orientation_th_param, hold_pose_time_param;
     pnh.param<float>("position_th", position_th_param, 0.33);
     pnh.param<float>("orientation_th", orientation_th_param, 0.65);
+    pnh.param<float>("hold_pose_time", hold_pose_time_param, 3.0);
     position_th_ = position_th_param*position_th_param;
     orientation_th_ = 0.5*(1 - cos(orientation_th_param));
+    hold_pose_time_ = std::max(hold_pose_time_param, 0.001f);  // Force min value
 
     ROS_INFO("BackendMavros constructor with id [%d]", robot_id_);
     // ROS_INFO("BackendMavros: thresholds = %f %f", position_th_, orientation_th_);
@@ -143,8 +145,7 @@ BackendMavros::~BackendMavros() {
 
 void BackendMavros::offboardThreadLoop(){
     ros::param::param<double>("~mavros_offboard_rate", offboard_thread_frequency_, 30.0);
-    double hold_pose_time = 3.0;  // [s]  TODO param?
-    int buffer_size = std::ceil(hold_pose_time * offboard_thread_frequency_);
+    int buffer_size = std::ceil(hold_pose_time_ * offboard_thread_frequency_);
     position_error_.set_size(buffer_size);
     orientation_error_.set_size(buffer_size);
     ros::Rate rate(offboard_thread_frequency_);
