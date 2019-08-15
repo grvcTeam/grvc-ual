@@ -180,8 +180,13 @@ void BackendLight::move() {
 
     if ( cached_transforms_.find("inv_map") == cached_transforms_.end() ) {
         // inv_map not found in cached_transforms_
-        transformToGazeboFrame = tfBuffer.lookupTransform("map", uav_home_frame_id_, ros::Time(0), ros::Duration(0.2));
-        cached_transforms_["inv_map"] = transformToGazeboFrame; // Save transform in cache
+        try {  // TODO: This try-catch is repeated several times, make a function?
+            transformToGazeboFrame = tfBuffer.lookupTransform("map", uav_home_frame_id_, ros::Time(0), ros::Duration(0.2));
+            cached_transforms_["inv_map"] = transformToGazeboFrame; // Save transform in cache
+        } catch (tf2::TransformException &ex) {
+            ROS_WARN("At line [%d]: %s", __LINE__, ex.what());
+            return;
+        }
     } else {
         // found in cache
         transformToGazeboFrame = cached_transforms_["inv_map"];
@@ -205,8 +210,13 @@ void BackendLight::move() {
         // Update also internal pose
         geometry_msgs::TransformStamped transformToHomeFrame;
         if ( cached_transforms_.find("map") == cached_transforms_.end() ) {
-            transformToHomeFrame = tfBuffer.lookupTransform(uav_home_frame_id_, "map", ros::Time(0), ros::Duration(0.2));
-            cached_transforms_["map"] = transformToHomeFrame; // Save transform in cache
+            try {
+                transformToHomeFrame = tfBuffer.lookupTransform(uav_home_frame_id_, "map", ros::Time(0), ros::Duration(0.2));
+                cached_transforms_["map"] = transformToHomeFrame; // Save transform in cache
+            } catch (tf2::TransformException &ex) {
+                ROS_WARN("At line [%d]: %s", __LINE__, ex.what());
+                return;
+            }
         } else {
             transformToHomeFrame = cached_transforms_["map"];
         }
@@ -313,9 +323,8 @@ void BackendLight::setVelocity(const Velocity& _vel) {
         bool tf_exists = true;
         try {
             transform = tfBuffer.lookupTransform(uav_home_frame_id_, vel_frame_id, ros::Time(0), ros::Duration(0.3));
-        }
-        catch (tf2::TransformException &ex) {
-            ROS_WARN("%s",ex.what());
+        } catch (tf2::TransformException &ex) {
+            ROS_WARN("At line [%d]: %s", __LINE__, ex.what());
             tf_exists = false;
             ref_vel_ = _vel;
         }
@@ -349,8 +358,13 @@ void BackendLight::setPose(const geometry_msgs::PoseStamped& _world) {
 
         if ( cached_transforms_.find(waypoint_frame_id) == cached_transforms_.end() ) {
             // waypoint_frame_id not found in cached_transforms_
-            transformToHomeFrame = tfBuffer.lookupTransform(uav_home_frame_id_, waypoint_frame_id, ros::Time(0), ros::Duration(0.2));
-            cached_transforms_[waypoint_frame_id] = transformToHomeFrame; // Save transform in cache
+            try {
+                transformToHomeFrame = tfBuffer.lookupTransform(uav_home_frame_id_, waypoint_frame_id, ros::Time(0), ros::Duration(0.2));
+                cached_transforms_[waypoint_frame_id] = transformToHomeFrame; // Save transform in cache
+            } catch (tf2::TransformException &ex) {
+                ROS_WARN("At line [%d]: %s", __LINE__, ex.what());
+                return;
+            }
         } else {
             // found in cache
             transformToHomeFrame = cached_transforms_[waypoint_frame_id];
@@ -404,9 +418,14 @@ Pose BackendLight::pose() {
             if ( cached_transforms_.find(pose_frame_id_map) == cached_transforms_.end() ) {
                 // inv_pose_frame_id_ not found in cached_transforms_
                 tf2_ros::Buffer tfBuffer;
-                tf2_ros::TransformListener tfListener(tfBuffer);
-                transformToPoseFrame = tfBuffer.lookupTransform(pose_frame_id_,uav_home_frame_id_, ros::Time(0), ros::Duration(0.2));
-                cached_transforms_[pose_frame_id_map] = transformToPoseFrame; // Save transform in cache
+                tf2_ros::TransformListener tfListener(tfBuffer);  // TODO: make tfListener member!
+                try {
+                    transformToPoseFrame = tfBuffer.lookupTransform(pose_frame_id_,uav_home_frame_id_, ros::Time(0), ros::Duration(0.2));
+                    cached_transforms_[pose_frame_id_map] = transformToPoseFrame; // Save transform in cache
+                } catch (tf2::TransformException &ex) {
+                    ROS_WARN("At line [%d]: %s", __LINE__, ex.what());
+                    return Pose();
+                }
             } else {
                 // found in cache
                 transformToPoseFrame = cached_transforms_[pose_frame_id_map];
@@ -508,9 +527,14 @@ void BackendLight::initHomeFrame() {
     } else {
         tf2_ros::Buffer tfBuffer;
         tf2_ros::TransformListener tfListener(tfBuffer);
-        geometry_msgs::TransformStamped transform_to_map;
-        transform_to_map = tfBuffer.lookupTransform(parent_frame, "map", ros::Time(0), ros::Duration(2.0));
-        static_transformStamped.transform.rotation = transform_to_map.transform.rotation;
+        try {
+            geometry_msgs::TransformStamped transform_to_map;
+            transform_to_map = tfBuffer.lookupTransform(parent_frame, "map", ros::Time(0), ros::Duration(2.0));
+            static_transformStamped.transform.rotation = transform_to_map.transform.rotation;
+        } catch (tf2::TransformException &ex) {
+            ROS_WARN("At line [%d]: %s", __LINE__, ex.what());
+            return;
+        }
     }
 
     static_tf_broadcaster_ = new tf2_ros::StaticTransformBroadcaster();
