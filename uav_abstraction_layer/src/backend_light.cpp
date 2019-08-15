@@ -25,8 +25,6 @@
 #include <Eigen/Eigen>
 #include <ros/ros.h>
 #include <ros/package.h>
-#include <tf2_ros/transform_listener.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <algorithm>
 #include <cmath>
@@ -41,7 +39,7 @@
 namespace grvc { namespace ual {
 
 BackendLight::BackendLight()
-    : Backend(), generator_(std::chrono::system_clock::now().time_since_epoch().count())
+    : Backend(), generator_(std::chrono::system_clock::now().time_since_epoch().count()), tf_listener_(tf_buffer_)
 {
     ROS_INFO("BackendLight constructor");
 
@@ -174,14 +172,12 @@ void BackendLight::move() {
     cur_pose_noisy_.pose.orientation = cur_pose_.pose.orientation;
 
     // Transform to map
-    tf2_ros::Buffer tfBuffer;
-    tf2_ros::TransformListener tfListener(tfBuffer);
     geometry_msgs::TransformStamped transformToGazeboFrame;
 
     if ( cached_transforms_.find("inv_map") == cached_transforms_.end() ) {
         // inv_map not found in cached_transforms_
         try {  // TODO: This try-catch is repeated several times, make a function?
-            transformToGazeboFrame = tfBuffer.lookupTransform("map", uav_home_frame_id_, ros::Time(0), ros::Duration(0.2));
+            transformToGazeboFrame = tf_buffer_.lookupTransform("map", uav_home_frame_id_, ros::Time(0), ros::Duration(0.2));
             cached_transforms_["inv_map"] = transformToGazeboFrame; // Save transform in cache
         } catch (tf2::TransformException &ex) {
             ROS_WARN("At line [%d]: %s", __LINE__, ex.what());
@@ -211,7 +207,7 @@ void BackendLight::move() {
         geometry_msgs::TransformStamped transformToHomeFrame;
         if ( cached_transforms_.find("map") == cached_transforms_.end() ) {
             try {
-                transformToHomeFrame = tfBuffer.lookupTransform(uav_home_frame_id_, "map", ros::Time(0), ros::Duration(0.2));
+                transformToHomeFrame = tf_buffer_.lookupTransform(uav_home_frame_id_, "map", ros::Time(0), ros::Duration(0.2));
                 cached_transforms_["map"] = transformToHomeFrame; // Save transform in cache
             } catch (tf2::TransformException &ex) {
                 ROS_WARN("At line [%d]: %s", __LINE__, ex.what());
@@ -306,8 +302,6 @@ void BackendLight::land() {
 void BackendLight::setVelocity(const Velocity& _vel) {
     control_in_vel_ = true;  // Velocity control!
     
-    tf2_ros::Buffer tfBuffer;
-    tf2_ros::TransformListener tfListener(tfBuffer);
     geometry_msgs::Vector3Stamped vel_in, vel_out;
     vel_in.header = _vel.header;
     vel_in.vector = _vel.twist.linear;
@@ -322,7 +316,7 @@ void BackendLight::setVelocity(const Velocity& _vel) {
         geometry_msgs::TransformStamped transform;
         bool tf_exists = true;
         try {
-            transform = tfBuffer.lookupTransform(uav_home_frame_id_, vel_frame_id, ros::Time(0), ros::Duration(0.3));
+            transform = tf_buffer_.lookupTransform(uav_home_frame_id_, vel_frame_id, ros::Time(0), ros::Duration(0.3));
         } catch (tf2::TransformException &ex) {
             ROS_WARN("At line [%d]: %s", __LINE__, ex.what());
             tf_exists = false;
@@ -344,8 +338,6 @@ void BackendLight::setPose(const geometry_msgs::PoseStamped& _world) {
     control_in_vel_ = false;  // Control in position
 
     geometry_msgs::PoseStamped homogen_world_pos;
-    tf2_ros::Buffer tfBuffer;
-    tf2_ros::TransformListener tfListener(tfBuffer);
     std::string waypoint_frame_id = tf2::getFrameId(_world);
 
     if ( waypoint_frame_id == "" || waypoint_frame_id == uav_home_frame_id_ ) {
@@ -359,7 +351,7 @@ void BackendLight::setPose(const geometry_msgs::PoseStamped& _world) {
         if ( cached_transforms_.find(waypoint_frame_id) == cached_transforms_.end() ) {
             // waypoint_frame_id not found in cached_transforms_
             try {
-                transformToHomeFrame = tfBuffer.lookupTransform(uav_home_frame_id_, waypoint_frame_id, ros::Time(0), ros::Duration(0.2));
+                transformToHomeFrame = tf_buffer_.lookupTransform(uav_home_frame_id_, waypoint_frame_id, ros::Time(0), ros::Duration(0.2));
                 cached_transforms_[waypoint_frame_id] = transformToHomeFrame; // Save transform in cache
             } catch (tf2::TransformException &ex) {
                 ROS_WARN("At line [%d]: %s", __LINE__, ex.what());
@@ -417,10 +409,8 @@ Pose BackendLight::pose() {
 
             if ( cached_transforms_.find(pose_frame_id_map) == cached_transforms_.end() ) {
                 // inv_pose_frame_id_ not found in cached_transforms_
-                tf2_ros::Buffer tfBuffer;
-                tf2_ros::TransformListener tfListener(tfBuffer);  // TODO: make tfListener member!
                 try {
-                    transformToPoseFrame = tfBuffer.lookupTransform(pose_frame_id_,uav_home_frame_id_, ros::Time(0), ros::Duration(0.2));
+                    transformToPoseFrame = tf_buffer_.lookupTransform(pose_frame_id_,uav_home_frame_id_, ros::Time(0), ros::Duration(0.2));
                     cached_transforms_[pose_frame_id_map] = transformToPoseFrame; // Save transform in cache
                 } catch (tf2::TransformException &ex) {
                     ROS_WARN("At line [%d]: %s", __LINE__, ex.what());
@@ -525,11 +515,9 @@ void BackendLight::initHomeFrame() {
         static_transformStamped.transform.rotation.z = 0;
         static_transformStamped.transform.rotation.w = 1;
     } else {
-        tf2_ros::Buffer tfBuffer;
-        tf2_ros::TransformListener tfListener(tfBuffer);
         try {
             geometry_msgs::TransformStamped transform_to_map;
-            transform_to_map = tfBuffer.lookupTransform(parent_frame, "map", ros::Time(0), ros::Duration(2.0));
+            transform_to_map = tf_buffer_.lookupTransform(parent_frame, "map", ros::Time(0), ros::Duration(2.0));
             static_transformStamped.transform.rotation = transform_to_map.transform.rotation;
         } catch (tf2::TransformException &ex) {
             ROS_WARN("At line [%d]: %s", __LINE__, ex.what());
