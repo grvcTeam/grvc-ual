@@ -57,6 +57,13 @@ BackendLight::BackendLight()
     pnh.param<float>("max_orientation_error", max_orientation_error_, 0.01);  // [rad]
     float noise_var;
     pnh.param<float>("noise_var", noise_var, 0.0);
+    float position_th_param, orientation_th_param, hold_pose_time_param;
+    pnh.param<float>("position_th", position_th_param, 0.33);
+    pnh.param<float>("orientation_th", orientation_th_param, 0.65);
+    // pnh.param<float>("hold_pose_time", hold_pose_time_param, 3.0);
+    position_th_ = position_th_param*position_th_param;
+    orientation_th_ = 0.5*(1 - cos(orientation_th_param));
+    // hold_pose_time_ = std::max(hold_pose_time_param, 0.001f);  // Force min value
 
     distribution_ = new std::normal_distribution<double>(0.0, noise_var);
 
@@ -457,7 +464,7 @@ Transform BackendLight::transform() const {
     return out;
 }
 
-bool BackendLight::referencePoseReached() const {
+bool BackendLight::referencePoseReached() {
     double dx = ref_pose_.pose.position.x - cur_pose_.pose.position.x;
     double dy = ref_pose_.pose.position.y - cur_pose_.pose.position.y;
     double dz = ref_pose_.pose.position.z - cur_pose_.pose.position.z;
@@ -474,10 +481,12 @@ bool BackendLight::referencePoseReached() const {
     cur_pose_.pose.position.x, cur_pose_.pose.position.y, cur_pose_.pose.position.z);*/
     //ROS_INFO("pD = %f,\t oD = %f", positionD, orientationD);
 
-    if ((positionD > 0.1) || (orientationD > 0.1))  // TODO: define thresholds
+    if ((positionD > position_th_) || (orientationD > orientation_th_)) {
         return false;
-    else
+    } else {
+        // cur_pose_ = ref_pose_;
         return true;
+    }
 }
 
 void BackendLight::initHomeFrame() {

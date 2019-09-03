@@ -81,7 +81,7 @@ public:
 
 private:
     void initHomeFrame();
-    bool referencePoseReached() const;
+    bool referencePoseReached();
     void move();
     Velocity calculateRefVel(Pose _target_pose);
 
@@ -114,6 +114,9 @@ private:
     float max_yaw_rate_;
     float max_position_error_;
     float max_orientation_error_;
+    float position_th_;
+    float orientation_th_;
+    // float hold_pose_time_;  // TODO: add?
 
     int robot_id_;
     std::string pose_frame_id_;
