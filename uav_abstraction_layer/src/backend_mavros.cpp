@@ -584,8 +584,11 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
     }
     // ROS_INFO("All points sent!");
 
-    // Finally set pose
-    ref_pose_.pose = homogen_world_pos.pose;
+    // Finally set pose (if not aborted!)
+    if (!abort_) {
+        ref_pose_.pose = homogen_world_pos.pose;
+    }
+
     position_error_.reset();
     orientation_error_.reset();
 
