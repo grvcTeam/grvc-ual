@@ -14,7 +14,7 @@ import xml.etree.ElementTree as ET
 
 def main():
 
-    # Parse arguments
+    # Parse arguments  # TODO: Too much arguments? Rethink this script
     parser = argparse.ArgumentParser(description='Spawn robot in Gazebo for SITL')
     parser.add_argument('-model', type=str, default="mbzirc",
                         help='robot model name, must match xacro description folder name')
@@ -37,6 +37,8 @@ def main():
                         help='backend to use')
     parser.add_argument('-frame_id', type=str, default="map",
                         help='initial position and yaw frame reference; id [map] refers to gazebo origin')
+    parser.add_argument('-append_xacro_args', type=str, nargs='+',
+                        help='append additional arguments for xacro command')
     args, unknown = parser.parse_known_args()
     utils.check_unknown_args(unknown)
 
@@ -82,6 +84,15 @@ def main():
         " enable_wind:=false" + \
         " mavlink_udp_port:=" + str(udp_config["sim_port"]) + \
         " visual_material:=" + args.material
+
+        if args.append_xacro_args:
+            for xacro_arg in args.append_xacro_args:
+                # print(xacro_arg)
+                xacro_args += ' '
+                xacro_args += xacro_arg.replace('=', ':=')  # As args are passed as arg=value
+        # print(xacro_args)
+        # return
+
         xacro_out = open(temp_dir+"/xacro.out", 'w')
         xacro_err = open(temp_dir+"/xacro.err", 'w')
         subprocess.call(xacro_args, shell=True, stdout=xacro_out, stderr=xacro_err)

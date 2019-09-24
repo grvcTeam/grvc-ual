@@ -25,11 +25,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     <arg name="yaw" default="0"/>
     <arg name="frame_id" default="map"/>
     <arg name="rtcm_topic" default=""/>
+    <arg name="append_xacro_args" default=""/>
 
     <group if="$(eval mode == 'sitl')">
         <!-- Spawn model in Gazebo -->
         <node pkg="px4_bringup" type="spawn_gzmodel.py" name="spawn_gzmodel_$(arg id)" output="screen"
-        args="-model=$(arg robot_model) -id=$(arg id) -x $(arg x) -y $(arg y) -z $(arg z) -Y $(arg yaw) -description_package=$(arg description_package) -material=$(arg material) -frame_id=$(arg frame_id)"/>
+        args="-model=$(arg robot_model) -id=$(arg id) -x $(arg x) -y $(arg y) -z $(arg z) -Y $(arg yaw) 
+              -description_package=$(arg description_package) -material=$(arg material) -frame_id=$(arg frame_id) 
+              -append_xacro_args $(arg append_xacro_args)"/>
 
         <!-- Run px4 controller -->
         <!-- Important parameter cwd="node", px4 link generation may cause errors otherwise -->
