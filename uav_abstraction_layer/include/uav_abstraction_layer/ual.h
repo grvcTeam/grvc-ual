@@ -34,8 +34,8 @@ namespace grvc { namespace ual {
 /// UAL replicates Backend interface, with some extras
 class UAL {
 public:
-    UAL(int _argc, char** _argv);
-    UAL();
+    UAL(Backend* _backend, int _argc, char** _argv);
+    UAL(Backend* _backend);
     ~UAL();
 
     /// Initialized and ready to run tasks?
@@ -95,7 +95,7 @@ public:
     bool    setHome(bool set_z = false);
 
 protected:
-    void init();
+    void init(Backend* _backend);
     Backend* backend_;
     std::thread running_thread_;
     std::thread server_thread_;

@@ -29,28 +29,28 @@ using namespace uav_abstraction_layer;
 
 namespace grvc { namespace ual {
 
-UAL::UAL(int _argc, char** _argv) {
+UAL::UAL(Backend* _backend, int _argc, char** _argv) {
     // Start ROS if not initialized
     if (!ros::isInitialized()) {
         // Init ros node
         ros::init(_argc, _argv, "ual");
     }
-    this->init();
+    this->init(_backend);
 }
 
-UAL::UAL() {
+UAL::UAL(Backend* _backend) {
     // Error if ROS is not initialized
     if (!ros::isInitialized()) {
         // Init ros node
         ROS_ERROR("UAL needs ROS to be initialized. Initialize ROS before creating UAL object or use UAL(int _argc, char** _argv) constructor.");
         exit(0);
     }
-    this->init();
+    this->init(_backend);
 }
 
-void UAL::init() {
-    // Create backend first of all, inits ros node
-    backend_ = Backend::createBackend();
+void UAL::init(Backend* _backend) {
+    // Get backend first of all
+    backend_ = _backend;
     // Get params
     ros::NodeHandle pnh("~");
     pnh.param<int>("uav_id", robot_id_, 1);

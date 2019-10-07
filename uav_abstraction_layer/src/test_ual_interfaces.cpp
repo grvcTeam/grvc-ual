@@ -19,11 +19,29 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //----------------------------------------------------------------------------------------------------------------------
 #include <uav_abstraction_layer/ual.h>
+#include <uav_abstraction_layer/backend.h>
+#include <uav_abstraction_layer/backend_mavros.h>
+#include <uav_abstraction_layer/backend_light.h>
+#include <uav_abstraction_layer/backend_dummy.h>
 #include <ros/ros.h>
 
 int main(int _argc, char** _argv) {
 
-    grvc::ual::UAL ual(_argc, _argv);
+    ros::init(_argc, _argv, "test_ual_interfaces");
+
+    ros::NodeHandle nh("~");
+    std::string selected_backend;
+    nh.param<std::string>("ual_backend", selected_backend, "mavros");
+    grvc::ual::Backend* backend = nullptr;
+    if (selected_backend == "mavros") {
+        backend = new grvc::ual::BackendMavros();
+    } else if (selected_backend == "light") {
+        backend = new grvc::ual::BackendLight();
+    } else if (selected_backend == "dummy") {
+        backend = new grvc::ual::BackendDummy();
+    }
+
+    grvc::ual::UAL ual(backend);
     while ((ual.state().state != uav_abstraction_layer::State::LANDED_ARMED) && ros::ok()) {
         std::cout << "UAL not ready!" << std::endl;
         sleep(1);

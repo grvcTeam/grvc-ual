@@ -130,7 +130,7 @@ public:
     /// current platform.
     /// \return the newly created Backend. Whoever calls this method, is responsible for eventually
     /// destroying the Backend.
-    static Backend* createBackend();
+    // static Backend* createBackend();
 
 protected:
     /// Abort flag
