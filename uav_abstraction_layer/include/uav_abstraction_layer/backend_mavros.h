@@ -22,7 +22,7 @@
 #define UAV_ABSTRACTION_LAYER_BACKEND_MAVROS_H
 
 #include <thread>
-#include <deque>
+#include <vector>
 #include <Eigen/Core>
 
 #include <uav_abstraction_layer/backend.h>
@@ -40,27 +40,36 @@
 #include <geometry_msgs/TwistStamped.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <tf2_ros/static_transform_broadcaster.h>
+#include <sensor_msgs/NavSatFix.h>
 
 namespace grvc { namespace ual {
 
 class HistoryBuffer {  // TODO: template? utils?
 public:
-    void set_size(size_t _size) { buffer_size_ = _size; }
+    void set_size(size_t _size) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        buffer_size_ = _size;
+        buffer_.clear();
+        current_ = 0;
+    }
 
     void reset() {
         std::lock_guard<std::mutex> lock(mutex_);
         buffer_.clear();
+        current_ = 0;
     }
 
     void update(double _value) {
         std::lock_guard<std::mutex> lock(mutex_);
-        buffer_.push_back(_value);
-        if (buffer_.size() > buffer_size_) {
-            buffer_.pop_front();
+        if (buffer_.size() < buffer_size_) {
+            buffer_.push_back(_value);
+        } else {
+            buffer_[current_] = _value;
+            current_ = (current_ + 1) % buffer_size_;
         }
     }
 
-    bool metrics(double& _min, double& _mean, double& _max) {
+    bool get_stats(double& _min, double& _mean, double& _max) {
         std::lock_guard<std::mutex> lock(mutex_);
         if (buffer_.size() >= buffer_size_) {
             double min_value = +std::numeric_limits<double>::max();
@@ -79,9 +88,28 @@ public:
         return false;
     }
 
+    bool get_variance(double& _var) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (buffer_.size() >= buffer_size_) {
+            double mean = 0;
+            double sum = 0;
+            _var = 0;
+            for (int i = 0; i < buffer_.size(); i++) {
+                sum += buffer_[i];
+            }
+            mean = sum / buffer_.size();
+            for (int i = 0; i < buffer_.size(); i++) {
+                _var += (buffer_[i]-mean)*(buffer_[i]-mean);
+            }
+            return true;
+        }
+        return false;
+    }
+
 protected:
     size_t buffer_size_ = 0;
-    std::deque<double> buffer_;
+    unsigned int current_ = 0;
+    std::vector<double> buffer_;
     std::mutex mutex_;
 };
 
@@ -89,6 +117,7 @@ class BackendMavros : public Backend {
 
 public:
     BackendMavros();
+    ~BackendMavros();
 
     /// Backend is initialized and ready to run tasks?
     bool	         isReady() const override;
@@ -100,6 +129,10 @@ public:
     virtual Odometry odometry() const override;
     /// Latest transform estimation of the robot
     virtual Transform transform() const override;
+
+    /// Set pose
+    /// \param _pose target pose
+    void    setPose(const geometry_msgs::PoseStamped& _pose) override;
 
     /// Go to the specified waypoint, following a straight line
     /// \param _wp goal waypoint
@@ -123,28 +156,32 @@ public:
     /// Use it when FLYING uav is switched to manual mode and want to go BACK to auto.
     void    recoverFromManual() override;
     /// Set home position
-    void    setHome() override;
+    void    setHome(bool set_z) override;
 
 private:
     void offboardThreadLoop();
-    void setArmed(bool _value);
     void initHomeFrame();
     bool referencePoseReached();
     void setFlightMode(const std::string& _flight_mode);
+    double updateParam(const std::string& _param_id);
+    State guessState();
 
     //WaypointList path_;
-    geometry_msgs::PoseStamped ref_pose_;
-    sensor_msgs::NavSatFix     ref_pose_global_;
-    geometry_msgs::PoseStamped cur_pose_;
+    geometry_msgs::PoseStamped  ref_pose_;
+    sensor_msgs::NavSatFix      ref_pose_global_;
+    geometry_msgs::PoseStamped  cur_pose_;
+    sensor_msgs::NavSatFix      cur_geo_pose_;
     geometry_msgs::TwistStamped ref_vel_;
     geometry_msgs::TwistStamped cur_vel_;
-    mavros_msgs::State mavros_state_;
-    mavros_msgs::ExtendedState mavros_extended_state_;
+    geometry_msgs::TwistStamped cur_vel_body_;
+    mavros_msgs::State          mavros_state_;
+    mavros_msgs::ExtendedState  mavros_extended_state_;
 
     //Control
     enum class eControlMode {LOCAL_VEL, LOCAL_POSE, GLOBAL_POSE};
     eControlMode control_mode_ = eControlMode::LOCAL_POSE;
     bool mavros_has_pose_ = false;
+    bool mavros_has_geo_pose_ = false;
     float position_th_;
     float orientation_th_;
     HistoryBuffer position_error_;
@@ -153,11 +190,14 @@ private:
     /// Ros Communication
     ros::ServiceClient flight_mode_client_;
     ros::ServiceClient arming_client_;
+    ros::ServiceClient get_param_client_;
     ros::Publisher mavros_ref_pose_pub_;
     ros::Publisher mavros_ref_pose_global_pub_;
     ros::Publisher mavros_ref_vel_pub_;
     ros::Subscriber mavros_cur_pose_sub_;
+    ros::Subscriber mavros_cur_geo_pose_sub_;
     ros::Subscriber mavros_cur_vel_sub_;
+    ros::Subscriber mavros_cur_vel_body_sub_;
     ros::Subscriber mavros_cur_state_sub_;
     ros::Subscriber mavros_cur_extended_state_sub_;
 
@@ -167,11 +207,15 @@ private:
     std::string uav_frame_id_;
     tf2_ros::StaticTransformBroadcaster * static_tf_broadcaster_;
     std::map <std::string, geometry_msgs::TransformStamped> cached_transforms_;
+    std::map<std::string, double> mavros_params_;
     Eigen::Vector3d local_start_pos_;
     ros::Time last_command_time_;
 
     std::thread offboard_thread_;
-    double offboard_thread_frequency_;  // TODO: param?
+    double offboard_thread_frequency_;
+
+    bool calling_takeoff = false;
+    bool calling_land = false;
 };
 
 }}	// namespace grvc::ual

@@ -86,22 +86,18 @@ def main():
     client = subprocess.Popen(client_args, stdout=client_out, stderr=client_err, cwd=temp_dir, \
                                            env=gz_env, shell=True, preexec_fn=os.setsid)
 
-    # Wait for server and client
-    try:
-        client.wait()
-        server.wait()
-    except KeyboardInterrupt:
-        time.sleep(1)
-        if server.poll() is None:
-            os.killpg(os.getpgid(server.pid), signal.SIGTERM)
-        if client.poll() is None:
-            os.killpg(os.getpgid(client.pid), signal.SIGTERM)
-    finally:
-        # Clean up
-        client_out.close()
-        client_err.close()
-        server_out.close()
-        server_err.close()
+    rospy.spin()  # Now I'm a ros node, jus wait
+
+    # Kill'em all
+    if client.poll() is None:
+        os.killpg(os.getpgid(client.pid), signal.SIGTERM)  # TODO: SIGKILL?
+    if server.poll() is None:
+        os.killpg(os.getpgid(server.pid), signal.SIGTERM)  # TODO: SIGKILL?
+    # Close log files
+    client_out.close()
+    client_err.close()
+    server_out.close()
+    server_err.close()
 
 
 if __name__ == '__main__':

@@ -1,0 +1,47 @@
+<!-- 
+The MIT License (MIT)
+Copyright (c) 2016 GRVC University of Seville
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
+-->
+<launch>
+    <!-- Configurable options -->
+    <arg name="robot_model" default="mbzirc"/>
+    <arg name="id" default="1"/>
+    <arg name="mode" default="sitl"/>
+    <arg name="description_package" default="robots_description"/>
+    <arg name="material" default="Orange"/>
+    <arg name="target_ip" default="localhost"/>
+    <arg name="own_ip" default="localhost"/>
+    <arg name="fcu_url" default="udp://:14550@localhost:14556"/>
+    <arg name="gcs_url" default="udp://@localhost"/>
+    <arg name="x" default="0"/>
+    <arg name="y" default="0"/>
+    <arg name="z" default="0"/>
+    <arg name="yaw" default="0"/>
+
+    <group if="$(eval mode == 'sitl')">
+        <!-- Spawn model in Gazebo -->
+        <node pkg="px4_bringup" type="spawn_gzmodel_JA.py" name="spawn_gzmodel_$(arg id)" output="screen"
+        args="-model=$(arg robot_model) -id=$(arg id) -x $(arg x) -y $(arg y) -z $(arg z) -Y $(arg yaw) -description_package=$(arg description_package) -material=$(arg material)"/>
+
+        <!-- Run px4 controller -->
+        <!-- Important parameter cwd="node", px4 link generation may cause errors otherwise -->
+        <node pkg="px4_bringup" type="run_px4sitl_JA.py" cwd="node" name="run_px4sitl_$(arg id)" output="screen"
+        args="-model=$(arg robot_model) -id=$(arg id) -description_package=$(arg description_package)"/>
+
+        <!-- Run safety pilot simulator -->
+        <!-- WARNING: Run only in simulation! -->
+        <node pkg="ual_teleop" type="simulate_safety_pilot.py" name="safety_pilot" output="screen"
+        args="-id=$(arg id) -joy_file=$(find ual_teleop)/config/saitek_p3200.yaml"/>
+    </group>
+
+    <!-- Run mavros node -->
+    <node pkg="px4_bringup" type="run_mavros.py" name="run_mavros_$(arg id)" output="screen"
+    args="-id=$(arg id) -mode=$(arg mode) -target_ip=$(arg target_ip) -own_ip=$(arg own_ip) -fcu_url=$(arg fcu_url) -gcs_url=$(arg gcs_url)" />
+
+</launch>

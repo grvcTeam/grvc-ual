@@ -18,6 +18,12 @@ def main():
                         help='IP address of the device running px4, used to set proper fcu_url')
     parser.add_argument('-own_ip', type=str, default="localhost",
                         help='IP address of this device, used to set proper fcu_url')
+    parser.add_argument('-fcu_url', type=str, default="udp://:14550@localhost:14556",
+                        help='set fcu_url manually in custom mode')
+    parser.add_argument('-gcs_url', type=str, default="",
+                        help='set gcs_url manually in custom mode')
+    parser.add_argument('-rtcm_topic', type=str, default="",
+                        help='set topic for gps rtk corrections')
     args, unknown = parser.parse_known_args()
     utils.check_unknown_args(unknown)
 
@@ -54,6 +60,10 @@ def main():
         fcu_url = "udp://:14550@{}:14556".format(args.target_ip)
         subprocess.call("rosparam set " + node_name + "/fcu_url " + fcu_url, shell=True)
         subprocess.call("rosparam set " + node_name + "/gcs_url " + "udp://@{}".format(args.own_ip), shell=True)
+    elif args.mode =="custom":
+        subprocess.call("rosparam set " + node_name + "/fcu_url " + args.fcu_url, shell=True)
+        if args.gcs_url:
+            subprocess.call("rosparam set " + node_name + "/gcs_url " + args.gcs_url, shell=True)
 
     # ...and load blacklist, config (as seen in mavros node.launch)
     yaml_path = rospack.get_path("px4_bringup") + "/config/"
@@ -64,6 +74,8 @@ def main():
 
     # Finally rosrun mavros
     rosrun_args = "rosrun mavros mavros_node __name:=" + "mavros" + " __ns:=" + ns
+    if args.rtcm_topic:
+        rosrun_args = rosrun_args + " mavros/gps_rtk/send_rtcm:=" + args.rtcm_topic
     rosrun_out = open(temp_dir+"/mavros.out", 'w')
     rosrun_err = open(temp_dir+"/mavros.err", 'w')
     try:

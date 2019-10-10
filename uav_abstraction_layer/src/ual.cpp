@@ -20,6 +20,7 @@
 //----------------------------------------------------------------------------------------------------------------------
 #include <uav_abstraction_layer/ual.h>
 #include <uav_abstraction_layer/GoToWaypointGeo.h>
+#include <uav_abstraction_layer/SetHome.h>
 #include <ros/ros.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <std_srvs/Empty.h>
@@ -53,6 +54,34 @@ void UAL::init() {
     // Get params
     ros::NodeHandle pnh("~");
     pnh.param<int>("uav_id", robot_id_, 1);
+
+    // Assure id uniqueness
+    id_is_unique_ = true;
+    std::vector<int> ual_ids;
+    if (ros::param::has("/ual_ids")) {
+        ros::param::get("/ual_ids", ual_ids);
+        for (auto id: ual_ids) {
+            if (id == robot_id_) {
+                id_is_unique_ = false;
+            }
+        }
+        if (!id_is_unique_) {
+            ROS_ERROR("Another ual with id [%d] is already running!", robot_id_);
+            throw std::runtime_error("Id is not unique, already found in /ual_ids");
+        }
+    }
+    if (id_is_unique_) {
+        ual_ids.push_back(robot_id_);
+    }
+    ros::param::set("/ual_ids", ual_ids);
+
+    // TODO(franreal): check if it's possible to assure id uniqueness with topic names
+    // ros::master::V_TopicInfo master_topics;
+    // ros::master::getTopics(master_topics);
+    // for (ros::master::V_TopicInfo::iterator it = master_topics.begin() ; it != master_topics.end(); it++) {
+    //     const ros::master::TopicInfo& info = *it;
+    //     std::cout << "topic_" << it - master_topics.begin() << ": " << info.name << std::endl;
+    // }
 
     // Start server if explicitly asked
     std::string server_mode;
@@ -103,7 +132,7 @@ void UAL::init() {
                 nh.subscribe<geometry_msgs::PoseStamped>(
                 set_pose_topic, 1,
                 [this](const geometry_msgs::PoseStamped::ConstPtr& _msg) {
-                this->goToWaypoint(*_msg, false);
+                this->setPose(*_msg);
             });
             ros::Subscriber set_velocity_sub =
                 nh.subscribe<geometry_msgs::TwistStamped>(
@@ -118,15 +147,15 @@ void UAL::init() {
                 return this->recoverFromManual();
             });
             ros::ServiceServer set_home_service =
-                nh.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>(
+                nh.advertiseService<SetHome::Request, SetHome::Response>(
                 set_home_srv,
-                [this](std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
-                return this->setHome();
+                [this](SetHome::Request &req, SetHome::Response &res) {
+                return this->setHome(req.set_z);
             });
             ros::Publisher pose_pub = nh.advertise<geometry_msgs::PoseStamped>(pose_topic, 10);
             ros::Publisher velocity_pub = nh.advertise<geometry_msgs::TwistStamped>(velocity_topic, 10);
             ros::Publisher odometry_pub = nh.advertise<nav_msgs::Odometry>(odometry_topic, 10);
-            ros::Publisher state_pub = nh.advertise<std_msgs::String>(state_topic, 10);
+            ros::Publisher state_pub = nh.advertise<uav_abstraction_layer::State>(state_topic, 10);
             static tf2_ros::TransformBroadcaster tf_pub;
 
             // Publish @ 30Hz default
@@ -149,26 +178,58 @@ UAL::~UAL() {
     if (!backend_->isIdle()) { backend_->abort(); }
     if (running_thread_.joinable()) { running_thread_.join(); }
     if (server_thread_.joinable()) { server_thread_.join(); }
+
+    if (id_is_unique_) {
+        // Remove id from /ual_ids
+        std::vector<int> ual_ids;
+        ros::param::get("/ual_ids", ual_ids);
+        std::vector<int> new_ual_ids;
+        for (auto id: ual_ids) {
+            if (id != robot_id_) {
+                new_ual_ids.push_back(id);
+            }
+        }
+        ros::param::set("/ual_ids", new_ual_ids);
+    }
+    delete(backend_);
 }
 
-bool UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {
+bool UAL::setPose(const geometry_msgs::PoseStamped& _pose) {
     // Check required state
-    if (state_ != FLYING) {
+    if (backend_->state() != Backend::State::FLYING_AUTO) {
+        ROS_ERROR("Unable to setPose: not FLYING_AUTO!");
         return false;
     }
     // Override any previous FLYING function
     if (!backend_->isIdle()) { backend_->abort(false); }
 
+    // Function is non-blocking in backend TODO: non-thread-safe-call?
+    geometry_msgs::PoseStamped ref_pose = _pose;
+    validateOrientation(ref_pose.pose.orientation);
+    backend_->threadSafeCall(&Backend::setPose, ref_pose);
+    return true;
+}
+bool UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {
+    // Check required state
+    if (backend_->state() != Backend::State::FLYING_AUTO) {
+        ROS_ERROR("Unable to goToWaypoint: not FLYING_AUTO!");
+        return false;
+    }
+    // Override any previous FLYING function
+    if (!backend_->isIdle()) { backend_->abort(false); }
+
+    geometry_msgs::PoseStamped ref_wp = _wp;
+    validateOrientation(ref_wp.pose.orientation);
     if (_blocking) {
-        if (!backend_->threadSafeCall(&Backend::goToWaypoint, _wp)) {
+        if (!backend_->threadSafeCall(&Backend::goToWaypoint, ref_wp)) {
             ROS_INFO("Blocking goToWaypoint rejected!");
             return false;
         }
     } else {
         if (running_thread_.joinable()) running_thread_.join();
         // Call function on a thread:
-        running_thread_ = std::thread ([this, _wp]() {
-            if (!this->backend_->threadSafeCall(&Backend::goToWaypoint, _wp)) {
+        running_thread_ = std::thread ([this, ref_wp]() {
+            if (!this->backend_->threadSafeCall(&Backend::goToWaypoint, ref_wp)) {
                 ROS_INFO("Non-blocking goToWaypoint rejected!");
             }
         });
@@ -177,7 +238,8 @@ bool UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {
 }
 bool UAL::goToWaypointGeo(const WaypointGeo& _wp, bool _blocking) {
     // Check required state
-    if (state_ != FLYING) {
+    if (backend_->state() != Backend::State::FLYING_AUTO) {
+        ROS_ERROR("Unable to goToWaypointGeo: not FLYING_AUTO!");
         return false;
     }
     // Override any previous FLYING function
@@ -202,17 +264,21 @@ bool UAL::goToWaypointGeo(const WaypointGeo& _wp, bool _blocking) {
 
 bool UAL::takeOff(double _height, bool _blocking) {
     // Check required state
-    if (state_ != LANDED) {
+    if (backend_->state() != Backend::State::LANDED_ARMED) {
+        ROS_ERROR("Unable to takeOff: not LANDED_ARMED!");
         return false;
     }
-    state_ = TAKING_OFF;
+    // Check input
+    if (_height < 0.0) {
+        ROS_ERROR("Unable to takeOff: height must be positive!");
+        return false;
+    }
 
     if (_blocking) {
         if (!backend_->threadSafeCall(&Backend::takeOff, _height)) {
             ROS_INFO("Blocking takeOff rejected!");
             return false;
         }
-        state_ = FLYING;
     } else {
         if (running_thread_.joinable()) running_thread_.join();
         // Call function on a thread:
@@ -220,7 +286,6 @@ bool UAL::takeOff(double _height, bool _blocking) {
             if (!this->backend_->threadSafeCall(&Backend::takeOff, _height)) {
                 ROS_INFO("Non-blocking takeOff rejected!");
             }
-            this->state_ = FLYING;
         });
     }
     return true;
@@ -228,19 +293,18 @@ bool UAL::takeOff(double _height, bool _blocking) {
 
 bool UAL::land(bool _blocking) {
     // Check required state
-    if (state_ != FLYING) {
+    if (backend_->state() != Backend::State::FLYING_AUTO) {
+        ROS_ERROR("Unable to land: not FLYING_AUTO!");
         return false;
     }
     // Override any previous FLYING function
     if (!backend_->isIdle()) { backend_->abort(); }
-    state_ = LANDING;
 
     if (_blocking) {
         if (!backend_->threadSafeCall(&Backend::land)) {
             ROS_INFO("Blocking land rejected!");
             return false;
         }
-        state_ = LANDED;
     } else {
         if (running_thread_.joinable()) running_thread_.join();
         // Call function on a thread:
@@ -248,7 +312,6 @@ bool UAL::land(bool _blocking) {
             if (!this->backend_->threadSafeCall(&Backend::land)) {
                 ROS_INFO("Non-blocking land rejected!");
             }
-            this->state_ = LANDED;
         });
     }
     return true;
@@ -256,7 +319,8 @@ bool UAL::land(bool _blocking) {
 
 bool UAL::setVelocity(const Velocity& _vel) {
     // Check required state
-    if (state_ != FLYING) {
+    if (backend_->state() != Backend::State::FLYING_AUTO) {
+        ROS_ERROR("Unable to setVelocity: not FLYING_AUTO!");
         return false;
     }
     // Override any previous FLYING function
@@ -268,51 +332,80 @@ bool UAL::setVelocity(const Velocity& _vel) {
 }
 
 bool UAL::recoverFromManual() {
-    // Check required state. TODO: consequences of not checking it!
-    // if (state_ != FLYING) {
-    //     return false;
-    // }
+    // Check required state
+    if (backend_->state() != Backend::State::FLYING_MANUAL) {
+        ROS_ERROR("Unable to recoverFromManual: not FLYING_MANUAL!");
+        return false;
+    }
     // Override any previous FLYING function
     if (!backend_->isIdle()) { backend_->abort(); }
 
-    // Direct call! TODO: Check nobody explodes!
+    // Direct call! TODO: threadSafeCall?
     backend_->recoverFromManual();
-
-    // Force state. TODO: ckeck consequences of doing this!
-    state_ = FLYING;
 
     return true;
 }
 
-std_msgs::String UAL::state() {
-    std_msgs::String output;
-    switch (state_) {
-        case LANDED:
-            output.data = "LANDED";
+// TODO: Collapse ual and backend state?
+uav_abstraction_layer::State UAL::state() {
+    uav_abstraction_layer::State output;
+    switch (backend_->state()) {
+        case Backend::State::UNINITIALIZED:
+            output.state = uav_abstraction_layer::State::UNINITIALIZED;
             break;
-        case TAKING_OFF:
-            output.data = "TAKING_OFF";
+        case Backend::State::LANDED_DISARMED:
+            output.state = uav_abstraction_layer::State::LANDED_DISARMED;
             break;
-        case FLYING:
-            output.data = "FLYING";
+        case Backend::State::LANDED_ARMED:
+            output.state = uav_abstraction_layer::State::LANDED_ARMED;
             break;
-        case LANDING:
-            output.data = "LANDING";
+        case Backend::State::TAKING_OFF:
+            output.state = uav_abstraction_layer::State::TAKING_OFF;
+            break;
+        case Backend::State::FLYING_AUTO:
+            output.state = uav_abstraction_layer::State::FLYING_AUTO;
+            break;
+        case Backend::State::FLYING_MANUAL:
+            output.state = uav_abstraction_layer::State::FLYING_MANUAL;
+            break;
+        case Backend::State::LANDING:
+            output.state = uav_abstraction_layer::State::LANDING;
             break;
         default:
-            output.data= "unknown";
+            ROS_ERROR("Unexpected Backend::State!");
     }
     return output;
 }
 
-bool UAL::setHome() {
+bool UAL::setHome(bool set_z) {
     // Check required state
-    if (state_ != LANDED) {
+    if (backend_->state() != Backend::State::LANDED_DISARMED) {
+        ROS_ERROR("Unable to setHome: not LANDED_DISARMED!");
         return false;
     }
-    backend_->setHome();
+    backend_->setHome(set_z);
 
     return true;
+}
+
+// TODO: inline?
+void UAL::validateOrientation(geometry_msgs::Quaternion& _q) {
+    double norm2 = _q.x*_q.x  + _q.y*_q.y  + _q.z*_q.z  + _q.w*_q.w;
+    if (fabs(norm2 - 1) > 0.01) {  // Threshold for norm2
+        if (norm2 == 0) {  // Exactly 0, set current orientation
+            ROS_INFO("Orientation quaternion norm is zero, holding current orientation");
+            _q = this->pose().pose.orientation;
+        } else {
+            double norm = sqrt(norm2);
+            ROS_WARN("Orientation quaternion norm is %lf, nomalizing it", norm);
+            _q.x /= norm;
+            _q.y /= norm;
+            _q.z /= norm;
+            _q.w /= norm;
+        }
+    }
+    // TODO: Other checks? E.g. yaw-only orientation shoud have x = y = 0
+    // ROS_INFO("q = [%lf, %lf, %lf, %lf]", _q.x, _q.y, _q.z, _q.w);  // Debug!
 }
 
 }}	// namespace grvc::ual

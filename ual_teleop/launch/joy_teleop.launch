@@ -1,12 +1,17 @@
 <launch>
+	<!-- This launch must be called inside ual namespace:
+	    - from console, e.g: roslaunch ual_teleop joy_teleop.launch __ns:=uav_1 
+		- from another launch, e.g: include with ns="uav_1"
+	-->
+	<arg name="joy_dev" default="js0"/>
+	<arg name="joy_model" default="saitek_p3200"/>
 
-	<arg name="joy" default="js0"/>
+	<node name="joy_teleop" pkg="ual_teleop" type="joy_teleop.py" output="screen"
+	args="-joy_name=$(arg joy_model)"/>
 
-	<node name="joy_teleop" pkg="ual_teleop" type="joy_teleop.py"/>
-
-	<!-- joy node -->
-	<node respawn="true" pkg="joy" type="joy_node" name="joy" >
-		<param name="dev" type="string" value="/dev/input/$(arg joy)" />
+	<!-- joy node: Use namespace to avoid conflicts with simulate_safety_pilot -->
+	<node ns="ual_teleop" respawn="true" pkg="joy" type="joy_node" name="joy" >
+		<param name="dev" type="string" value="/dev/input/$(arg joy_dev)" />
 		<param name="autorepeat_rate" value="5" />
 	</node>
 
