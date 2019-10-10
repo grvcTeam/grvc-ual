@@ -256,10 +256,25 @@ Velocity BackendLight::calculateRefVel(Pose _target_pose) {
         vel.twist.linear.z = dz / T;
         vel.twist.angular.z = dYaw / T;
 
-        if ( std::abs( dx ) < max_position_error_ ) { vel.twist.linear.x = 0.0; }
-        if ( std::abs( dy ) < max_position_error_ ) { vel.twist.linear.y = 0.0; }
-        if ( std::abs( dz ) < max_position_error_ ) { vel.twist.linear.z = 0.0; }
-        if ( std::abs( dYaw ) < max_orientation_error_ ) { vel.twist.angular.z = 0.0; }
+        if ( std::abs( dx ) < max_position_error_ ) { 
+            vel.twist.linear.x = 0.0;
+            cur_pose_.pose.position.x = 0.8*cur_pose_.pose.position.x + 0.2*_target_pose.pose.position.x;
+        }
+        if ( std::abs( dy ) < max_position_error_ ) {
+            vel.twist.linear.y = 0.0;
+            cur_pose_.pose.position.y = 0.8*cur_pose_.pose.position.y + 0.2*_target_pose.pose.position.y;
+        }
+        if ( std::abs( dz ) < max_position_error_ ) {
+            vel.twist.linear.z = 0.0;
+            cur_pose_.pose.position.z = 0.8*cur_pose_.pose.position.z + 0.2*_target_pose.pose.position.z;
+        }
+        if ( std::abs( dYaw ) < max_orientation_error_ ) {
+            vel.twist.angular.z = 0.0;
+            cur_pose_.pose.orientation.x = 0.5*cur_pose_.pose.orientation.x + 0.5*_target_pose.pose.orientation.x;
+            cur_pose_.pose.orientation.y = 0.5*cur_pose_.pose.orientation.y + 0.5*_target_pose.pose.orientation.y;
+            cur_pose_.pose.orientation.z = 0.5*cur_pose_.pose.orientation.z + 0.5*_target_pose.pose.orientation.z;
+            cur_pose_.pose.orientation.w = 0.5*cur_pose_.pose.orientation.w + 0.5*_target_pose.pose.orientation.w;
+        }
     }
     else {
         vel.twist.linear.x = 0;
