@@ -20,6 +20,7 @@ find_package(catkin REQUIRED COMPONENTS
   gazebo_msgs
   sensor_msgs
   geodesy
+  dji_sdk
 )
 
 ## System dependencies are found with CMake's conventions
@@ -133,7 +134,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES uav_abstraction_layer
-  CATKIN_DEPENDS message_runtime geometry_msgs mavros mavros_msgs roscpp std_msgs tf2_ros gazebo_msgs sensor_msgs geodesy
+  CATKIN_DEPENDS message_runtime geometry_msgs mavros mavros_msgs roscpp std_msgs tf2_ros gazebo_msgs sensor_msgs geodesy dji_sdk
 #  DEPENDS system_lib
 )
 
@@ -153,7 +154,7 @@ include_directories(
 #   src/${PROJECT_NAME}/uav_abstraction_layer.cpp
 # )
 add_library(${PROJECT_NAME}
-  src/backend.cpp src/backend_mavros.cpp src/backend_light.cpp src/ual.cpp
+  src/backend.cpp src/backend_mavros.cpp src/backend_light.cpp src/backend_dji.cpp src/ual.cpp
 )
 
 ## Add cmake target dependencies of the library
