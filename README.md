@@ -14,7 +14,7 @@ You can find the instructions for installation and how to use the UAL in the [Wi
 ### [PX4](https://github.com/PX4/Firmware)
 
  * In simulation (SITL): version [v1.7.3](https://github.com/PX4/Firmware/tree/v1.7.3)
- * Flying: versions from [v1.7.3](https://github.com/PX4/Firmware/tree/v1.7.3) to [v1.8.1](https://github.com/PX4/Firmware/tree/v1.8.1)
+ * Flying: versions from [v1.7.3](https://github.com/PX4/Firmware/tree/v1.7.3) to [v1.9.2](https://github.com/PX4/Firmware/tree/v1.9.2)
 
 ## Citation
 If you find UAL useful in your research, please consider citing:
