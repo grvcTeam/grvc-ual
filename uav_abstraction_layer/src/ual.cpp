@@ -196,7 +196,7 @@ UAL::~UAL() {
 
 bool UAL::setPose(const geometry_msgs::PoseStamped& _pose) {
     // Check required state
-    if (backend_->state() != Backend::State::FLYING_AUTO) {
+    if (backend_->state() != uav_abstraction_layer::State::FLYING_AUTO) {
         ROS_ERROR("Unable to setPose: not FLYING_AUTO!");
         return false;
     }
@@ -219,7 +219,7 @@ bool UAL::setPose(const geometry_msgs::PoseStamped& _pose) {
 }
 bool UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {
     // Check required state
-    if (backend_->state() != Backend::State::FLYING_AUTO) {
+    if (backend_->state() != uav_abstraction_layer::State::FLYING_AUTO) {
         ROS_ERROR("Unable to goToWaypoint: not FLYING_AUTO!");
         return false;
     }
@@ -254,7 +254,7 @@ bool UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {
 }
 bool UAL::goToWaypointGeo(const WaypointGeo& _wp, bool _blocking) {
     // Check required state
-    if (backend_->state() != Backend::State::FLYING_AUTO) {
+    if (backend_->state() != uav_abstraction_layer::State::FLYING_AUTO) {
         ROS_ERROR("Unable to goToWaypointGeo: not FLYING_AUTO!");
         return false;
     }
@@ -286,7 +286,7 @@ bool UAL::goToWaypointGeo(const WaypointGeo& _wp, bool _blocking) {
 
 bool UAL::takeOff(double _height, bool _blocking) {
     // Check required state
-    if (backend_->state() != Backend::State::LANDED_ARMED) {
+    if (backend_->state() != uav_abstraction_layer::State::LANDED_ARMED) {
         ROS_ERROR("Unable to takeOff: not LANDED_ARMED!");
         return false;
     }
@@ -315,7 +315,7 @@ bool UAL::takeOff(double _height, bool _blocking) {
 
 bool UAL::land(bool _blocking) {
     // Check required state
-    if (backend_->state() != Backend::State::FLYING_AUTO) {
+    if (backend_->state() != uav_abstraction_layer::State::FLYING_AUTO) {
         ROS_ERROR("Unable to land: not FLYING_AUTO!");
         return false;
     }
@@ -341,7 +341,7 @@ bool UAL::land(bool _blocking) {
 
 bool UAL::setVelocity(const Velocity& _vel) {
     // Check required state
-    if (backend_->state() != Backend::State::FLYING_AUTO) {
+    if (backend_->state() != uav_abstraction_layer::State::FLYING_AUTO) {
         ROS_ERROR("Unable to setVelocity: not FLYING_AUTO!");
         return false;
     }
@@ -362,7 +362,7 @@ bool UAL::setVelocity(const Velocity& _vel) {
 
 bool UAL::recoverFromManual() {
     // Check required state
-    if (backend_->state() != Backend::State::FLYING_MANUAL) {
+    if (backend_->state() != uav_abstraction_layer::State::FLYING_MANUAL) {
         ROS_ERROR("Unable to recoverFromManual: not FLYING_MANUAL!");
         return false;
     }
@@ -375,40 +375,9 @@ bool UAL::recoverFromManual() {
     return true;
 }
 
-// TODO: Collapse ual and backend state?
-uav_abstraction_layer::State UAL::state() {
-    uav_abstraction_layer::State output;
-    switch (backend_->state()) {
-        case Backend::State::UNINITIALIZED:
-            output.state = uav_abstraction_layer::State::UNINITIALIZED;
-            break;
-        case Backend::State::LANDED_DISARMED:
-            output.state = uav_abstraction_layer::State::LANDED_DISARMED;
-            break;
-        case Backend::State::LANDED_ARMED:
-            output.state = uav_abstraction_layer::State::LANDED_ARMED;
-            break;
-        case Backend::State::TAKING_OFF:
-            output.state = uav_abstraction_layer::State::TAKING_OFF;
-            break;
-        case Backend::State::FLYING_AUTO:
-            output.state = uav_abstraction_layer::State::FLYING_AUTO;
-            break;
-        case Backend::State::FLYING_MANUAL:
-            output.state = uav_abstraction_layer::State::FLYING_MANUAL;
-            break;
-        case Backend::State::LANDING:
-            output.state = uav_abstraction_layer::State::LANDING;
-            break;
-        default:
-            ROS_ERROR("Unexpected Backend::State!");
-    }
-    return output;
-}
-
 bool UAL::setHome(bool set_z) {
     // Check required state
-    if (backend_->state() != Backend::State::LANDED_DISARMED) {
+    if (backend_->state() != uav_abstraction_layer::State::LANDED_DISARMED) {
         ROS_ERROR("Unable to setHome: not LANDED_DISARMED!");
         return false;
     }

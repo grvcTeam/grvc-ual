@@ -57,7 +57,11 @@ public:
     Transform transform() const { return backend_->transform(); }
 
     /// Current robot state
-    uav_abstraction_layer::State state();
+    uav_abstraction_layer::State state() {
+        uav_abstraction_layer::State output;
+        output.state = backend_->state();
+        return output;
+    }
 
     /// Set pose
     /// \param _pose target pose

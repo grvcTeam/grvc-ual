@@ -142,7 +142,7 @@ BackendLight::BackendLight()
     });
 
     ROS_INFO("BackendLight %d running!", robot_id_);
-    this->state_ = LANDED_ARMED;
+    this->state_ = uav_abstraction_layer::State::LANDED_ARMED;
 }
 
 BackendLight::~BackendLight() {
@@ -286,7 +286,7 @@ Velocity BackendLight::calculateRefVel(Pose _target_pose) {
 }
 
 void BackendLight::takeOff(double _height) {
-    this->state_ = TAKING_OFF;
+    this->state_ = uav_abstraction_layer::State::TAKING_OFF;
     control_in_vel_ = false;  // Take off control is performed in position (not velocity)
 
     // Set offboard mode after saving home pose
@@ -302,11 +302,11 @@ void BackendLight::takeOff(double _height) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     ROS_INFO("Flying!");
-    this->state_ = FLYING_AUTO;
+    this->state_ = uav_abstraction_layer::State::FLYING_AUTO;
 }
 
 void BackendLight::land() {
-    this->state_ = LANDING;
+    this->state_ = uav_abstraction_layer::State::LANDING;
     control_in_vel_ = false;  // Back to control in position (just in case)
 
     ROS_INFO("Landing...");
@@ -318,7 +318,7 @@ void BackendLight::land() {
     }
     ROS_INFO("Landed!");
     flying_ = false;
-    this->state_ = LANDED_ARMED;
+    this->state_ = uav_abstraction_layer::State::LANDED_ARMED;
 }
 
 void BackendLight::setVelocity(const Velocity& _vel) {

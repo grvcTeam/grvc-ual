@@ -206,15 +206,15 @@ void BackendMavros::offboardThreadLoop(){
     }
 }
 
-Backend::State BackendMavros::guessState() {
+grvc::ual::State BackendMavros::guessState() {
     // Sequentially checks allow state deduction
-    if (!this->isReady()) { return UNINITIALIZED; }
-    if (!this->mavros_state_.armed) { return LANDED_DISARMED; }
-    if (this->mavros_extended_state_.landed_state == mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND) { return LANDED_ARMED; }  // TODO(franreal): Use LANDED_STATE_IN_AIR instead?
-    if (this->calling_takeoff) { return TAKING_OFF; }
-    if (this->calling_land) { return LANDING; }
-    if (this->mavros_state_.mode == "OFFBOARD") { return FLYING_AUTO; }
-    return FLYING_MANUAL;
+    if (!this->isReady()) { return uav_abstraction_layer::State::UNINITIALIZED; }
+    if (!this->mavros_state_.armed) { return uav_abstraction_layer::State::LANDED_DISARMED; }
+    if (this->mavros_extended_state_.landed_state == mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND) { return uav_abstraction_layer::State::LANDED_ARMED; }  // TODO(franreal): Use LANDED_STATE_IN_AIR instead?
+    if (this->calling_takeoff) { return uav_abstraction_layer::State::TAKING_OFF; }
+    if (this->calling_land) { return uav_abstraction_layer::State::LANDING; }
+    if (this->mavros_state_.mode == "OFFBOARD") { return uav_abstraction_layer::State::FLYING_AUTO; }
+    return uav_abstraction_layer::State::FLYING_MANUAL;
 }
 
 void BackendMavros::setFlightMode(const std::string& _flight_mode) {

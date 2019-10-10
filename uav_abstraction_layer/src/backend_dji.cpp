@@ -331,29 +331,29 @@ void BackendDji::controlThread() {
     }
 }
 
-Backend::State BackendDji::guessState() {
+grvc::ual::State BackendDji::guessState() {
     // Sequentially checks allow state deduction
-    if (!this->isReady()) { return UNINITIALIZED; }
+    if (!this->isReady()) { return uav_abstraction_layer::State::UNINITIALIZED; }
     if (this->flight_status_.data == DJISDK::FlightStatus::STATUS_STOPPED) { 
         if (self_arming) {
-            return LANDED_ARMED;
+            return uav_abstraction_layer::State::LANDED_ARMED;
         } else {
-            return LANDED_DISARMED; 
+            return uav_abstraction_layer::State::LANDED_DISARMED; 
         }
     }
-    if (this->flight_status_.data == DJISDK::FlightStatus::STATUS_ON_GROUND) { return LANDED_ARMED; }
+    if (this->flight_status_.data == DJISDK::FlightStatus::STATUS_ON_GROUND) { return uav_abstraction_layer::State::LANDED_ARMED; }
     if (this->calling_takeoff && this->flight_status_.data == DJISDK::FlightStatus::STATUS_IN_AIR ) 
-        { return TAKING_OFF; }
+        { return uav_abstraction_layer::State::TAKING_OFF; }
     if (this->calling_land && this->flight_status_.data == DJISDK::FlightStatus::STATUS_IN_AIR ) 
-        { return LANDING; }
+        { return uav_abstraction_layer::State::LANDING; }
     if (!this->calling_takeoff && !this->calling_land 
         && this->flight_status_.data == DJISDK::FlightStatus::STATUS_IN_AIR 
         // && this->display_mode_.data == 6) 
         && this->display_mode_.data == DJISDK::DisplayMode::MODE_NAVI_SDK_CTRL) 
         // && this->display_mode_.data == DJISDK::DisplayMode::MODE_P_GPS) 
-        { return FLYING_AUTO; }
+        { return uav_abstraction_layer::State::FLYING_AUTO; }
 
-    return FLYING_MANUAL;
+    return uav_abstraction_layer::State::FLYING_MANUAL;
 }
 
 bool BackendDji::altimeter_fail() {
