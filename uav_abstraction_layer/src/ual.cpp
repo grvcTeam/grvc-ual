@@ -33,7 +33,7 @@ UAL::UAL(Backend* _backend) {
     // Error if ROS is not initialized
     if (!ros::isInitialized()) {
         // Init ros node
-        ROS_ERROR("UAL needs ROS to be initialized. Initialize ROS before creating UAL object or use UAL(int _argc, char** _argv) constructor.");
+        ROS_ERROR("UAL needs ROS to be initialized. Initialize ROS before creating an UAL object.");
         exit(EXIT_FAILURE);
     }
 
