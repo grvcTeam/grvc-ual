@@ -21,7 +21,7 @@
 
 #include <string>
 #include <chrono>
-#include <uav_abstraction_layer/backend_light.h>
+#include <ual_backend_gazebo_light/ual_backend_gazebo_light.h>
 #include <Eigen/Eigen>
 #include <ros/ros.h>
 #include <ros/package.h>
