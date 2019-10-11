@@ -74,7 +74,7 @@ UAL::UAL(Backend* _backend) {
     // Start server if explicitly asked
     std::string server_mode;
     pnh.param<std::string>("ual_server", server_mode, "on");
-    // TODO: Consider other modes?
+
     if (server_mode == "on") {
         server_thread_ = std::thread([this]() {
             std::string ual_ns = "ual";
@@ -199,7 +199,6 @@ bool UAL::setPose(const geometry_msgs::PoseStamped& _pose) {
         return false;
     }
 
-    // Function is non-blocking in backend TODO: non-thread-safe-call?
     geometry_msgs::PoseStamped ref_pose = _pose;
     validateOrientation(ref_pose.pose.orientation);
     backend_->threadSafeCall(&Backend::setPose, ref_pose);
@@ -343,7 +342,6 @@ bool UAL::setVelocity(const Velocity& _vel) {
         return false;
     }
 
-    // Function is non-blocking in backend TODO: non-thread-safe-call?
     backend_->threadSafeCall(&Backend::setVelocity, _vel);
     return true;
 }
@@ -357,8 +355,7 @@ bool UAL::recoverFromManual() {
     // Override any previous FLYING function
     if (!backend_->isIdle()) { backend_->abort(); }
 
-    // Direct call! TODO: threadSafeCall?
-    backend_->recoverFromManual();
+    backend_->threadSafeCall(&Backend::recoverFromManual);
 
     return true;
 }
@@ -374,8 +371,7 @@ bool UAL::setHome(bool set_z) {
     return true;
 }
 
-// TODO: inline?
-void UAL::validateOrientation(geometry_msgs::Quaternion& _q) {
+inline void UAL::validateOrientation(geometry_msgs::Quaternion& _q) {
     double norm2 = _q.x*_q.x  + _q.y*_q.y  + _q.z*_q.z  + _q.w*_q.w;
     if (fabs(norm2 - 1) > 0.01) {  // Threshold for norm2
         if (norm2 == 0) {  // Exactly 0, set current orientation
