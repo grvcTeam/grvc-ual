@@ -37,10 +37,10 @@
 
 namespace grvc { namespace ual {
 
-BackendLight::BackendLight()
+BackendGazeboLight::BackendGazeboLight()
     : Backend(), generator_(std::chrono::system_clock::now().time_since_epoch().count()), tf_listener_(tf_buffer_)
 {
-    ROS_INFO("BackendLight constructor");
+    ROS_INFO("BackendGazeboLight constructor");
 
     // Init ros communications
     ros::NodeHandle nh;
@@ -140,19 +140,19 @@ BackendLight::BackendLight()
         }
     });
 
-    ROS_INFO("BackendLight %d running!", robot_id_);
+    ROS_INFO("BackendGazeboLight %d running!", robot_id_);
     this->state_ = uav_abstraction_layer::State::LANDED_ARMED;
 }
 
-BackendLight::~BackendLight() {
+BackendGazeboLight::~BackendGazeboLight() {
     if (offboard_thread_.joinable()) { offboard_thread_.join(); }
 }
 
-bool BackendLight::isReady() const {
+bool BackendGazeboLight::isReady() const {
     return has_pose_;
 }
 
-void BackendLight::move() {
+void BackendGazeboLight::move() {
     double dt = 1 / FPS;
 
     cur_vel_.header.frame_id = uav_home_frame_id_;
@@ -229,7 +229,7 @@ void BackendLight::move() {
     }
 }
 
-Velocity BackendLight::calculateRefVel(Pose _target_pose) {
+Velocity BackendGazeboLight::calculateRefVel(Pose _target_pose) {
     Velocity vel;
 
     if(flying_) {
@@ -284,7 +284,7 @@ Velocity BackendLight::calculateRefVel(Pose _target_pose) {
     return vel;
 }
 
-void BackendLight::takeOff(double _height) {
+void BackendGazeboLight::takeOff(double _height) {
     this->state_ = uav_abstraction_layer::State::TAKING_OFF;
     control_in_vel_ = false;  // Take off control is performed in position (not velocity)
 
@@ -304,7 +304,7 @@ void BackendLight::takeOff(double _height) {
     this->state_ = uav_abstraction_layer::State::FLYING_AUTO;
 }
 
-void BackendLight::land() {
+void BackendGazeboLight::land() {
     this->state_ = uav_abstraction_layer::State::LANDING;
     control_in_vel_ = false;  // Back to control in position (just in case)
 
@@ -320,7 +320,7 @@ void BackendLight::land() {
     this->state_ = uav_abstraction_layer::State::LANDED_ARMED;
 }
 
-void BackendLight::setVelocity(const Velocity& _vel) {
+void BackendGazeboLight::setVelocity(const Velocity& _vel) {
     control_in_vel_ = true;  // Velocity control!
     
     geometry_msgs::Vector3Stamped vel_in, vel_out;
@@ -355,7 +355,7 @@ void BackendLight::setVelocity(const Velocity& _vel) {
     last_command_time_ = ros::Time::now();
 }
 
-void BackendLight::setPose(const geometry_msgs::PoseStamped& _world) {
+void BackendGazeboLight::setPose(const geometry_msgs::PoseStamped& _world) {
     control_in_vel_ = false;  // Control in position
 
     geometry_msgs::PoseStamped homogen_world_pos;
@@ -392,7 +392,7 @@ void BackendLight::setPose(const geometry_msgs::PoseStamped& _world) {
     ref_pose_.pose = homogen_world_pos.pose;
 }
 
-void BackendLight::goToWaypoint(const Waypoint& _world) {
+void BackendGazeboLight::goToWaypoint(const Waypoint& _world) {
     // Set pose!
     setPose(_world);
 
@@ -406,11 +406,11 @@ void BackendLight::goToWaypoint(const Waypoint& _world) {
     }
 }
 
-void BackendLight::goToWaypointGeo(const WaypointGeo& _world) {
+void BackendGazeboLight::goToWaypointGeo(const WaypointGeo& _world) {
     assert(false); // 666 NOT IMPLEMENTED YET
 }
 
-Pose BackendLight::pose() {
+Pose BackendGazeboLight::pose() {
         Pose out;
 
         out.pose.position.x = cur_pose_noisy_.pose.position.x;
@@ -450,11 +450,11 @@ Pose BackendLight::pose() {
         return out;
 }
 
-Velocity BackendLight::velocity() const {
+Velocity BackendGazeboLight::velocity() const {
     return cur_vel_;
 }
 
-Odometry BackendLight::odometry() const {
+Odometry BackendGazeboLight::odometry() const {
     Odometry odom;
     
     odom.header.stamp = ros::Time::now();
@@ -466,7 +466,7 @@ Odometry BackendLight::odometry() const {
     return odom;
 }
 
-Transform BackendLight::transform() const {
+Transform BackendGazeboLight::transform() const {
     Transform out;
     out.header.stamp = ros::Time::now();
     out.header.frame_id = uav_home_frame_id_;
@@ -478,7 +478,7 @@ Transform BackendLight::transform() const {
     return out;
 }
 
-bool BackendLight::referencePoseReached() {
+bool BackendGazeboLight::referencePoseReached() {
     double dx = ref_pose_.pose.position.x - cur_pose_.pose.position.x;
     double dy = ref_pose_.pose.position.y - cur_pose_.pose.position.y;
     double dz = ref_pose_.pose.position.z - cur_pose_.pose.position.z;
@@ -503,7 +503,7 @@ bool BackendLight::referencePoseReached() {
     }
 }
 
-void BackendLight::initHomeFrame() {
+void BackendGazeboLight::initHomeFrame() {
 
     // Get frame prefix from namespace
     std::string ns = ros::this_node::getNamespace();

@@ -36,7 +36,7 @@ int main(int _argc, char** _argv) {
     if (selected_backend == "mavros") {
         backend = new grvc::ual::BackendMavros();
     } else if (selected_backend == "light") {
-        backend = new grvc::ual::BackendLight();
+        backend = new grvc::ual::BackendGazeboLight();
     } else if (selected_backend == "dummy") {
         backend = new grvc::ual::BackendDummy();
     }

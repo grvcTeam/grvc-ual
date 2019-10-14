@@ -35,11 +35,11 @@
 
 namespace grvc { namespace ual {
 
-class BackendLight : public Backend {
+class BackendGazeboLight : public Backend {
 
 public:
-    BackendLight();
-    ~BackendLight();
+    BackendGazeboLight();
+    ~BackendGazeboLight();
 
     /// Backend is initialized and ready to run tasks?
     bool	         isReady() const override;
