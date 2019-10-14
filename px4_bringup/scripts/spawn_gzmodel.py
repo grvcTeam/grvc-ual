@@ -33,8 +33,8 @@ def main():
     parser.add_argument('-material', type=str, default="DarkGrey",
                         help='robot Gazebo/material; \
                         see materials/scripts/gazebo.material (at your gazebo version)')
-    parser.add_argument('-backend', type=str, default="mavros",
-                        help='backend to use')
+    parser.add_argument('-ual_backend', type=str, default="mavros",
+                        help='UAL backend to use')
     parser.add_argument('-frame_id', type=str, default="map",
                         help='initial position and yaw frame reference; id [map] refers to gazebo origin')
     parser.add_argument('-append_xacro_args', type=str, nargs='+',
@@ -135,7 +135,7 @@ def main():
         raise IOError("Couldn't find model.sdf/model.xacro description file")
 
     # Set gravity=0 for light simulations
-    if args.backend == 'light':
+    if args.ual_backend == 'light':
         tree = ET.parse(temp_sdf)
         root = tree.getroot()
         model = root.find('model')

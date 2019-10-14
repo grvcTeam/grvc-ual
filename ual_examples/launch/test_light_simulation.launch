@@ -24,15 +24,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     <!-- Launch robot id=1 -->
     <node pkg="px4_bringup" type="spawn_gzmodel.py" name="spawn_gzmodel_1" output="screen"
-        args="-model=mbzirc -id=1 -material=Orange -backend=$(arg ual_backend) -x 0 -y 0 -z 0 -Y 0"/>
+        args="-model=mbzirc -id=1 -material=Orange -ual_backend=$(arg ual_backend) -x 0 -y 0 -z 0 -Y 0"/>
 
     <group if="$(arg multi)">
         <!-- Launch robot id=2 -->
 	<node pkg="px4_bringup" type="spawn_gzmodel.py" name="spawn_gzmodel_2" output="screen"
-        args="-model=mbzirc -id=2 -material=Indigo -backend=$(arg ual_backend) -x -10 -y 10 -z 0 -Y 0"/>
+        args="-model=mbzirc -id=2 -material=Indigo -ual_backend=$(arg ual_backend) -x -10 -y 10 -z 0 -Y 0"/>
         <!-- Launch robot id=3 -->
 	<node pkg="px4_bringup" type="spawn_gzmodel.py" name="spawn_gzmodel_3" output="screen"
-        args="-model=mbzirc -id=3 -material=ZincYellow -backend=$(arg ual_backend) -x 10 -y 10 -z 0 -Y 0"/>
+        args="-model=mbzirc -id=3 -material=ZincYellow -ual_backend=$(arg ual_backend) -x 10 -y 10 -z 0 -Y 0"/>
     </group>
 
     <!-- Launch UAL server for uav id=1 -->
