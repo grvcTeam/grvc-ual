@@ -64,7 +64,6 @@ add_service_files(
   GoToWaypointGeo.srv
   TakeOff.srv
   Land.srv
-  SetVelocity.srv
   SetHome.srv
 )
 
