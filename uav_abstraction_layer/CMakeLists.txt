@@ -113,7 +113,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES uav_abstraction_layer
-  CATKIN_DEPENDS message_runtime geometry_msgs roscpp std_msgs tf2_ros gazebo_msgs sensor_msgs geodesy
+  CATKIN_DEPENDS message_runtime geometry_msgs roscpp std_msgs tf2_ros sensor_msgs geodesy
 #  DEPENDS system_lib
 )
 
