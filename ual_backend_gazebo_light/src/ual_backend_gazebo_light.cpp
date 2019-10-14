@@ -22,7 +22,6 @@
 #include <string>
 #include <chrono>
 #include <ual_backend_gazebo_light/ual_backend_gazebo_light.h>
-#include <Eigen/Eigen>
 #include <ros/ros.h>
 #include <ros/package.h>
 #include <tf2/LinearMath/Quaternion.h>
