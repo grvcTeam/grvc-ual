@@ -23,6 +23,7 @@
 #include <uav_abstraction_layer/ual_backend_dummy.h>
 #include <ual_backend_gazebo_light/ual_backend_gazebo_light.h>
 #include <ual_backend_mavros/ual_backend_mavros.h>
+#include <ual_backend_dji_ros/ual_backend_dji_ros.h>
 #include <ros/ros.h>
 
 int main(int _argc, char** _argv) {
@@ -39,6 +40,8 @@ int main(int _argc, char** _argv) {
         backend = new grvc::ual::BackendGazeboLight();
     } else if (selected_backend == "dummy") {
         backend = new grvc::ual::BackendDummy();
+    } else if (selected_backend == "dji_ros") {
+        backend = new grvc::ual::BackendDjiRos();
     }
 
     grvc::ual::UAL ual(backend);
