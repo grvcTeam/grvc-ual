@@ -23,7 +23,6 @@
 
 #include <thread>
 // #include <deque>
-#include <Eigen/Core>
 
 #include <uav_abstraction_layer/backend.h>
 #include <ros/ros.h>
