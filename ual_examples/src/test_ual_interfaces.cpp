@@ -20,9 +20,9 @@
 //----------------------------------------------------------------------------------------------------------------------
 #include <uav_abstraction_layer/ual.h>
 #include <uav_abstraction_layer/backend.h>
-#include <uav_abstraction_layer/backend_mavros.h>
-#include <uav_abstraction_layer/backend_light.h>
 #include <uav_abstraction_layer/backend_dummy.h>
+#include <ual_backend_gazebo_light/ual_backend_gazebo_light.h>
+#include <ual_backend_mavros/ual_backend_mavros.h>
 #include <ros/ros.h>
 
 int main(int _argc, char** _argv) {
