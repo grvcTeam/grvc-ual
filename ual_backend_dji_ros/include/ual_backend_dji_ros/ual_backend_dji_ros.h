@@ -128,11 +128,11 @@ protected:
 };
 
  
-class BackendDji : public Backend {
+class BackendDjiRos : public Backend {
 
 public:
-    BackendDji();
-    // ~BackendDji();
+    BackendDjiRos();
+    // ~BackendDjiRos();
 
     /// Backend is initialized and ready to run tasks?
     bool	         isReady() const override;
