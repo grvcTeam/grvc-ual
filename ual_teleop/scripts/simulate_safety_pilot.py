@@ -3,10 +3,12 @@ import yaml
 import argparse
 import rospy
 import rospkg
-from mavros_msgs.msg import State
+from mavros_msgs.msg import State as MavrosState
 from mavros_msgs.srv import CommandBool
 from mavros_msgs.msg import OverrideRCIn
 from sensor_msgs.msg import Joy
+from uav_abstraction_layer.msg import State as UalState
+from std_srvs.srv import Empty
 from joy_handle import JoyHandle
 
 class RCSimulation:
@@ -50,7 +52,7 @@ class SafetyPilot:
         self.state_url = 'mavros/state'
         self.arming_url = 'mavros/cmd/arming'
         self.rc_url = 'mavros/rc/override'
-        self.mavros_state = State()
+        self.mavros_state = MavrosState()
         self.joy_is_connected = False
         action_file = rospkg.RosPack().get_path('ual_teleop') + '/config/simulate_safety_pilot.yaml'
         with open(action_file, 'r') as action_config:
@@ -58,7 +60,7 @@ class SafetyPilot:
         self.joy_handle = JoyHandle(joy_name, action_map)
         self.rc_simulation = RCSimulation(self.rc_url)
         self.sub_joy = rospy.Subscriber('/joy', Joy, self.joy_callback)
-        self.sub_state = rospy.Subscriber(self.state_url, State, self.state_callback)
+        self.sub_state = rospy.Subscriber(self.state_url, MavrosState, self.state_callback)
         rospy.wait_for_service(self.arming_url)  # TODO(franreal): wait here?
         self.arming_proxy = rospy.ServiceProxy(self.arming_url, CommandBool)
         rospy.Timer(rospy.Duration(1), self.arming_callback)  # 1Hz
@@ -98,6 +100,39 @@ class SafetyPilot:
                 fltmode_pwm = 900
             self.rc_simulation.set_channel(5, fltmode_pwm)                                        # fltmode
 
+class BackendMavlinkAutoArm:
+    def __init__(self, id=1):
+        self.id = id
+        self.ns = rospy.get_namespace()
+        self.ual_state = UalState()
+        self.arming_url = "ual/arm"
+        self.sub_state = rospy.Subscriber("ual/state", UalState, self.state_callback)
+        rospy.wait_for_service(self.arming_url)
+        self.arming_proxy = rospy.ServiceProxy(self.arming_url, Empty)
+        rospy.Timer(rospy.Duration(2), self.arming_callback)  # 0.5Hz
+
+    def arming_callback(self, event):
+        if self.ual_state.state == UalState.LANDED_DISARMED:
+            try:
+                rospy.loginfo("Safety pilot simulator for robot id [%d]: arming [%s]", self.id, self.ns + self.arming_url)
+                self.arming_proxy()
+            except rospy.ServiceException as exc:
+                rospy.logerr("Service did not process request: %s", str(exc))
+    
+    def state_callback(self, data):
+        self.ual_state = data
+
+
+def str2bool(v):
+    if isinstance(v, bool):
+       return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 def main():
     # Parse arguments
     parser = argparse.ArgumentParser(description='Simulate safety pilot. WARNING: use only in simulation!')
@@ -105,6 +140,8 @@ def main():
                         help='Joystick name, must have a equally named .yaml file in ual_teleop/config/joysticks folder')
     parser.add_argument('-id', type=int, default=1,
                         help='robot id')
+    parser.add_argument('-use_mavros', type=str2bool, default=True,
+                        help='Use mavros (True) or mavlink (False)')
     args, unknown = parser.parse_known_args()
     # utils.check_unknown_args(unknown)
 
@@ -115,6 +152,12 @@ def main():
     is_sim = rospy.get_param('/use_sim_time', False)
     if not is_sim:
         rospy.logerr("Param /use_sim_time is false: Use safety pilot simulation only in simulation!")
+        return
+
+    if not args.use_mavros:
+        rospy.loginfo("Safety pilot for BackendMavlink [%d]", args.id)
+        safety_pilot = BackendMavlinkAutoArm(args.id)
+        rospy.spin()
         return
 
     if args.joy_name is None:
