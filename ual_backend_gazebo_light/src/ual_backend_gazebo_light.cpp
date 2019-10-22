@@ -507,11 +507,14 @@ void BackendGazeboLight::initHomeFrame() {
 
     // Get frame prefix from namespace
     std::string ns = ros::this_node::getNamespace();
-    while ((ns.length() > 0) && (ns[0] == '/')) {
-        ns.erase(0,1);  // Remove all leading '/'
-    }
     uav_frame_id_ = ns + "/base_link";
     uav_home_frame_id_ = ns + "/odom";
+    while (uav_frame_id_[0]=='/') {
+        uav_frame_id_.erase(0,1);
+    }
+    while (uav_home_frame_id_[0]=='/') {
+        uav_home_frame_id_.erase(0,1);
+    }
 
     std::string parent_frame;
     ros::param::param<std::string>("~home_pose_parent_frame", parent_frame, "map");
