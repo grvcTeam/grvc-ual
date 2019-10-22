@@ -14,10 +14,6 @@ def main():
                         help='robot id, used to compute udp ports')
     parser.add_argument('-mode', type=str, default="sitl",
                         help='robot mode, used to set proper fcu_url')
-    parser.add_argument('-target_ip', type=str, default="localhost",
-                        help='IP address of the device running px4, used to set proper fcu_url')
-    parser.add_argument('-own_ip', type=str, default="localhost",
-                        help='IP address of this device, used to set proper fcu_url')
     parser.add_argument('-fcu_url', type=str, default="udp://:14550@localhost:14556",
                         help='set fcu_url manually in custom mode')
     parser.add_argument('-gcs_url', type=str, default="",
@@ -55,13 +51,8 @@ def main():
         # Set target MAV_SYSTEM_ID, only on sitl. Consider extension to other modes.
         subprocess.call("rosparam set " + node_name + "/target_system_id " + str(args.id), shell=True)
     elif args.mode == "serial":
-        fcu_url = "serial:///dev/ttyACM0:57600"
+        fcu_url = "serial:///dev/ttyUSB0:921600"
         subprocess.call("rosparam set " + node_name + "/fcu_url " + fcu_url, shell=True)
-    elif args.mode == "udp":
-        # TODO: get ports from args?
-        fcu_url = "udp://:14550@{}:14556".format(args.target_ip)
-        subprocess.call("rosparam set " + node_name + "/fcu_url " + fcu_url, shell=True)
-        subprocess.call("rosparam set " + node_name + "/gcs_url " + "udp://@{}".format(args.own_ip), shell=True)
     elif args.mode =="custom":
         subprocess.call("rosparam set " + node_name + "/fcu_url " + args.fcu_url, shell=True)
         if args.gcs_url:
@@ -79,9 +70,8 @@ def main():
     if args.rtcm_topic:
         rosrun_args = rosrun_args + " mavros/gps_rtk/send_rtcm:=" + args.rtcm_topic
     rosrun_out = open(temp_dir+"/mavros.out", 'w')
-    rosrun_err = open(temp_dir+"/mavros.err", 'w')
     try:
-        subprocess.call(rosrun_args, shell=True, stdout=rosrun_out, stderr=rosrun_err)
+        subprocess.call(rosrun_args, shell=True, stdout=rosrun_out)
     except KeyboardInterrupt:
         pass
     finally:
