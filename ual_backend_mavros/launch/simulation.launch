@@ -88,7 +88,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     </group>
 
     <!-- Launch UAL server for uav id=1 -->
-    <node pkg="ual_backend_mavros" type="server" name="ual" output="screen" unless="$(arg multi)">
+    <node pkg="ual_backend_mavros" type="ual_backend_mavros_server" name="ual" output="screen" unless="$(arg multi)">
         <param name="uav_id" value="1"/>
         <param name="ual_server" value="$(arg ual_server)"/>
         <param name="ual_pub_rate" value="$(arg ual_pub_rate)"/>
@@ -106,7 +106,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     <group if="$(arg multi)">
         <!-- Launch UAL server for uav id=1 -->
-        <node pkg="ual_backend_mavros" type="server" name="ual" ns="$(arg ns_prefix)1" output="screen">
+        <node pkg="ual_backend_mavros" type="ual_backend_mavros_server" name="ual" ns="$(arg ns_prefix)1" output="screen">
             <param name="uav_id" value="1"/>
             <param name="ual_server" value="$(arg ual_server)"/>
             <param name="ual_pub_rate" value="$(arg ual_pub_rate)"/>
@@ -122,7 +122,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             <!-- <rosparam param="map_origin_geo">[37.558542, -5.931074, 7.89]</rosparam> --><!-- [lat,lon,alt] -->
         </node>
         <!-- Launch UAL server for uav id=2 -->
-        <node pkg="ual_backend_mavros" type="server" name="ual" ns="$(arg ns_prefix)2" output="screen">
+        <node pkg="ual_backend_mavros" type="ual_backend_mavros_server" name="ual" ns="$(arg ns_prefix)2" output="screen">
             <param name="uav_id" value="2"/>
             <param name="ual_server" value="$(arg ual_server)"/>
             <param name="ual_pub_rate" value="$(arg ual_pub_rate)"/>
@@ -138,7 +138,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             <!-- <rosparam param="map_origin_geo">[37.558542, -5.931074, 7.89]</rosparam> --><!-- [lat,lon,alt] -->
         </node>
         <!-- Launch UAL server for uav id=3 -->
-        <node pkg="ual_backend_mavros" type="server" name="ual" ns="$(arg ns_prefix)3" output="screen">
+        <node pkg="ual_backend_mavros" type="ual_backend_mavros_server" name="ual" ns="$(arg ns_prefix)3" output="screen">
             <param name="uav_id" value="3"/>
             <param name="ual_server" value="$(arg ual_server)"/>
             <param name="ual_pub_rate" value="$(arg ual_pub_rate)"/>

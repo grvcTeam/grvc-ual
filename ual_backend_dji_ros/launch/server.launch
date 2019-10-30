@@ -39,7 +39,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     </node>
 
     <!-- Launch UAL server -->
-    <node pkg="ual_backend_dji_ros" type="server" name="ual" output="screen">
+    <node pkg="ual_backend_dji_ros" type="ual_backend_dji_ros_server" name="ual" output="screen">
         <param name="uav_id" value="$(arg id)"/>
         <param name="ual_server" value="$(arg ual_server)"/>
         <param name="ual_pub_rate" value="$(arg ual_pub_rate)"/>

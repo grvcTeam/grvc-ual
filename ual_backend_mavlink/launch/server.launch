@@ -20,7 +20,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     <arg name="orientation_th" default="0.65"/>
     <arg name="hold_pose_time" default="3.0"/>
 
-    <node pkg="ual_backend_mavlink" type="server" name="ual" output="screen">
+    <node pkg="ual_backend_mavlink" type="ual_backend_mavlink_server" name="ual" output="screen">
         <param name="uav_id" value="$(arg id)"/>
         <param name="ual_server" value="$(arg ual_server)"/>
         <param name="ual_pub_rate" value="$(arg ual_pub_rate)"/>
