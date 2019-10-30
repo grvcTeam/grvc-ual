@@ -76,7 +76,6 @@ def main():
         pass
     finally:
         rosrun_out.close()
-        rosrun_err.close()
 
 
 if __name__ == "__main__":
