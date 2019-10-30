@@ -165,6 +165,8 @@ private:
     void setFlightMode(const std::string& _flight_mode);
     double updateParam(const std::string& _param_id);
     State guessState();
+    void takeOffPX4(double _height);
+    void takeOffAPM(double _height);
 
     //WaypointList path_;
     geometry_msgs::PoseStamped  ref_pose_;
@@ -178,8 +180,8 @@ private:
     mavros_msgs::ExtendedState  mavros_extended_state_;
 
     //Control
-    enum class eControlMode {LOCAL_VEL, LOCAL_POSE, GLOBAL_POSE};
-    eControlMode control_mode_ = eControlMode::LOCAL_POSE;
+    enum class eControlMode {LOCAL_VEL, LOCAL_POSE, GLOBAL_POSE, NONE};
+    eControlMode control_mode_ = eControlMode::NONE;
     bool mavros_has_pose_ = false;
     bool mavros_has_geo_pose_ = false;
     float position_th_;
@@ -203,6 +205,8 @@ private:
     ros::Subscriber mavros_cur_extended_state_sub_;
 
     int robot_id_;
+    enum struct AutopilotType {PX4, APM, UNKNOWN};
+    AutopilotType autopilot_type_ = AutopilotType::UNKNOWN;
     std::string pose_frame_id_;
     std::string uav_home_frame_id_;
     std::string uav_frame_id_;
@@ -215,8 +219,8 @@ private:
     std::thread offboard_thread_;
     double offboard_thread_frequency_;
 
-    bool calling_takeoff = false;
-    bool calling_land = false;
+    bool calling_takeoff_ = false;
+    bool calling_land_ = false;
 };
 
 }}	// namespace grvc::ual

@@ -30,6 +30,8 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <uav_abstraction_layer/geographic_to_cartesian.h>
 #include <mavros_msgs/ParamGet.h>
+#include <diagnostic_msgs/DiagnosticArray.h>
+#include <mavros_msgs/CommandTOL.h>
 
 namespace grvc { namespace ual {
 
@@ -121,6 +123,38 @@ BackendMavros::BackendMavros()
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
 
+    // Check autopilot type
+    bool found_diagnostic = false;
+    std::string ns = ros::this_node::getNamespace();
+    std::string heartbeat_str = ns + "/mavros: Heartbeat";
+    while (heartbeat_str[0]=='/') {
+        heartbeat_str.erase(0,1);
+    }
+    while (!found_diagnostic) {
+        diagnostic_msgs::DiagnosticArrayConstPtr diag_msg = ros::topic::waitForMessage<diagnostic_msgs::DiagnosticArray>("/diagnostics",nh);
+        for (auto d : diag_msg->status) {
+            if (d.name == heartbeat_str) {
+                for (auto k : d.values) {
+                    if (k.key == "Autopilot type") {
+                        if (k.value == "PX4 Autopilot") {
+                            autopilot_type_ = AutopilotType::PX4;
+                            ROS_INFO("BackendMavros [%d]: Connected to PX4 autopilot",robot_id_);
+                        }
+                        else if (k.value == "ArduPilot") {
+                            autopilot_type_ = AutopilotType::APM;
+                            ROS_INFO("BackendMavros [%d]: Connected to APM autopilot",robot_id_);
+                        }
+                        else {
+                            ROS_ERROR("BackendMavros [%d]: Wrong autopilot type: %s", robot_id_, k.value.c_str());
+                            exit(0);
+                        }
+                        found_diagnostic = true;
+                    }
+                }
+            }
+        }
+    }
+
     // TODO: Check this and solve frames issue
     initHomeFrame();
 
@@ -210,10 +244,11 @@ grvc::ual::State BackendMavros::guessState() {
     // Sequentially checks allow state deduction
     if (!this->isReady()) { return uav_abstraction_layer::State::UNINITIALIZED; }
     if (!this->mavros_state_.armed) { return uav_abstraction_layer::State::LANDED_DISARMED; }
-    if (this->mavros_extended_state_.landed_state == mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND) { return uav_abstraction_layer::State::LANDED_ARMED; }  // TODO(franreal): Use LANDED_STATE_IN_AIR instead?
-    if (this->calling_takeoff) { return uav_abstraction_layer::State::TAKING_OFF; }
-    if (this->calling_land) { return uav_abstraction_layer::State::LANDING; }
-    if (this->mavros_state_.mode == "OFFBOARD") { return uav_abstraction_layer::State::FLYING_AUTO; }
+    if (this->mavros_extended_state_.landed_state == mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND ||
+        this->mavros_state_.system_status == 3) { return uav_abstraction_layer::State::LANDED_ARMED; }  // TODO(franreal): Use LANDED_STATE_IN_AIR instead?
+    if (this->calling_takeoff_) { return uav_abstraction_layer::State::TAKING_OFF; }
+    if (this->calling_land_) { return uav_abstraction_layer::State::LANDING; }
+    if (this->mavros_state_.mode == "OFFBOARD" || this->mavros_state_.mode == "GUIDED" || this->mavros_state_.mode == "GUIDED_NOGPS") { return uav_abstraction_layer::State::FLYING_AUTO; }
     return uav_abstraction_layer::State::FLYING_MANUAL;
 }
 
@@ -255,7 +290,16 @@ void BackendMavros::recoverFromManual() {
     // Set mode to OFFBOARD and state to FLYING
     ref_pose_ = cur_pose_;
     control_mode_ = eControlMode::LOCAL_POSE;
-    setFlightMode("OFFBOARD");
+    if (autopilot_type_ == AutopilotType::PX4) {
+        setFlightMode("OFFBOARD");
+    }
+    else if (autopilot_type_ == AutopilotType::APM) {
+        setFlightMode("GUIDED");
+    }
+    else {
+        ROS_ERROR("BackendMavros [%d]: Wrong autopilot type", robot_id_);
+        return;
+    }
     ROS_INFO("Recovered from manual mode!");
 }
 
@@ -270,10 +314,28 @@ void BackendMavros::takeOff(double _height) {
         ROS_ERROR("Takeoff height must be positive!");
         return;
     }
-    calling_takeoff = true;
+    calling_takeoff_ = true;
 
+    if (autopilot_type_ == AutopilotType::PX4) {
+        takeOffPX4(_height);
+    }
+    else if (autopilot_type_ == AutopilotType::APM) {
+        takeOffAPM(_height);
+    }
+    else {
+        ROS_ERROR("BackendMavros [%d]: Wrong autopilot type", robot_id_);
+        return;
+    }
+
+    ROS_INFO("[%d]: Flying!", robot_id_);
+    calling_takeoff_ = false;
+
+    // Update state right now!
+    this->state_ = guessState();
+}
+
+void BackendMavros::takeOffPX4(double _height) {
     control_mode_ = eControlMode::LOCAL_POSE;  // Take off control is performed in position (not velocity)
-
     float acc_max = 1.0;  // TODO: From param?
     float vel_max = updateParam("MPC_TKO_SPEED");
 
@@ -317,27 +379,53 @@ void BackendMavros::takeOff(double _height) {
     ref_pose_.pose.position.z = base_z + _height;
 
     // Now wait (unabortable!)
-    while (!referencePoseReached() && (this->mavros_state_.mode == "OFFBOARD") && ros::ok()) {
+    while (!referencePoseReached() && (this->mavros_state_.mode == "OFFBOARD" || this->mavros_state_.mode == "GUIDED" || this->mavros_state_.mode == "GUIDED_NOGPS") && ros::ok()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-    ROS_INFO("[%d]: Flying!", robot_id_);
-    calling_takeoff = false;
+}
 
-    // Update state right now!
-    this->state_ = guessState();
+void BackendMavros::takeOffAPM(double _height) {
+    control_mode_ = eControlMode::NONE;
+    ros::NodeHandle nh;
+    ros::ServiceClient takeoff_cl = nh.serviceClient<mavros_msgs::CommandTOL>("mavros/cmd/takeoff");
+    mavros_msgs::CommandTOL srv_takeoff;
+    srv_takeoff.request.altitude = _height;
+    ROS_INFO("Taking off...");
+    while (!srv_takeoff.response.success) {
+        ros::Duration(.1).sleep();
+        takeoff_cl.call(srv_takeoff);
+    }
+    ROS_INFO("Takeoff initialized");
+
+    // if(takeoff_cl.call(srv_takeoff)){
+    //     ROS_INFO("takeoff sent %d", srv_takeoff.response.success);
+    // }
+    // else {
+    //     ROS_ERROR("Failed Takeoff");
+    //     return;
+    // }
 }
 
 void BackendMavros::land() {
-    calling_land = true;
+    calling_land_ = true;
 
     control_mode_ = eControlMode::LOCAL_POSE;  // Back to control in position (just in case)
     // Set land mode
-    setFlightMode("AUTO.LAND");
+    if (autopilot_type_ == AutopilotType::PX4) {
+        setFlightMode("AUTO.LAND");
+    }
+    else if (autopilot_type_ == AutopilotType::APM) {
+        setFlightMode("LAND");
+    }
+    else {
+        ROS_ERROR("BackendMavros [%d]: Wrong autopilot type", robot_id_);
+        return;
+    }
     ROS_INFO("Landing...");
     ref_pose_ = cur_pose_;
     ref_pose_.pose.position.z = 0;
     // Landing is unabortable!
-    while ((this->mavros_state_.mode == "AUTO.LAND") && ros::ok()) {
+    while ((this->mavros_state_.mode == "AUTO.LAND" || this->mavros_state_.mode == "LAND") && ros::ok()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         if (mavros_extended_state_.landed_state == mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND) {
             // setArmed(false);  // Disabled for safety and symmetry
@@ -345,7 +433,7 @@ void BackendMavros::land() {
             break;  // Out-of-while condition
         }  
     }
-    calling_land = false;
+    calling_land_ = false;
 
     // Update state right now!
     this->state_ = guessState();
