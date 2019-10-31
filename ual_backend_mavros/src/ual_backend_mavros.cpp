@@ -50,6 +50,12 @@ BackendMavros::BackendMavros()
     orientation_th_ = 0.5*(1 - cos(orientation_th_param));
     hold_pose_time_ = std::max(hold_pose_time_param, 0.001f);  // Force min value
 
+    // Init variables
+    cur_pose_.pose.orientation.x = 0;
+    cur_pose_.pose.orientation.y = 0;
+    cur_pose_.pose.orientation.z = 0;
+    cur_pose_.pose.orientation.w = 1;
+
     ROS_INFO("BackendMavros constructor with id [%d]", robot_id_);
     // ROS_INFO("BackendMavros: thresholds = %f %f", position_th_, orientation_th_);
 
@@ -274,15 +280,19 @@ void BackendMavros::setFlightMode(const std::string& _flight_mode) {
 }
 
 void BackendMavros::recoverFromManual() {
-    if (!mavros_state_.armed || mavros_extended_state_.landed_state != 
-        mavros_msgs::ExtendedState::LANDED_STATE_IN_AIR) {
+    if (!mavros_state_.armed || mavros_state_.system_status != 4 ||
+        ( (autopilot_type_==AutopilotType::PX4) ? (mavros_extended_state_.landed_state !=
+        mavros_msgs::ExtendedState::LANDED_STATE_IN_AIR) : false) ) {
         ROS_WARN("Unable to recover from manual mode (not flying!)");
         return;
     }
 
     if (mavros_state_.mode != "POSCTL" &&
         mavros_state_.mode != "ALTCTL" &&
-        mavros_state_.mode != "STABILIZED") {
+        mavros_state_.mode != "STABILIZED" &&
+        mavros_state_.mode != "STABILIZE" &&
+        mavros_state_.mode != "POSITION" &&
+        mavros_state_.mode != "ALT_HOLD") {
         ROS_WARN("Unable to recover from manual mode (not in manual!)");
         return;
     }
@@ -290,16 +300,18 @@ void BackendMavros::recoverFromManual() {
     // Set mode to OFFBOARD and state to FLYING
     ref_pose_ = cur_pose_;
     control_mode_ = eControlMode::LOCAL_POSE;
-    if (autopilot_type_ == AutopilotType::PX4) {
-        setFlightMode("OFFBOARD");
+    switch (autopilot_type_) {
+        case AutopilotType::PX4:
+            setFlightMode("OFFBOARD");
+            break;
+        case AutopilotType::APM:
+            setFlightMode("GUIDED");
+            break;
+        default:
+            ROS_ERROR("BackendMavros [%d]: Wrong autopilot type", robot_id_);
+            return;
     }
-    else if (autopilot_type_ == AutopilotType::APM) {
-        setFlightMode("GUIDED");
-    }
-    else {
-        ROS_ERROR("BackendMavros [%d]: Wrong autopilot type", robot_id_);
-        return;
-    }
+
     ROS_INFO("Recovered from manual mode!");
 }
 
@@ -315,26 +327,30 @@ void BackendMavros::takeOff(double _height) {
         return;
     }
     calling_takeoff_ = true;
+    bool takeoff_result = false;
 
-    if (autopilot_type_ == AutopilotType::PX4) {
-        takeOffPX4(_height);
-    }
-    else if (autopilot_type_ == AutopilotType::APM) {
-        takeOffAPM(_height);
-    }
-    else {
-        ROS_ERROR("BackendMavros [%d]: Wrong autopilot type", robot_id_);
-        return;
+    switch (autopilot_type_) {
+        case AutopilotType::PX4:
+            takeoff_result = takeOffPX4(_height);
+            break;
+        case AutopilotType::APM:
+            takeoff_result = takeOffAPM(_height);
+            break;
+        default:
+            ROS_ERROR("BackendMavros [%d]: Wrong autopilot type", robot_id_);
+            return;
     }
 
-    ROS_INFO("[%d]: Flying!", robot_id_);
+    if (takeoff_result) {
+        ROS_INFO("[%d]: Flying!", robot_id_);
+    }
     calling_takeoff_ = false;
 
     // Update state right now!
     this->state_ = guessState();
 }
 
-void BackendMavros::takeOffPX4(double _height) {
+bool BackendMavros::takeOffPX4(double _height) {
     control_mode_ = eControlMode::LOCAL_POSE;  // Take off control is performed in position (not velocity)
     float acc_max = 1.0;  // TODO: From param?
     float vel_max = updateParam("MPC_TKO_SPEED");
@@ -379,31 +395,41 @@ void BackendMavros::takeOffPX4(double _height) {
     ref_pose_.pose.position.z = base_z + _height;
 
     // Now wait (unabortable!)
-    while (!referencePoseReached() && (this->mavros_state_.mode == "OFFBOARD" || this->mavros_state_.mode == "GUIDED" || this->mavros_state_.mode == "GUIDED_NOGPS") && ros::ok()) {
+    while (!referencePoseReached() && (this->mavros_state_.mode == "OFFBOARD") && ros::ok()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+    return true;
 }
 
-void BackendMavros::takeOffAPM(double _height) {
+bool BackendMavros::takeOffAPM(double _height) {
     control_mode_ = eControlMode::NONE;
     ros::NodeHandle nh;
     ros::ServiceClient takeoff_cl = nh.serviceClient<mavros_msgs::CommandTOL>("mavros/cmd/takeoff");
     mavros_msgs::CommandTOL srv_takeoff;
     srv_takeoff.request.altitude = _height;
-    ROS_INFO("Taking off...");
-    while (!srv_takeoff.response.success) {
-        ros::Duration(.1).sleep();
-        takeoff_cl.call(srv_takeoff);
-    }
-    ROS_INFO("Takeoff initialized");
 
-    // if(takeoff_cl.call(srv_takeoff)){
-    //     ROS_INFO("takeoff sent %d", srv_takeoff.response.success);
-    // }
-    // else {
-    //     ROS_ERROR("Failed Takeoff");
-    //     return;
-    // }
+    ref_pose_ = cur_pose_;
+    ref_pose_.pose.position.z += _height;
+
+    setFlightMode("GUIDED");
+    ROS_INFO("Taking off...");
+    if (!takeoff_cl.call(srv_takeoff)) {
+        ROS_ERROR("Failed Takeoff: service call failed");
+        return false;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    if (!srv_takeoff.response.success) {
+        ROS_ERROR("Failed Takeoff: error code %d",srv_takeoff.response.result);
+        return false;
+    }
+
+    // Now wait (unabortable!)
+    while (!referencePoseReached() && (this->mavros_state_.mode == "GUIDED" || this->mavros_state_.mode == "GUIDED_NOGPS") && ros::ok()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    ref_pose_ = cur_pose_;
+    control_mode_ = eControlMode::LOCAL_POSE;
+    return true;
 }
 
 void BackendMavros::land() {
@@ -411,15 +437,16 @@ void BackendMavros::land() {
 
     control_mode_ = eControlMode::LOCAL_POSE;  // Back to control in position (just in case)
     // Set land mode
-    if (autopilot_type_ == AutopilotType::PX4) {
-        setFlightMode("AUTO.LAND");
-    }
-    else if (autopilot_type_ == AutopilotType::APM) {
-        setFlightMode("LAND");
-    }
-    else {
-        ROS_ERROR("BackendMavros [%d]: Wrong autopilot type", robot_id_);
-        return;
+    switch (autopilot_type_) {
+        case AutopilotType::PX4:
+            setFlightMode("AUTO.LAND");
+            break;
+        case AutopilotType::APM:
+            setFlightMode("LAND");
+            break;
+        default:
+            ROS_ERROR("BackendMavros [%d]: Wrong autopilot type", robot_id_);
+            return;
     }
     ROS_INFO("Landing...");
     ref_pose_ = cur_pose_;
@@ -427,7 +454,7 @@ void BackendMavros::land() {
     // Landing is unabortable!
     while ((this->mavros_state_.mode == "AUTO.LAND" || this->mavros_state_.mode == "LAND") && ros::ok()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        if (mavros_extended_state_.landed_state == mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND) {
+        if (mavros_extended_state_.landed_state == mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND || mavros_state_.system_status == 3) {
             // setArmed(false);  // Disabled for safety and symmetry
             ROS_INFO("Landed!");
             break;  // Out-of-while condition

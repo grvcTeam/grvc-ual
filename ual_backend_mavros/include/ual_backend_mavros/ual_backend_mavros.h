@@ -165,8 +165,8 @@ private:
     void setFlightMode(const std::string& _flight_mode);
     double updateParam(const std::string& _param_id);
     State guessState();
-    void takeOffPX4(double _height);
-    void takeOffAPM(double _height);
+    bool takeOffPX4(double _height);
+    bool takeOffAPM(double _height);
 
     //WaypointList path_;
     geometry_msgs::PoseStamped  ref_pose_;
