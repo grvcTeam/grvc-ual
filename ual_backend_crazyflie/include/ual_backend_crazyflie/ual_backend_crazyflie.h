@@ -23,102 +23,25 @@
 
 #include <thread>
 #include <vector>
-// #include <Eigen/Core>
 
 #include <uav_abstraction_layer/backend.h>
 #include <ros/ros.h>
 
-//Mavros services
 #include <crazyflie_driver/Takeoff.h>
 #include <crazyflie_driver/Land.h>
 #include <crazyflie_driver/GoTo.h>
 #include <crazyflie_driver/AddCrazyflie.h>
 
-
-//Mavros messages
-#include <mavros_msgs/State.h>
-#include <mavros_msgs/ExtendedState.h>
-#include <mavros_msgs/GlobalPositionTarget.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <sensor_msgs/NavSatFix.h>
 
-// 
 #include <std_srvs/Empty.h>
 #include <std_msgs/Int8.h>
 
 namespace grvc { namespace ual {
-
-// class HistoryBuffer {  // TODO: template? utils?
-// public:
-//     void set_size(size_t _size) {
-//         std::lock_guard<std::mutex> lock(mutex_);
-//         buffer_size_ = _size;
-//         buffer_.clear();
-//         current_ = 0;
-//     }
-
-//     void reset() {
-//         std::lock_guard<std::mutex> lock(mutex_);
-//         buffer_.clear();
-//         current_ = 0;
-//     }
-
-//     void update(double _value) {
-//         std::lock_guard<std::mutex> lock(mutex_);
-//         if (buffer_.size() < buffer_size_) {
-//             buffer_.push_back(_value);
-//         } else {
-//             buffer_[current_] = _value;
-//             current_ = (current_ + 1) % buffer_size_;
-//         }
-//     }
-
-//     bool get_stats(double& _min, double& _mean, double& _max) {
-//         std::lock_guard<std::mutex> lock(mutex_);
-//         if (buffer_.size() >= buffer_size_) {
-//             double min_value = +std::numeric_limits<double>::max();
-//             double max_value = -std::numeric_limits<double>::max();
-//             double sum = 0;
-//             for (int i = 0; i < buffer_.size(); i++) {
-//                 if (buffer_[i] < min_value) { min_value = buffer_[i]; }
-//                 if (buffer_[i] > max_value) { max_value = buffer_[i]; }
-//                 sum += buffer_[i];
-//             }
-//             _min = min_value;
-//             _max = max_value;
-//             _mean = sum / buffer_.size();
-//             return true;
-//         }
-//         return false;
-//     }
-
-//     bool get_variance(double& _var) {
-//         std::lock_guard<std::mutex> lock(mutex_);
-//         if (buffer_.size() >= buffer_size_) {
-//             double mean = 0;
-//             double sum = 0;
-//             _var = 0;
-//             for (int i = 0; i < buffer_.size(); i++) {
-//                 sum += buffer_[i];
-//             }
-//             mean = sum / buffer_.size();
-//             for (int i = 0; i < buffer_.size(); i++) {
-//                 _var += (buffer_[i]-mean)*(buffer_[i]-mean);
-//             }
-//             return true;
-//         }
-//         return false;
-//     }
-
-// protected:
-//     size_t buffer_size_ = 0;
-//     unsigned int current_ = 0;
-//     std::vector<double> buffer_;
-//     std::mutex mutex_;
-// };
 
 class BackendCrazyflie : public Backend {
 
@@ -149,8 +72,6 @@ public:
     /// \param _wp goal waypoint in geographic coordinates
     void	goToWaypointGeo(const WaypointGeo& _wp);
 
-    /// Follow a list of waypoints, one after another
-    // void trackPath(const Path& _path) override;
     /// Perform a take off maneuver
     /// \param _height target height that must be reached to consider the take off complete
     void    takeOff(double _height) override;
@@ -173,7 +94,6 @@ private:
     double updateParam(const std::string& _param_id);
     State guessState();
 
-    //WaypointList path_;
     geometry_msgs::PoseStamped  ref_pose_;
     sensor_msgs::NavSatFix      ref_pose_global_;
     geometry_msgs::PoseStamped  cur_pose_;
@@ -182,7 +102,6 @@ private:
     geometry_msgs::TwistStamped ref_vel_;
     geometry_msgs::TwistStamped cur_vel_;
     std_msgs::Int8              crazyflie_state_;
-    mavros_msgs::ExtendedState  mavros_extended_state_;
 
     //Control
     enum class eControlMode {LOCAL_VEL, LOCAL_POSE, GLOBAL_POSE};
@@ -191,8 +110,6 @@ private:
     bool mavros_has_geo_pose_ = false;
     float position_th_;
     float orientation_th_;
-    // HistoryBuffer position_error_;
-    // HistoryBuffer orientation_error_;
 
     /// Ros Communication
     ros::ServiceClient flight_mode_client_;
@@ -217,9 +134,7 @@ private:
     tf2_ros::StaticTransformBroadcaster * static_tf_broadcaster_;
     std::map <std::string, geometry_msgs::TransformStamped> cached_transforms_;
     std::map<std::string, double> mavros_params_;
-    // Eigen::Vector3d local_start_pos_;
     ros::Time last_command_time_;
-
 
     std::thread offboard_thread_;
     double offboard_thread_frequency_;
