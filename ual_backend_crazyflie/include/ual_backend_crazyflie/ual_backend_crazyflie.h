@@ -23,7 +23,7 @@
 
 #include <thread>
 #include <vector>
-#include <Eigen/Core>
+// #include <Eigen/Core>
 
 #include <uav_abstraction_layer/backend.h>
 #include <ros/ros.h>
@@ -217,7 +217,7 @@ private:
     tf2_ros::StaticTransformBroadcaster * static_tf_broadcaster_;
     std::map <std::string, geometry_msgs::TransformStamped> cached_transforms_;
     std::map<std::string, double> mavros_params_;
-    Eigen::Vector3d local_start_pos_;
+    // Eigen::Vector3d local_start_pos_;
     ros::Time last_command_time_;
 
 

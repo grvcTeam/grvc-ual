@@ -25,9 +25,9 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2_ros/transform_listener.h>
-#include <uav_abstraction_layer/backend_crazyflie.h>
+#include <ual_backend_crazyflie/ual_backend_crazyflie.h>
 #include <uav_abstraction_layer/geographic_to_cartesian.h>
-#include <Eigen/Eigen>
+// #include <Eigen/Eigen>
 #include <chrono>
 #include <string>
 
@@ -201,28 +201,28 @@ void BackendCrazyflie::offboardThreadLoop() {
     }
 }
 
-Backend::State BackendCrazyflie::guessState() {
+grvc::ual::State BackendCrazyflie::guessState() {
     // Sequentially checks allow state deduction
     if (!this->isReady()) {
-        return UNINITIALIZED;
+        return uav_abstraction_layer::State::UNINITIALIZED;
     }
     // if (!this->crazyflie_state_.armed) {
     //     return LANDED_DISARMED;
     // }
     if (this->isReady() && crazyflie_state_.data == 0) {
-        return LANDED_ARMED;
+        return uav_abstraction_layer::State::LANDED_ARMED;
     }
     if (this->calling_takeoff) {
-        return TAKING_OFF;
+        return uav_abstraction_layer::State::TAKING_OFF;
     }
     if (this->calling_land) {
-        return LANDING;
+        return uav_abstraction_layer::State::LANDING;
     }
     // if (this->crazyflie_state_.mode == "OFFBOARD") {
     //     return FLYING_AUTO;
     // }
     // return FLYING_MANUAL;
-    return FLYING_AUTO;
+    return uav_abstraction_layer::State::FLYING_AUTO;
 }
 
 void BackendCrazyflie::setFlightMode(const std::string& _flight_mode) {
