@@ -22,7 +22,6 @@
 #define UAV_ABSTRACTION_LAYER_BACKEND_LIGHT_H
 
 #include <thread>
-#include <Eigen/Core>
 
 #include <uav_abstraction_layer/backend.h>
 #include <ros/ros.h>
@@ -30,14 +29,17 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
 #include <geometry_msgs/TransformStamped.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2_ros/static_transform_broadcaster.h>
+#include <tf2_ros/transform_listener.h>
 
 namespace grvc { namespace ual {
 
-class BackendLight : public Backend {
+class BackendGazeboLight : public Backend {
 
 public:
-    BackendLight();
+    BackendGazeboLight();
+    ~BackendGazeboLight();
 
     /// Backend is initialized and ready to run tasks?
     bool	         isReady() const override;
@@ -78,9 +80,9 @@ public:
 
 private:
     void initHomeFrame();
-    bool referencePoseReached() const;
+    bool referencePoseReached();
     void move();
-    Velocity calcVel(Pose _target_pose);
+    Velocity calculateRefVel(Pose _target_pose);
 
     geometry_msgs::PoseStamped home_pose_;
     geometry_msgs::PoseStamped ref_pose_;
@@ -90,9 +92,14 @@ private:
     geometry_msgs::TwistStamped ref_vel_;
     geometry_msgs::TwistStamped cur_vel_;
 
-    //Gazebo animated link
-    std::string link_name_;
-    ros::Publisher link_state_publisher_;
+    //Gazebo animated model
+    std::string model_name_;
+    bool has_pose_ = false;
+    geometry_msgs::Pose model_pose_;
+    ros::Publisher model_state_publisher_;
+    ros::Subscriber model_state_subscriber_;
+    ros::ServiceClient wrench_client_;
+    ros::Timer rotors_timer_;
 
     //Noise
     std::default_random_engine generator_;
@@ -101,11 +108,14 @@ private:
     //Control
     bool flying_ = false;
     bool control_in_vel_ = false;
-    float max_h_vel_;
-    float max_v_vel_;
-    float max_yaw_vel_;
-    float max_pose_error_;
-    float max_orient_error_;
+    float max_horizontal_velocity_;
+    float max_vertical_velocity_;
+    float max_yaw_rate_;
+    float max_position_error_;
+    float max_orientation_error_;
+    float position_th_;
+    float orientation_th_;
+    // float hold_pose_time_;  // TODO: add?
 
     int robot_id_;
     std::string pose_frame_id_;
@@ -113,6 +123,8 @@ private:
     std::string uav_frame_id_;
     tf2_ros::StaticTransformBroadcaster * static_tf_broadcaster_;
     std::map <std::string, geometry_msgs::TransformStamped> cached_transforms_;
+    tf2_ros::Buffer tf_buffer_;
+    tf2_ros::TransformListener tf_listener_;
     ros::Time last_command_time_;
 
     std::thread offboard_thread_;

@@ -6,13 +6,15 @@ import numpy
 import os
 import rospkg
 import rospy
+import tf2_ros
+import math
 import time
 import xml.etree.ElementTree as ET
 
 
 def main():
 
-    # Parse arguments
+    # Parse arguments  # TODO: Too much arguments? Rethink this script
     parser = argparse.ArgumentParser(description='Spawn robot in Gazebo for SITL')
     parser.add_argument('-model', type=str, default="mbzirc",
                         help='robot model name, must match xacro description folder name')
@@ -31,8 +33,12 @@ def main():
     parser.add_argument('-material', type=str, default="DarkGrey",
                         help='robot Gazebo/material; \
                         see materials/scripts/gazebo.material (at your gazebo version)')
-    parser.add_argument('-backend', type=str, default="mavros",
-                        help='backend to use')
+    parser.add_argument('-ual_backend', type=str, default="mavros",
+                        help='UAL backend to use')
+    parser.add_argument('-frame_id', type=str, default="map",
+                        help='initial position and yaw frame reference; id [map] refers to gazebo origin')
+    parser.add_argument('-append_xacro_args', type=str, nargs='+',
+                        help='append additional arguments for xacro command')
     args, unknown = parser.parse_known_args()
     utils.check_unknown_args(unknown)
 
@@ -69,6 +75,7 @@ def main():
         temp_urdf = temp_dir + "/" + args.model + ".urdf"
         xacro_args = "xacro --inorder -o " + temp_urdf + " " + \
         xacro_description + \
+        " robot_id:=" + str(args.id) + \
         " enable_mavlink_interface:=true" + \
         " enable_gps_plugin:=true" + \
         " enable_ground_truth:=false" + \
@@ -77,6 +84,15 @@ def main():
         " enable_wind:=false" + \
         " mavlink_udp_port:=" + str(udp_config["sim_port"]) + \
         " visual_material:=" + args.material
+
+        if args.append_xacro_args:
+            for xacro_arg in args.append_xacro_args:
+                # print(xacro_arg)
+                xacro_args += ' '
+                xacro_args += xacro_arg.replace('=', ':=')  # As args are passed as arg=value
+        # print(xacro_args)
+        # return
+
         xacro_out = open(temp_dir+"/xacro.out", 'w')
         xacro_err = open(temp_dir+"/xacro.err", 'w')
         subprocess.call(xacro_args, shell=True, stdout=xacro_out, stderr=xacro_err)
@@ -119,7 +135,7 @@ def main():
         raise IOError("Couldn't find model.sdf/model.xacro description file")
 
     # Set gravity=0 for light simulations
-    if args.backend == 'light':
+    if args.ual_backend == 'light':
         tree = ET.parse(temp_sdf)
         root = tree.getroot()
         model = root.find('model')
@@ -138,13 +154,39 @@ def main():
     # Minimum z to avoid collision with ground
     z_min = 0.3
 
+    spawn_x = args.x
+    spawn_y = args.y
+    spawn_z = args.z
+    spawn_yaw = args.Y
+
+    if args.frame_id != 'map':
+        tf_buffer = tf2_ros.Buffer()
+        tf_listener = tf2_ros.TransformListener(tf_buffer)
+        try:
+            transform_stamped = tf_buffer.lookup_transform('map', args.frame_id, rospy.Time(0), rospy.Duration(10.0))
+            if transform_stamped.transform.rotation.x != 0:
+                raise ValueError('Only yaw rotations allowed at spawn; rotation.x should be 0, found {}'.format(transform_stamped.transform.rotation.x))
+            if transform_stamped.transform.rotation.y != 0:
+                raise ValueError('Only yaw rotations allowed at spawn; rotation.y should be 0, found {}'.format(transform_stamped.transform.rotation.y))
+            transform_yaw = 2.0 * math.atan2(transform_stamped.transform.rotation.z, transform_stamped.transform.rotation.w)
+            new_x = transform_stamped.transform.translation.x + spawn_x * math.cos(transform_yaw) - spawn_y * math.sin(transform_yaw)
+            new_y = transform_stamped.transform.translation.y + spawn_x * math.sin(transform_yaw) + spawn_y * math.cos(transform_yaw)
+            new_z = transform_stamped.transform.translation.z + spawn_z
+            new_yaw = transform_yaw + spawn_yaw
+            spawn_x = new_x
+            spawn_y = new_y
+            spawn_z = new_z
+            spawn_yaw = new_yaw
+        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+            rospy.logerr('Failed to lookup transform from [{}] to [map], ignoring frame_id'.format(args.frame_id))
+
     # Spawn robot sdf in gazebo
     gzmodel_args = "gz model -f " + temp_sdf + \
     " -m " + args.model + "_" + str(args.id) + \
-    " -x " + str(args.x) + \
-    " -y " + str(args.y) + \
-    " -z " + str(args.z+z_min) + \
-    " -Y " + str(args.Y)
+    " -x " + str(spawn_x) + \
+    " -y " + str(spawn_y) + \
+    " -z " + str(spawn_z + z_min) + \
+    " -Y " + str(spawn_yaw)
     subprocess.call(gzmodel_args, shell=True)
 
 if __name__ == "__main__":

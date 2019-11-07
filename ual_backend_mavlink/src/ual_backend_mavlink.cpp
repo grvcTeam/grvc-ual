@@ -21,7 +21,7 @@
 
 #include <string>
 #include <chrono>
-#include <uav_abstraction_layer/backend_mavros.h>
+#include <ual_backend_mavlink/ual_backend_mavlink.h>
 #include <Eigen/Eigen>
 #include <ros/ros.h>
 #include <ros/package.h>
@@ -29,90 +29,168 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <uav_abstraction_layer/geographic_to_cartesian.h>
-#include <mavros_msgs/ParamGet.h>
+//#include <mavros_msgs/ParamGet.h>
+
+#include <memory>
 
 namespace grvc { namespace ual {
 
-BackendMavros::BackendMavros()
+BackendMavlink::BackendMavlink()
     : Backend()
 {
     // Parse arguments
     ros::NodeHandle pnh("~");
     pnh.param<int>("uav_id", robot_id_, 1);
     pnh.param<std::string>("pose_frame_id", pose_frame_id_, "");
-    float position_th_param, orientation_th_param;
+    float position_th_param, orientation_th_param, hold_pose_time_param;
     pnh.param<float>("position_th", position_th_param, 0.33);
     pnh.param<float>("orientation_th", orientation_th_param, 0.65);
+    pnh.param<float>("hold_pose_time", hold_pose_time_param, 3.0);
     position_th_ = position_th_param*position_th_param;
     orientation_th_ = 0.5*(1 - cos(orientation_th_param));
+    hold_pose_time_ = std::max(hold_pose_time_param, 0.001f);  // Force min value
 
-    ROS_INFO("BackendMavros constructor with id %d",robot_id_);
-    // ROS_INFO("BackendMavros: thresholds = %f %f", position_th_, orientation_th_);
+    ROS_INFO("BackendMavlink constructor with id [%d]", robot_id_);
 
-    // Init ros communications
-    ros::NodeHandle nh;
-    std::string mavros_ns = "mavros";
-    std::string set_mode_srv = mavros_ns + "/set_mode";
-    std::string arming_srv = mavros_ns + "/cmd/arming";
-    std::string get_param_srv = mavros_ns + "/param/get";
-    std::string set_pose_topic = mavros_ns + "/setpoint_position/local";
-    std::string set_pose_global_topic = mavros_ns + "/setpoint_raw/global";
-    std::string set_vel_topic = mavros_ns + "/setpoint_velocity/cmd_vel";
-    std::string pose_topic = mavros_ns + "/local_position/pose";
-    std::string geo_pose_topic = mavros_ns + "/global_position/global";
-    std::string vel_topic = mavros_ns + "/local_position/velocity";
-    std::string state_topic = mavros_ns + "/state";
-    std::string extended_state_topic = mavros_ns + "/extended_state";
-
-    flight_mode_client_ = nh.serviceClient<mavros_msgs::SetMode>(set_mode_srv.c_str());
-    arming_client_ = nh.serviceClient<mavros_msgs::CommandBool>(arming_srv.c_str());
-
-    mavros_ref_pose_pub_ = nh.advertise<geometry_msgs::PoseStamped>(set_pose_topic.c_str(), 1);
-    mavros_ref_pose_global_pub_ = nh.advertise<mavros_msgs::GlobalPositionTarget>(set_pose_global_topic.c_str(), 1);
-    mavros_ref_vel_pub_ = nh.advertise<geometry_msgs::TwistStamped>(set_vel_topic.c_str(), 1);
-
-    mavros_cur_pose_sub_ = nh.subscribe<geometry_msgs::PoseStamped>(pose_topic.c_str(), 1, \
-        [this](const geometry_msgs::PoseStamped::ConstPtr& _msg) {
-            this->cur_pose_ = *_msg;
-            this->mavros_has_pose_ = true;
-    });
-    mavros_cur_vel_sub_ = nh.subscribe<geometry_msgs::TwistStamped>(vel_topic.c_str(), 1, \
-        [this](const geometry_msgs::TwistStamped::ConstPtr& _msg) {
-            this->cur_vel_ = *_msg;
-            this->cur_vel_.header.frame_id = this->uav_home_frame_id_;
-    });
-    mavros_cur_geo_pose_sub_ = nh.subscribe<sensor_msgs::NavSatFix>(geo_pose_topic.c_str(), 1, \
-        [this](const sensor_msgs::NavSatFix::ConstPtr& _msg) {
-            this->cur_geo_pose_ = *_msg;
-            if (!this->mavros_has_geo_pose_) {
-                if (_msg->position_covariance[0] < 1.2 && _msg->position_covariance[0] > 0 && _msg->header.seq > 100) {
-                    this->mavros_has_geo_pose_ = true;
-                    // ROS_INFO("Has Geo Pose! %f",_msg->position_covariance[0]);
-                }
-            }
-    });
-    mavros_cur_state_sub_ = nh.subscribe<mavros_msgs::State>(state_topic.c_str(), 1, \
-        [this](const mavros_msgs::State::ConstPtr& _msg) {
-            this->mavros_state_ = *_msg;
-    });
-    mavros_cur_extended_state_sub_ = nh.subscribe<mavros_msgs::ExtendedState>(extended_state_topic.c_str(), 1, \
-        [this](const mavros_msgs::ExtendedState::ConstPtr& _msg) {
-            this->mavros_extended_state_ = *_msg;
-    });
-
-    // Wait until mavros is connected
-    while (!mavros_state_.connected && ros::ok()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    // Init mavlink communication
+    std::string connection_url;
+    pnh.param<std::string>("fcu_url",connection_url,"udp://:14540");
+    mavsdk::ConnectionResult connection_result;
+    
+    while ( (connection_result = dc_.add_any_connection(connection_url)) != mavsdk::ConnectionResult::SUCCESS) {
+        ROS_ERROR("BackendMavlink [%d]: Connection failed: %s", robot_id_, connection_result_str(connection_result));
+        std::this_thread::sleep_for(std::chrono::seconds(2));
     }
+    ROS_INFO("BackendMavlink [%d]: Connected to: %s", robot_id_, connection_url.c_str());
+    mavsdk::System &system = dc_.system();
+    dc_.register_on_discover([this](uint64_t uuid) {
+        ROS_INFO("BackendMavlink [%d]: Discovered system with UUID: %d", this->robot_id_, (int)uuid);
+        discovered_system_ = true;
+    });
+
+    // We usually receive heartbeats at 1Hz, therefore we should find a system after around 2 seconds.
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+
+    while (!discovered_system_) {
+        ROS_WARN("BackendMavlink [%d]: Waiting for system...", robot_id_);
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+    }
+
+    telemetry_ = std::make_shared<mavsdk::Telemetry>(system);
+    action_ = std::make_shared<mavsdk::Action>(system);
+    info_ = std::make_shared<mavsdk::Info>(system);
+    offboard_ = std::make_shared<mavsdk::Offboard>(system);
+
+    // Get the system Version struct
+    std::pair<mavsdk::Info::Result, mavsdk::Info::Version> systemVersion = info_->get_version();
+    if (systemVersion.first == mavsdk::Info::Result::SUCCESS) {
+        /*-------------------------------------------------------------------------------*/
+        // Print out the vehicle version information. !TODO: Print only useful info
+        std::cout << "  flight_sw_major: "<<systemVersion.second.flight_sw_major<< std::endl
+                << "  flight_sw_minor: " << systemVersion.second.flight_sw_minor<< std::endl
+                << "  flight_sw_patch: " << systemVersion.second.flight_sw_patch<< std::endl
+                << "  flight_sw_vendor_major: " << systemVersion.second.flight_sw_vendor_major<< std::endl
+                << "  flight_sw_vendor_minor: " << systemVersion.second.flight_sw_vendor_minor<< std::endl
+                << "  flight_sw_vendor_patch: " << systemVersion.second.flight_sw_vendor_patch<< std::endl
+                << "  flight_sw_git_hash: " << systemVersion.second.flight_sw_git_hash<< std::endl
+                << "  os_sw_major: " << systemVersion.second.os_sw_major<< std::endl
+                << "  os_sw_minor: " << systemVersion.second.os_sw_minor<< std::endl
+                << "  os_sw_patch: " << systemVersion.second.os_sw_patch<< std::endl
+                << "  os_sw_git_hash: " << systemVersion.second.os_sw_git_hash<< std::endl;
+    }
+    // Get the system Product struct
+    std::pair<mavsdk::Info::Result, mavsdk::Info::Product> systemProduct = info_->get_product();
+    if (systemProduct.first == mavsdk::Info::Result::SUCCESS) {
+    // Print out the vehicle product information.
+    std::cout << "  vendor_id: " << systemProduct.second.vendor_id<< std::endl
+            << "  vendor_name: " << systemProduct.second.vendor_name<< std::endl
+            << "  product_id: "  << systemProduct.second.product_id<< std::endl
+            << "  product_name: "<< systemProduct.second.product_id<< std::endl;
+    /*-------------------------------------------------------------------------------*/
+    }
+
+    // Subscribe to vehicle information
+    telemetry_->position_velocity_ned_async([this](mavsdk::Telemetry::PositionVelocityNED msg) {
+        this->cur_pose_.pose.position.x = msg.position.east_m;
+        this->cur_pose_.pose.position.y = msg.position.north_m;
+        this->cur_pose_.pose.position.z = -msg.position.down_m;
+        this->cur_vel_.twist.linear.x = msg.velocity.east_m_s;
+        this->cur_vel_.twist.linear.y = msg.velocity.north_m_s;
+        this->cur_vel_.twist.linear.z = -msg.velocity.down_m_s;
+        
+        this->cur_pose_ned_.east_m = msg.position.east_m;
+        this->cur_pose_ned_.north_m = msg.position.north_m;
+        this->cur_pose_ned_.down_m = msg.position.down_m;
+        
+        if(this->has_pose_) {
+            geometry_msgs::Transform transform_in = this->transform().transform;
+            tf2::Transform transform_out;
+            tf2::fromMsg(transform_in,transform_out);
+            geometry_msgs::TransformStamped transform;
+            transform.transform = tf2::toMsg(transform_out.inverse());
+            transform.header.frame_id = this->uav_home_frame_id_;
+            transform.child_frame_id = this->uav_frame_id_;
+            geometry_msgs::Vector3Stamped vel_in, vel_out;
+            vel_in.header.frame_id = this->uav_home_frame_id_;
+            vel_in.vector = this->cur_vel_.twist.linear;
+            tf2::doTransform(vel_in, vel_out, transform);
+            this->cur_vel_body_.header.frame_id = this->uav_frame_id_;
+            this->cur_vel_body_.twist.linear = vel_out.vector;
+            this->cur_vel_body_.twist.angular = this->cur_vel_.twist.angular;
+        }
+        else {
+            this->cur_vel_body_ = this->cur_vel_;
+            this->cur_vel_body_.header.frame_id = this->uav_frame_id_;
+        }
+
+        this->has_pose_ = true;
+    });
+    telemetry_->attitude_euler_angle_async([this](mavsdk::Telemetry::EulerAngle msg) {
+        this->cur_pose_ned_.yaw_deg = msg.yaw_deg;
+    });
+    telemetry_->attitude_quaternion_async([this](mavsdk::Telemetry::Quaternion msg) {
+        Eigen::Quaterniond Q_NED_ENU = Eigen::Quaterniond(
+			Eigen::AngleAxisd(M_PI_2, Eigen::Vector3d::UnitZ()) *
+			Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitY()) *
+			Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitX())
+			);
+        Eigen::Quaterniond Q_AIRCRAFT_BASELINK = Eigen::Quaterniond(
+			Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitZ()) *
+			Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitY()) *
+			Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitX())
+			);
+        Eigen::Quaterniond q_in = Eigen::Quaterniond(msg.w,msg.x,msg.y,msg.z);
+
+        Eigen::Quaterniond q_out = Q_NED_ENU * q_in * Q_AIRCRAFT_BASELINK;
+
+        this->cur_pose_.pose.orientation.w = q_out.w();
+        this->cur_pose_.pose.orientation.x = q_out.x();
+        this->cur_pose_.pose.orientation.y = q_out.y();
+        this->cur_pose_.pose.orientation.z = q_out.z();
+    });
+    telemetry_->attitude_angular_velocity_body_async([this](mavsdk::Telemetry::AngularVelocityBody msg) {
+        this->cur_vel_.twist.angular.x = msg.roll_rad_s;
+        this->cur_vel_.twist.angular.y = -msg.pitch_rad_s;
+        this->cur_vel_.twist.angular.z = -msg.yaw_rad_s;
+    });
+    telemetry_->position_async([this](mavsdk::Telemetry::Position msg) {
+        this->cur_geo_pose_.latitude = msg.latitude_deg;
+        this->cur_geo_pose_.longitude = msg.longitude_deg;
+        this->cur_geo_pose_.altitude = msg.relative_altitude_m;
+        this->has_geo_pose_ = true;
+    });
+    // telemetry_->gps_info_async([this](mavsdk::Telemetry::GPSInfo msg) {
+    //     //!TODO: publish RTK fix
+    // }
 
     // TODO: Check this and solve frames issue
     initHomeFrame();
 
-    // Thread publishing target pose at 10Hz for offboard mode
-    offboard_thread_ = std::thread(&BackendMavros::offboardThreadLoop, this);
+    // Thread publishing control references at 20Hz for offboard mode
+    offboard_thread_ = std::thread(&BackendMavlink::offboardThreadLoop, this);
 
-    // Client to get parameters from mavros and required default values
-    get_param_client_ = nh.serviceClient<mavros_msgs::ParamGet>(get_param_srv.c_str());
+    // Client to get parameters from mavsdk and required default values
+    //get_param_client_ = nh.serviceClient<mavros_msgs::ParamGet>(get_param_srv.c_str());
     mavros_params_["MPC_XY_VEL_MAX"]   =   2.0;  // [m/s]   Default value
     mavros_params_["MPC_Z_VEL_MAX_UP"] =   3.0;  // [m/s]   Default value
     mavros_params_["MPC_Z_VEL_MAX_DN"] =   1.0;  // [m/s]   Default value
@@ -120,24 +198,33 @@ BackendMavros::BackendMavros()
     mavros_params_["MPC_TKO_SPEED"]    =   1.5;  // [m/s]   Default value
     // Updating here is non-sense as service seems to be slow in waking up
 
-    ROS_INFO("BackendMavros %d running!",robot_id_);
+    ROS_INFO("BackendMavlink [%d] running!", robot_id_);
 }
 
-BackendMavros::~BackendMavros() {
+BackendMavlink::~BackendMavlink() {
     if (offboard_thread_.joinable()) { offboard_thread_.join(); }
 }
 
-void BackendMavros::offboardThreadLoop(){
-    ros::param::param<double>("~mavros_offboard_rate", offboard_thread_frequency_, 30.0);
-    double hold_pose_time = 3.0;  // [s]  TODO param?
-    int buffer_size = std::ceil(hold_pose_time * offboard_thread_frequency_);
+void BackendMavlink::offboardThreadLoop(){
+    ros::param::param<double>("~mavlink_offboard_rate", offboard_thread_frequency_, 20.0);
+    int buffer_size = std::ceil(hold_pose_time_ * offboard_thread_frequency_);
     position_error_.set_size(buffer_size);
     orientation_error_.set_size(buffer_size);
+
+    geometry_msgs::Quaternion q;
+    double siny_cosp;
+    double cosy_cosp;
+
+    // Arm service
+    ros::NodeHandle n;
+    ros::ServiceServer arm_service = n.advertiseService("ual/arm", &BackendMavlink::arm, this);
+    ros::Publisher ref_pose_pub = n.advertise<geometry_msgs::PoseStamped>("ual/ref_pose",1);
+
     ros::Rate rate(offboard_thread_frequency_);
     while (ros::ok()) {
         switch(control_mode_){
         case eControlMode::LOCAL_VEL:
-            mavros_ref_vel_pub_.publish(ref_vel_);
+            offboard_->set_velocity_body(ref_vel_body_ned_);
             ref_pose_ = cur_pose_;
             if ( ros::Time::now().toSec() - last_command_time_.toSec() >=0.5 ) {
                 control_mode_ = eControlMode::LOCAL_POSE;
@@ -145,11 +232,25 @@ void BackendMavros::offboardThreadLoop(){
             break;
         case eControlMode::LOCAL_POSE:
             ref_pose_.header.stamp = ros::Time::now();
-            mavros_ref_pose_pub_.publish(ref_pose_);
-            ref_vel_.twist.linear.x = 0;
-            ref_vel_.twist.linear.y = 0;
-            ref_vel_.twist.linear.z = 0;
-            ref_vel_.twist.angular.z = 0;
+            
+            ref_pose_ned_.north_m =  ref_pose_.pose.position.y;
+            ref_pose_ned_.east_m  =  ref_pose_.pose.position.x;
+            ref_pose_ned_.down_m  = -ref_pose_.pose.position.z;
+            // yaw (z-axis rotation)
+            q = ref_pose_.pose.orientation;
+            siny_cosp = +2.0 * (q.w * q.z + q.x * q.y);
+            cosy_cosp = +1.0 - 2.0 * (q.y * q.y + q.z * q.z);
+            ref_pose_ned_.yaw_deg = ( (atan2(siny_cosp, cosy_cosp)*180.0/M_PI) + 90.0 );
+            if(ref_pose_ned_.yaw_deg >  180.0) {ref_pose_ned_.yaw_deg -= 360.0;}
+            if(ref_pose_ned_.yaw_deg < -180.0) {ref_pose_ned_.yaw_deg += 360.0;}
+
+            offboard_->set_position_ned(ref_pose_ned_);
+            ref_pose_pub.publish(ref_pose_);
+
+            ref_vel_body_ned_.forward_m_s = 0;
+            ref_vel_body_ned_.right_m_s = 0;
+            ref_vel_body_ned_.down_m_s = 0;
+            ref_vel_body_ned_.yawspeed_deg_s = 0;
             break;
         case eControlMode::GLOBAL_POSE:
             ref_vel_.twist.linear.x = 0;
@@ -158,15 +259,15 @@ void BackendMavros::offboardThreadLoop(){
             ref_vel_.twist.angular.z = 0;
             ref_pose_ = cur_pose_;
 
-            mavros_msgs::GlobalPositionTarget msg;    
-            msg.latitude = ref_pose_global_.latitude;
-            msg.longitude = ref_pose_global_.longitude;
-            msg.altitude = ref_pose_global_.altitude;
-            msg.header.stamp = ros::Time::now();
-            msg.coordinate_frame = mavros_msgs::GlobalPositionTarget::FRAME_GLOBAL_REL_ALT;
-            msg.type_mask = 4088; //((4095^1)^2)^4;
+            // mavros_msgs::GlobalPositionTarget msg;    
+            // msg.latitude = ref_pose_global_.latitude;
+            // msg.longitude = ref_pose_global_.longitude;
+            // msg.altitude = ref_pose_global_.altitude;
+            // msg.header.stamp = ros::Time::now();
+            // msg.coordinate_frame = mavros_msgs::GlobalPositionTarget::FRAME_GLOBAL_REL_ALT;
+            // msg.type_mask = 4088; //((4095^1)^2)^4;
 
-            mavros_ref_pose_global_pub_.publish(msg);
+            //mavros_ref_pose_global_pub_.publish(msg);
             break;
         }
         // Error history update
@@ -191,48 +292,25 @@ void BackendMavros::offboardThreadLoop(){
     }
 }
 
-Backend::State BackendMavros::guessState() {
+grvc::ual::State BackendMavlink::guessState() {
     // Sequentially checks allow state deduction
-    if (!this->isReady()) { return UNINITIALIZED; }
-    if (!this->mavros_state_.armed) { return LANDED_DISARMED; }
-    if (this->mavros_extended_state_.landed_state == mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND) { return LANDED_ARMED; }  // TODO(franreal): Use LANDED_STATE_IN_AIR instead?
-    if (this->calling_takeoff) { return TAKING_OFF; }
-    if (this->calling_land) { return LANDING; }
-    if (this->mavros_state_.mode == "OFFBOARD") { return FLYING_AUTO; }
-    return FLYING_MANUAL;
+    if (!this->isReady()) { return uav_abstraction_layer::State::UNINITIALIZED; }
+    if (!telemetry_->armed()) { return uav_abstraction_layer::State::LANDED_DISARMED; }
+    if (telemetry_->landed_state() == mavsdk::Telemetry::LandedState::ON_GROUND) { return uav_abstraction_layer::State::LANDED_ARMED; }  // TODO(franreal): Use LANDED_STATE_IN_AIR instead?
+    if (this->calling_takeoff) { return uav_abstraction_layer::State::TAKING_OFF; }
+    if (this->calling_land) { return uav_abstraction_layer::State::LANDING; }
+    if (telemetry_->flight_mode() == mavsdk::Telemetry::FlightMode::OFFBOARD) { return uav_abstraction_layer::State::FLYING_AUTO; }
+    return uav_abstraction_layer::State::FLYING_MANUAL;
 }
 
-void BackendMavros::setFlightMode(const std::string& _flight_mode) {
-    mavros_msgs::SetMode flight_mode_service;
-    flight_mode_service.request.base_mode = 0;
-    flight_mode_service.request.custom_mode = _flight_mode;
-    // Set mode: unabortable?
-    while (mavros_state_.mode != _flight_mode && ros::ok()) {
-        if (!flight_mode_client_.call(flight_mode_service)) {
-            ROS_ERROR("Error in set flight mode [%s] service calling!", _flight_mode.c_str());
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(300));
-#ifdef MAVROS_VERSION_BELOW_0_20_0
-        ROS_INFO("Set flight mode [%s] response.success = %s", _flight_mode.c_str(), \
-            flight_mode_service.response.success ? "true" : "false");
-#else
-        ROS_INFO("Set flight mode [%s] response.success = %s", _flight_mode.c_str(), \
-            flight_mode_service.response.mode_sent ? "true" : "false");
-#endif
-        ROS_INFO("Trying to set [%s] mode; mavros_state_.mode = [%s]", _flight_mode.c_str(), mavros_state_.mode.c_str());
-    }
-}
-
-void BackendMavros::recoverFromManual() {
-    if (!mavros_state_.armed || mavros_extended_state_.landed_state != 
-        mavros_msgs::ExtendedState::LANDED_STATE_IN_AIR) {
+void BackendMavlink::recoverFromManual() {
+    if (!telemetry_->armed() || telemetry_->landed_state() != 
+        mavsdk::Telemetry::LandedState::IN_AIR) {
         ROS_WARN("Unable to recover from manual mode (not flying!)");
         return;
     }
 
-    if (mavros_state_.mode != "POSCTL" &&
-        mavros_state_.mode != "ALTCTL" &&
-        mavros_state_.mode != "STABILIZED") {
+    if (telemetry_->flight_mode() == mavsdk::Telemetry::FlightMode::OFFBOARD) {
         ROS_WARN("Unable to recover from manual mode (not in manual!)");
         return;
     }
@@ -240,17 +318,24 @@ void BackendMavros::recoverFromManual() {
     // Set mode to OFFBOARD and state to FLYING
     ref_pose_ = cur_pose_;
     control_mode_ = eControlMode::LOCAL_POSE;
-    setFlightMode("OFFBOARD");
-    ROS_INFO("Recovered from manual mode!");
+    // Create a setpoint before starting offboard mode (in this case a null setpoint)
+    offboard_->set_velocity_body({0.0f, 0.0f, 0.0f, 0.0f});
+    mavsdk::Offboard::Result offboard_result = offboard_->start();
+    if (offboard_result != mavsdk::Offboard::Result::SUCCESS) {
+        ROS_ERROR("Offboard::start() failed: %s",mavsdk::Offboard::result_str(offboard_result));
+    }
+    else {
+        ROS_INFO("Recovered from manual mode!");
+    }
 }
 
-void BackendMavros::setHome(bool set_z) {
+void BackendMavlink::setHome(bool set_z) {
     double z_offset = set_z ? cur_pose_.pose.position.z : 0.0;
     local_start_pos_ = -Eigen::Vector3d(cur_pose_.pose.position.x, \
         cur_pose_.pose.position.y, z_offset);
 }
 
-void BackendMavros::takeOff(double _height) {
+void BackendMavlink::takeOff(double _height) {
     if (_height < 0.0) {
         ROS_ERROR("Takeoff height must be positive!");
         return;
@@ -280,7 +365,13 @@ void BackendMavros::takeOff(double _height) {
     float base_z  = cur_pose_.pose.position.z;
     float delta_z = 0;
 
-    setFlightMode("OFFBOARD");
+    // Create a setpoint before starting offboard mode (in this case a null setpoint)
+    offboard_->set_velocity_body({0.0f, 0.0f, 0.0f, 0.0f});
+    mavsdk::Offboard::Result offboard_result = offboard_->start();
+    if (offboard_result != mavsdk::Offboard::Result::SUCCESS) {
+        ROS_ERROR("Offboard::start() failed: %s",mavsdk::Offboard::result_str(offboard_result));
+        return;
+    }
     while ((t < t3) && ros::ok()) {  // Unabortable!
         if (t < t1) {
             delta_z = 0.5 * acc_max * t * t;
@@ -302,41 +393,43 @@ void BackendMavros::takeOff(double _height) {
     ref_pose_.pose.position.z = base_z + _height;
 
     // Now wait (unabortable!)
-    while (!referencePoseReached() && (this->mavros_state_.mode == "OFFBOARD") && ros::ok()) {
+    while (!referencePoseReached() && (telemetry_->flight_mode() == mavsdk::Telemetry::FlightMode::OFFBOARD) && ros::ok()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-    ROS_INFO("Flying!");
+    ROS_INFO("[%d]: Flying!", robot_id_);
     calling_takeoff = false;
 
     // Update state right now!
     this->state_ = guessState();
 }
 
-void BackendMavros::land() {
+void BackendMavlink::land() {
     calling_land = true;
 
     control_mode_ = eControlMode::LOCAL_POSE;  // Back to control in position (just in case)
-    // Set land mode
-    setFlightMode("AUTO.LAND");
-    ROS_INFO("Landing...");
-    ref_pose_ = cur_pose_;
-    ref_pose_.pose.position.z = 0;
-    // Landing is unabortable!
-    while ((this->mavros_state_.mode == "AUTO.LAND") && ros::ok()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        if (mavros_extended_state_.landed_state == mavros_msgs::ExtendedState::LANDED_STATE_ON_GROUND) {
-            // setArmed(false);  // Disabled for safety and symmetry
-            ROS_INFO("Landed!");
-            break;  // Out-of-while condition
-        }  
-    }
-    calling_land = false;
 
-    // Update state right now!
-    this->state_ = guessState();
+    const mavsdk::Action::Result land_result = action_->land();
+
+    if(land_result != mavsdk::Action::Result::SUCCESS) {
+        ROS_ERROR("Error trying to land: %s",mavsdk::Action::result_str(land_result));
+    }
+    else {
+        ROS_INFO("Landing...");
+        ref_pose_ = cur_pose_;
+        ref_pose_.pose.position.z = 0;
+        // Check if vehicle is still in air
+        while (telemetry_->in_air()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        }
+        ROS_INFO("Landed!");
+        calling_land = false;
+
+        // Update state right now!
+        this->state_ = guessState();
+    }
 }
 
-void BackendMavros::setVelocity(const Velocity& _vel) {
+void BackendMavlink::setVelocity(const Velocity& _vel) {
     control_mode_ = eControlMode::LOCAL_VEL;  // Velocity control!
 
     tf2_ros::Buffer tfBuffer;
@@ -345,8 +438,11 @@ void BackendMavros::setVelocity(const Velocity& _vel) {
     vel_in.header = _vel.header;
     vel_in.vector = _vel.twist.linear;
     std::string vel_frame_id = tf2::getFrameId(vel_in);
+    if (vel_frame_id == "") {
+        vel_frame_id = uav_home_frame_id_;
+    }
 
-    if (vel_frame_id == "map" || vel_frame_id == "" || vel_frame_id == uav_home_frame_id_) {
+    if (vel_frame_id == uav_frame_id_) {
         // No transform is needed
         ref_vel_ = _vel;
     }
@@ -355,7 +451,7 @@ void BackendMavros::setVelocity(const Velocity& _vel) {
         geometry_msgs::TransformStamped transform;
         bool tf_exists = true;
         try {
-            transform = tfBuffer.lookupTransform(uav_home_frame_id_, vel_frame_id, ros::Time(0), ros::Duration(0.3));
+            transform = tfBuffer.lookupTransform(uav_frame_id_, vel_frame_id, ros::Time(0), ros::Duration(0.3));
         }
         catch (tf2::TransformException &ex) {
             ROS_WARN("%s",ex.what());
@@ -370,18 +466,23 @@ void BackendMavros::setVelocity(const Velocity& _vel) {
             ref_vel_.twist.angular = _vel.twist.angular;
         }
     }
+    // Transform to body frame (Z down)
+    ref_vel_body_ned_.forward_m_s    =  ref_vel_.twist.linear.x;
+    ref_vel_body_ned_.right_m_s      = -ref_vel_.twist.linear.y;
+    ref_vel_body_ned_.down_m_s       = -ref_vel_.twist.linear.z;
+    ref_vel_body_ned_.yawspeed_deg_s = -ref_vel_.twist.angular.z * 180/M_PI;
     last_command_time_ = ros::Time::now();
 }
 
-bool BackendMavros::isReady() const {
+bool BackendMavlink::isReady() const {
     if (ros::param::has("~map_origin_geo")) {
-        return mavros_has_geo_pose_;
+        return has_geo_pose_;
     } else {
-        return mavros_has_pose_ && (fabs(this->cur_pose_.pose.position.y) > 1e-8);  // Means the filter has converged!
+        return has_pose_ && (fabs(this->cur_pose_.pose.position.y) > 1e-8);  // Means the filter has converged!
     }
 }
 
-void BackendMavros::setPose(const geometry_msgs::PoseStamped& _world) {
+void BackendMavlink::setPose(const geometry_msgs::PoseStamped& _world) {
     control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
 
     geometry_msgs::PoseStamped homogen_world_pos;
@@ -407,10 +508,7 @@ void BackendMavros::setPose(const geometry_msgs::PoseStamped& _world) {
         }
         
         tf2::doTransform(_world, homogen_world_pos, transformToHomeFrame);
-        
     }
-
-//    std::cout << "Going to waypoint: " << homogen_world_pos.pose.position << std::endl;
 
     // Do we still need local_start_pos_?
     homogen_world_pos.pose.position.x -= local_start_pos_[0];
@@ -475,7 +573,7 @@ PurePursuitOutput PurePursuit(geometry_msgs::Point _current, geometry_msgs::Poin
     return out;
 }
 
-void BackendMavros::goToWaypoint(const Waypoint& _world) {
+void BackendMavlink::goToWaypoint(const Waypoint& _world) {
     control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
 
     geometry_msgs::PoseStamped homogen_world_pos;
@@ -501,10 +599,7 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
         }
         
         tf2::doTransform(_world, homogen_world_pos, transformToHomeFrame);
-        
     }
-
-//    std::cout << "Going to waypoint: " << homogen_world_pos.pose.position << std::endl;
 
     // Do we still need local_start_pos_?
     homogen_world_pos.pose.position.x -= local_start_pos_[0];
@@ -567,10 +662,12 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
             rate.sleep();
         }
     }
-    // ROS_INFO("All points sent!");
 
-    // Finally set pose
-    ref_pose_.pose = homogen_world_pos.pose;
+    // Finally set pose (if not aborted!)
+    if (!abort_) {
+        ref_pose_.pose = homogen_world_pos.pose;
+    }
+
     position_error_.reset();
     orientation_error_.reset();
 
@@ -584,7 +681,7 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
     }
 }
 
-void BackendMavros::goToWaypointGeo(const WaypointGeo& _wp) {
+void BackendMavlink::goToWaypointGeo(const WaypointGeo& _wp) {
     control_mode_ = eControlMode::GLOBAL_POSE; // Control in position
     
     ref_pose_global_.latitude = _wp.latitude;
@@ -601,11 +698,11 @@ void BackendMavros::goToWaypointGeo(const WaypointGeo& _wp) {
     }
 }
 
-/*void BackendMavros::trackPath(const WaypointList &_path) {
+/*void BackendMavlink::trackPath(const WaypointList &_path) {
     // TODO: basic imlementation, ideally different from a stack of gotos
 }*/
 
-Pose BackendMavros::pose() {
+Pose BackendMavlink::pose() {
         Pose out;
 
         out.pose.position.x = cur_pose_.pose.position.x + local_start_pos_[0];
@@ -642,11 +739,11 @@ Pose BackendMavros::pose() {
         return out;
 }
 
-Velocity BackendMavros::velocity() const {
+Velocity BackendMavlink::velocity() const {
     return cur_vel_;
 }
 
-Odometry BackendMavros::odometry() const {
+Odometry BackendMavlink::odometry() const {
     Odometry odom;
 
     odom.header.stamp = ros::Time::now();
@@ -656,12 +753,12 @@ Odometry BackendMavros::odometry() const {
     odom.pose.pose.position.y = cur_pose_.pose.position.y + local_start_pos_[1];
     odom.pose.pose.position.z = cur_pose_.pose.position.z + local_start_pos_[2];
     odom.pose.pose.orientation = cur_pose_.pose.orientation;
-    odom.twist.twist = cur_vel_.twist;
+    odom.twist.twist = cur_vel_body_.twist;
 
     return odom;
 }
 
-Transform BackendMavros::transform() const {
+Transform BackendMavlink::transform() const {
     Transform out;
     out.header.stamp = ros::Time::now();
     out.header.frame_id = uav_home_frame_id_;
@@ -673,7 +770,7 @@ Transform BackendMavros::transform() const {
     return out;
 }
 
-bool BackendMavros::referencePoseReached() {
+bool BackendMavlink::referencePoseReached() {
 
     double position_min, position_mean, position_max;
     double orientation_min, orientation_mean, orientation_max;
@@ -694,13 +791,20 @@ bool BackendMavros::referencePoseReached() {
     return position_holds && orientation_holds;
 }
 
-void BackendMavros::initHomeFrame() {
+void BackendMavlink::initHomeFrame() {
 
     local_start_pos_ << 0.0, 0.0, 0.0;
 
-    // Get frames from rosparam
-    ros::param::param<std::string>("~uav_frame",uav_frame_id_,"uav_" + std::to_string(robot_id_));
-    ros::param::param<std::string>("~uav_home_frame",uav_home_frame_id_, "uav_" + std::to_string(robot_id_) + "_home");
+    // Get frame prefix from namespace
+    std::string ns = ros::this_node::getNamespace();
+    uav_frame_id_ = ns + "/base_link";
+    uav_home_frame_id_ = ns + "/odom";
+    while (uav_frame_id_[0]=='/') {
+        uav_frame_id_.erase(0,1);
+    }
+    while (uav_home_frame_id_[0]=='/') {
+        uav_home_frame_id_.erase(0,1);
+    }
     std::string parent_frame;
     ros::param::param<std::string>("~home_pose_parent_frame", parent_frame, "map");
     
@@ -710,7 +814,7 @@ void BackendMavros::initHomeFrame() {
     }
     else if (ros::param::has("~map_origin_geo")) {
         ROS_WARN("Be careful, you should only use this mode with RTK GPS!");
-        while (!this->mavros_has_geo_pose_) {
+        while (!this->has_geo_pose_) {
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
         }
         std::vector<double> map_origin_geo(3, 0.0);
@@ -762,22 +866,48 @@ void BackendMavros::initHomeFrame() {
     static_tf_broadcaster_->sendTransform(static_transformStamped);
 }
 
-double BackendMavros::updateParam(const std::string& _param_id) {
-    mavros_msgs::ParamGet get_param_service;
-    get_param_service.request.param_id = _param_id;
-    if (get_param_client_.call(get_param_service) && get_param_service.response.success) {
-        mavros_params_[_param_id] = get_param_service.response.value.integer? 
-            get_param_service.response.value.integer : get_param_service.response.value.real;
-        ROS_INFO("Parameter [%s] value is [%f]", get_param_service.request.param_id.c_str(), mavros_params_[_param_id]);
-    } else if (mavros_params_.count(_param_id)) {
-        ROS_ERROR("Error in get param [%s] service calling, leaving current value [%f]", 
-            get_param_service.request.param_id.c_str(), mavros_params_[_param_id]);
-    } else {
-        mavros_params_[_param_id] = 0.0;
-        ROS_ERROR("Error in get param [%s] service calling, initializing it to zero", 
-            get_param_service.request.param_id.c_str());
+//!TODO: Update params
+double BackendMavlink::updateParam(const std::string& _param_id) {
+//     mavros_msgs::ParamGet get_param_service;
+//     get_param_service.request.param_id = _param_id;
+//     if (get_param_client_.call(get_param_service) && get_param_service.response.success) {
+//         mavros_params_[_param_id] = get_param_service.response.value.integer? 
+//             get_param_service.response.value.integer : get_param_service.response.value.real;
+//         ROS_DEBUG("Parameter [%s] value is [%f]", get_param_service.request.param_id.c_str(), mavros_params_[_param_id]);
+//     } else if (mavros_params_.count(_param_id)) {
+//         ROS_WARN("Error in get param [%s] service calling, leaving current value [%f]", 
+//             get_param_service.request.param_id.c_str(), mavros_params_[_param_id]);
+//     } else {
+//         mavros_params_[_param_id] = 0.0;
+//         ROS_ERROR("Error in get param [%s] service calling, initializing it to zero", 
+//             get_param_service.request.param_id.c_str());
+//     }
+     return mavros_params_[_param_id];
+}
+
+bool BackendMavlink::arm(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res) {
+    // Check if we are in a simulation
+    bool is_simulation = false;
+    ros::param::param("/use_sim_time",is_simulation,false);
+    if (!is_simulation) {
+        ROS_ERROR("Sorry, only arming in simulation.");
+        return false;
     }
-    return mavros_params_[_param_id];
+    
+    // Check if vehicle is ready to arm
+    while (telemetry_->health_all_ok() != true) {
+        ROS_INFO("Vehicle is getting ready to arm");
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    ROS_INFO("Arming...");
+    const mavsdk::Action::Result arm_result = action_->arm();
+
+    if (arm_result != mavsdk::Action::Result::SUCCESS) {
+        ROS_ERROR("Arming failed: %s",mavsdk::Action::result_str(arm_result));
+        return false;
+    }
+    ROS_INFO("Armed");
+    return true;
 }
 
 }}	// namespace grvc::ual

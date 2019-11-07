@@ -29,28 +29,16 @@ using namespace uav_abstraction_layer;
 
 namespace grvc { namespace ual {
 
-UAL::UAL(int _argc, char** _argv) {
-    // Start ROS if not initialized
-    if (!ros::isInitialized()) {
-        // Init ros node
-        ros::init(_argc, _argv, "ual");
-    }
-    this->init();
-}
-
-UAL::UAL() {
+UAL::UAL(Backend* _backend) {
     // Error if ROS is not initialized
     if (!ros::isInitialized()) {
         // Init ros node
-        ROS_ERROR("UAL needs ROS to be initialized. Initialize ROS before creating UAL object or use UAL(int _argc, char** _argv) constructor.");
-        exit(0);
+        ROS_ERROR("UAL needs ROS to be initialized. Initialize ROS before creating an UAL object.");
+        exit(EXIT_FAILURE);
     }
-    this->init();
-}
 
-void UAL::init() {
-    // Create backend first of all, inits ros node
-    backend_ = Backend::createBackend();
+    // Get backend first of all
+    backend_ = _backend;
     // Get params
     ros::NodeHandle pnh("~");
     pnh.param<int>("uav_id", robot_id_, 1);
@@ -86,7 +74,7 @@ void UAL::init() {
     // Start server if explicitly asked
     std::string server_mode;
     pnh.param<std::string>("ual_server", server_mode, "on");
-    // TODO: Consider other modes?
+
     if (server_mode == "on") {
         server_thread_ = std::thread([this]() {
             std::string ual_ns = "ual";
@@ -196,36 +184,55 @@ UAL::~UAL() {
 
 bool UAL::setPose(const geometry_msgs::PoseStamped& _pose) {
     // Check required state
-    if (backend_->state() != Backend::State::FLYING_AUTO) {
+    if (backend_->state() != uav_abstraction_layer::State::FLYING_AUTO) {
         ROS_ERROR("Unable to setPose: not FLYING_AUTO!");
         return false;
     }
     // Override any previous FLYING function
     if (!backend_->isIdle()) { backend_->abort(false); }
 
-    // Function is non-blocking in backend TODO: non-thread-safe-call?
-    backend_->threadSafeCall(&Backend::setPose, _pose);
+    // Check consistency of pose data (isnan?)
+    if ( std::isnan(_pose.pose.position.x) || std::isnan(_pose.pose.position.y) || std::isnan(_pose.pose.position.z) ||
+         std::isnan(_pose.pose.orientation.x) || std::isnan(_pose.pose.orientation.y) || std::isnan(_pose.pose.orientation.z) ||
+         std::isnan(_pose.pose.orientation.w) ) {
+        ROS_ERROR("Unable to setPose: NaN received");
+        return false;
+    }
+
+    geometry_msgs::PoseStamped ref_pose = _pose;
+    validateOrientation(ref_pose.pose.orientation);
+    backend_->threadSafeCall(&Backend::setPose, ref_pose);
     return true;
 }
 bool UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {
     // Check required state
-    if (backend_->state() != Backend::State::FLYING_AUTO) {
+    if (backend_->state() != uav_abstraction_layer::State::FLYING_AUTO) {
         ROS_ERROR("Unable to goToWaypoint: not FLYING_AUTO!");
         return false;
     }
     // Override any previous FLYING function
     if (!backend_->isIdle()) { backend_->abort(false); }
 
+    // Check consistency of pose data (isnan?)
+    if ( std::isnan(_wp.pose.position.x) || std::isnan(_wp.pose.position.y) || std::isnan(_wp.pose.position.z) ||
+         std::isnan(_wp.pose.orientation.x) || std::isnan(_wp.pose.orientation.y) || std::isnan(_wp.pose.orientation.z) ||
+         std::isnan(_wp.pose.orientation.w) ) {
+        ROS_ERROR("Unable to goToWaypoint: NaN received");
+        return false;
+    }
+
+    geometry_msgs::PoseStamped ref_wp = _wp;
+    validateOrientation(ref_wp.pose.orientation);
     if (_blocking) {
-        if (!backend_->threadSafeCall(&Backend::goToWaypoint, _wp)) {
+        if (!backend_->threadSafeCall(&Backend::goToWaypoint, ref_wp)) {
             ROS_INFO("Blocking goToWaypoint rejected!");
             return false;
         }
     } else {
         if (running_thread_.joinable()) running_thread_.join();
         // Call function on a thread:
-        running_thread_ = std::thread ([this, _wp]() {
-            if (!this->backend_->threadSafeCall(&Backend::goToWaypoint, _wp)) {
+        running_thread_ = std::thread ([this, ref_wp]() {
+            if (!this->backend_->threadSafeCall(&Backend::goToWaypoint, ref_wp)) {
                 ROS_INFO("Non-blocking goToWaypoint rejected!");
             }
         });
@@ -234,12 +241,18 @@ bool UAL::goToWaypoint(const Waypoint& _wp, bool _blocking) {
 }
 bool UAL::goToWaypointGeo(const WaypointGeo& _wp, bool _blocking) {
     // Check required state
-    if (backend_->state() != Backend::State::FLYING_AUTO) {
+    if (backend_->state() != uav_abstraction_layer::State::FLYING_AUTO) {
         ROS_ERROR("Unable to goToWaypointGeo: not FLYING_AUTO!");
         return false;
     }
     // Override any previous FLYING function
     if (!backend_->isIdle()) { backend_->abort(false); }
+
+    // Check consistency of geo pose data (isnan?)
+    if ( std::isnan(_wp.latitude) || std::isnan(_wp.longitude) || std::isnan(_wp.altitude) ) {
+        ROS_ERROR("Unable to goToWaypointGeo: NaN received");
+        return false;
+    }
 
     if (_blocking) {
         if (!backend_->threadSafeCall(&Backend::goToWaypointGeo, _wp)) {
@@ -260,24 +273,24 @@ bool UAL::goToWaypointGeo(const WaypointGeo& _wp, bool _blocking) {
 
 bool UAL::takeOff(double _height, bool _blocking) {
     // Check required state
-    if (backend_->state() != Backend::State::LANDED_ARMED) {
+    if (backend_->state() != uav_abstraction_layer::State::LANDED_ARMED) {
         ROS_ERROR("Unable to takeOff: not LANDED_ARMED!");
         std::cout << backend_->state() << std::endl;
         return false;
     }
     // Check input
-    if (_height < 0.0) {
+    if ( _height < 0.0 || std::isnan(_height) ) {
         ROS_ERROR("Unable to takeOff: height must be positive!");
         return false;
     }
-
+    if (!backend_->isIdle()) { backend_->abort(false); }
     if (_blocking) {
         if (!backend_->threadSafeCall(&Backend::takeOff, _height)) {
             ROS_INFO("Blocking takeOff rejected!");
             return false;
         }
     } else {
-        if (running_thread_.joinable()) running_thread_.join();
+        if (running_thread_.joinable()) { running_thread_.join(); }
         // Call function on a thread:
         running_thread_ = std::thread ([this, _height]() {
             if (!this->backend_->threadSafeCall(&Backend::takeOff, _height)) {
@@ -290,7 +303,7 @@ bool UAL::takeOff(double _height, bool _blocking) {
 
 bool UAL::land(bool _blocking) {
     // Check required state
-    if (backend_->state() != Backend::State::FLYING_AUTO) {
+    if (backend_->state() != uav_abstraction_layer::State::FLYING_AUTO) {
         ROS_ERROR("Unable to land: not FLYING_AUTO!");
         return false;
     }
@@ -316,73 +329,66 @@ bool UAL::land(bool _blocking) {
 
 bool UAL::setVelocity(const Velocity& _vel) {
     // Check required state
-    if (backend_->state() != Backend::State::FLYING_AUTO) {
+    if (backend_->state() != uav_abstraction_layer::State::FLYING_AUTO) {
         ROS_ERROR("Unable to setVelocity: not FLYING_AUTO!");
         return false;
     }
     // Override any previous FLYING function
     if (!backend_->isIdle()) { backend_->abort(); }
 
-    // Function is non-blocking in backend TODO: non-thread-safe-call?
+    // Check consistency of velocity data (isnan?)
+    if ( std::isnan(_vel.twist.linear.x) || std::isnan(_vel.twist.linear.y) || std::isnan(_vel.twist.linear.z) ||
+         std::isnan(_vel.twist.angular.x) || std::isnan(_vel.twist.angular.y) || std::isnan(_vel.twist.angular.z) ) {
+        ROS_ERROR("Unable to setVelocity: NaN received");
+        return false;
+    }
+
     backend_->threadSafeCall(&Backend::setVelocity, _vel);
     return true;
 }
 
 bool UAL::recoverFromManual() {
     // Check required state
-    if (backend_->state() != Backend::State::FLYING_MANUAL) {
+    if (backend_->state() != uav_abstraction_layer::State::FLYING_MANUAL) {
         ROS_ERROR("Unable to recoverFromManual: not FLYING_MANUAL!");
         return false;
     }
     // Override any previous FLYING function
     if (!backend_->isIdle()) { backend_->abort(); }
 
-    // Direct call! TODO: threadSafeCall?
-    backend_->recoverFromManual();
+    backend_->threadSafeCall(&Backend::recoverFromManual);
 
     return true;
 }
 
-// TODO: Collapse ual and backend state?
-uav_abstraction_layer::State UAL::state() {
-    uav_abstraction_layer::State output;
-    switch (backend_->state()) {
-        case Backend::State::UNINITIALIZED:
-            output.state = uav_abstraction_layer::State::UNINITIALIZED;
-            break;
-        case Backend::State::LANDED_DISARMED:
-            output.state = uav_abstraction_layer::State::LANDED_DISARMED;
-            break;
-        case Backend::State::LANDED_ARMED:
-            output.state = uav_abstraction_layer::State::LANDED_ARMED;
-            break;
-        case Backend::State::TAKING_OFF:
-            output.state = uav_abstraction_layer::State::TAKING_OFF;
-            break;
-        case Backend::State::FLYING_AUTO:
-            output.state = uav_abstraction_layer::State::FLYING_AUTO;
-            break;
-        case Backend::State::FLYING_MANUAL:
-            output.state = uav_abstraction_layer::State::FLYING_MANUAL;
-            break;
-        case Backend::State::LANDING:
-            output.state = uav_abstraction_layer::State::LANDING;
-            break;
-        default:
-            ROS_ERROR("Unexpected Backend::State!");
-    }
-    return output;
-}
-
 bool UAL::setHome(bool set_z) {
     // Check required state
-    if (backend_->state() != Backend::State::LANDED_DISARMED) {
+    if (backend_->state() != uav_abstraction_layer::State::LANDED_DISARMED) {
         ROS_ERROR("Unable to setHome: not LANDED_DISARMED!");
         return false;
     }
     backend_->setHome(set_z);
 
     return true;
+}
+
+inline void UAL::validateOrientation(geometry_msgs::Quaternion& _q) {
+    double norm2 = _q.x*_q.x  + _q.y*_q.y  + _q.z*_q.z  + _q.w*_q.w;
+    if (fabs(norm2 - 1) > 0.01) {  // Threshold for norm2
+        if (norm2 == 0) {  // Exactly 0, set current orientation
+            ROS_INFO("Orientation quaternion norm is zero, holding current orientation");
+            _q = this->pose().pose.orientation;
+        } else {
+            double norm = sqrt(norm2);
+            ROS_WARN("Orientation quaternion norm is %lf, nomalizing it", norm);
+            _q.x /= norm;
+            _q.y /= norm;
+            _q.z /= norm;
+            _q.w /= norm;
+        }
+    }
+    // TODO: Other checks? E.g. yaw-only orientation shoud have x = y = 0
+    // ROS_INFO("q = [%lf, %lf, %lf, %lf]", _q.x, _q.y, _q.z, _q.w);  // Debug!
 }
 
 }}	// namespace grvc::ual

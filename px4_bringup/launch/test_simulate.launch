@@ -21,7 +21,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     </node>
 
     <!-- Launch robot id=1 -->
-    <include file="$(find px4_bringup)/launch/spawn_robot.launch" ns="uav_1">
+    <include file="$(find px4_bringup)/launch/spawn_robot.launch" unless="$(arg multi)">
         <arg name="id" value="1"/>
         <arg name="material" value="Orange"/>
         <arg name="x" default="0"/>
@@ -31,6 +31,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     </include>
 
     <group if="$(arg multi)">
+        <!-- Launch robot id=1 -->
+        <include file="$(find px4_bringup)/launch/spawn_robot.launch" ns="uav_1">
+            <arg name="id" value="1"/>
+            <arg name="material" value="Orange"/>
+            <arg name="x" default="0"/>
+            <arg name="y" default="0"/>
+            <arg name="z" default="0"/>
+            <arg name="yaw" default="0"/>
+        </include>
         <!-- Launch robot id=2 -->
         <include file="$(find px4_bringup)/launch/spawn_robot.launch" ns="uav_2">
             <arg name="id" value="2"/>

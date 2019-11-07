@@ -25,7 +25,6 @@
 #include <uav_abstraction_layer/GoToWaypoint.h>
 #include <uav_abstraction_layer/TakeOff.h>
 #include <uav_abstraction_layer/Land.h>
-#include <uav_abstraction_layer/SetVelocity.h>
 #include <uav_abstraction_layer/State.h>
 #include <thread>
 
@@ -34,8 +33,8 @@ namespace grvc { namespace ual {
 /// UAL replicates Backend interface, with some extras
 class UAL {
 public:
-    UAL(int _argc, char** _argv);
-    UAL();
+
+    UAL(Backend* _backend);
     ~UAL();
 
     /// Initialized and ready to run tasks?
@@ -57,7 +56,11 @@ public:
     Transform transform() const { return backend_->transform(); }
 
     /// Current robot state
-    uav_abstraction_layer::State state();
+    uav_abstraction_layer::State state() {
+        uav_abstraction_layer::State output;
+        output.state = backend_->state();
+        return output;
+    }
 
     /// Set pose
     /// \param _pose target pose
@@ -95,13 +98,14 @@ public:
     bool    setHome(bool set_z = false);
 
 protected:
-    void init();
     Backend* backend_;
     std::thread running_thread_;
     std::thread server_thread_;
 
     int robot_id_;
     bool id_is_unique_;
+
+    void validateOrientation(geometry_msgs::Quaternion& _q);
 };
 
 }}	// namespace grvc::ual

@@ -18,33 +18,47 @@
 // OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //----------------------------------------------------------------------------------------------------------------------
-#ifndef UAV_ABSTRACTION_LAYER_BACKEND_MAVROS_H
-#define UAV_ABSTRACTION_LAYER_BACKEND_MAVROS_H
+#ifndef UAV_ABSTRACTION_LAYER_BACKEND_DJI_H
+#define UAV_ABSTRACTION_LAYER_BACKEND_DJI_H
 
 #include <thread>
-#include <vector>
-#include <Eigen/Core>
+// #include <deque>
 
 #include <uav_abstraction_layer/backend.h>
 #include <ros/ros.h>
+// #include <ros/package.h>
+// #include <tf2_ros/transform_listener.h>
+// #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+// #include <tf2/LinearMath/Quaternion.h>
+// #include <tf2_ros/static_transform_broadcaster.h>
 
-//Mavros services
-#include <mavros_msgs/CommandBool.h>
-#include <mavros_msgs/SetMode.h>
-
-//Mavros messages
-#include <mavros_msgs/State.h>
-#include <mavros_msgs/ExtendedState.h>
-#include <mavros_msgs/GlobalPositionTarget.h>
 #include <geometry_msgs/PoseStamped.h>
-#include <geometry_msgs/TwistStamped.h>
-#include <geometry_msgs/TransformStamped.h>
-#include <tf2_ros/static_transform_broadcaster.h>
-#include <sensor_msgs/NavSatFix.h>
+#include <geometry_msgs/PointStamped.h>
+#include <geometry_msgs/QuaternionStamped.h>
+#include <std_msgs/UInt8.h>
+#include <std_msgs/Float64.h>
+#include <sensor_msgs/Joy.h>
+
+#include <dji_sdk/dji_sdk.h>
+// #include <dji_sdk/dji_sdk_node.h>
+#include <dji_sdk/Activation.h>
+#include <dji_sdk/SetLocalPosRef.h>
+#include <dji_sdk/SDKControlAuthority.h>
+#include <dji_sdk/DroneTaskControl.h>
+#include <dji_sdk/DroneArmControl.h>
+#include <dji_sdk/MissionWpUpload.h>
+#include <dji_sdk/MissionWpSetSpeed.h>
+#include <dji_sdk/MissionWpAction.h>
+
+
+// std_msgs::UInt8 S_FLYING = 2;
+typedef double Quaterniond [4];
+
+
 
 namespace grvc { namespace ual {
 
-class HistoryBuffer {  // TODO: template? utils?
+class DjiHistoryBuffer {  // TODO: template? utils?
 public:
     void set_size(size_t _size) {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -113,11 +127,12 @@ protected:
     std::mutex mutex_;
 };
 
-class BackendMavros : public Backend {
+ 
+class BackendDjiRos : public Backend {
 
 public:
-    BackendMavros();
-    ~BackendMavros();
+    BackendDjiRos();
+    // ~BackendDjiRos();
 
     /// Backend is initialized and ready to run tasks?
     bool	         isReady() const override;
@@ -157,65 +172,110 @@ public:
     void    recoverFromManual() override;
     /// Set home position
     void    setHome(bool set_z) override;
-
 private:
-    void offboardThreadLoop();
-    void initHomeFrame();
+    void controlThread();
+    void setArmed(bool _value);
+    // void initHomeFrame();
     bool referencePoseReached();
-    void setFlightMode(const std::string& _flight_mode);
-    double updateParam(const std::string& _param_id);
+    // void setFlightMode(const std::string& _flight_mode);
     State guessState();
+    
+    void Quaternion2EulerAngle(const geometry_msgs::Pose::_orientation_type& _q, double& _roll, double& _pitch, double& _yaw);
+    bool altimeter_fail(void);
+  
+    void goHome();
 
-    //WaypointList path_;
-    geometry_msgs::PoseStamped  ref_pose_;
-    sensor_msgs::NavSatFix      ref_pose_global_;
+    geometry_msgs::PoseStamped reference_pose_;
+    double offset_x;
+    double offset_y;
+    double offset_xy;
+
+    double offset_x1;
+    double offset_y1;
+
+    sensor_msgs::NavSatFix     reference_pose_global_;
+    geometry_msgs::TwistStamped reference_vel_;
+    geometry_msgs::TwistStamped current_vel_;
+
+    geometry_msgs::PointStamped current_position_;
+    sensor_msgs::NavSatFix      current_position_global_;
+    geometry_msgs::Vector3Stamped current_linear_velocity_;
+    geometry_msgs::Vector3Stamped current_angular_velocity_;
+    geometry_msgs::QuaternionStamped current_attitude_;
+
     geometry_msgs::PoseStamped  cur_pose_;
-    sensor_msgs::NavSatFix      cur_geo_pose_;
-    geometry_msgs::TwistStamped ref_vel_;
+    // geometry_msgs::PoseStamped  ref_pose_;
     geometry_msgs::TwistStamped cur_vel_;
-    mavros_msgs::State          mavros_state_;
-    mavros_msgs::ExtendedState  mavros_extended_state_;
 
-    //Control
-    enum class eControlMode {LOCAL_VEL, LOCAL_POSE, GLOBAL_POSE};
-    eControlMode control_mode_ = eControlMode::LOCAL_POSE;
-    bool mavros_has_pose_ = false;
-    bool mavros_has_geo_pose_ = false;
+    std_msgs::UInt8 flight_status_;
+    std_msgs::UInt8 display_mode_;
+    std_msgs::Float64 current_laser_altitude_;
+
+    // Control
+    enum class eControlMode { IDLE, LOCAL_VEL, LOCAL_POSE, GLOBAL_POSE };
+    eControlMode control_mode_ = eControlMode::IDLE;
+    // bool mavros_has_pose_ = false;
     float position_th_;
     float orientation_th_;
-    HistoryBuffer position_error_;
-    HistoryBuffer orientation_error_;
+    float vel_factor;
+    float vel_factor_max;
+    bool laser_altimeter;
+    bool self_arming;
+
+    float mpc_xy_vel_max;
+    float mpc_z_vel_max_up;
+    float mpc_z_vel_max_dn;
+    float mc_yawrate_max;
+
+    DjiHistoryBuffer position_error_;
+    DjiHistoryBuffer orientation_error_;
 
     /// Ros Communication
-    ros::ServiceClient flight_mode_client_;
+    ros::ServiceClient activation_client_;
     ros::ServiceClient arming_client_;
-    ros::ServiceClient get_param_client_;
-    ros::Publisher mavros_ref_pose_pub_;
-    ros::Publisher mavros_ref_pose_global_pub_;
-    ros::Publisher mavros_ref_vel_pub_;
-    ros::Subscriber mavros_cur_pose_sub_;
-    ros::Subscriber mavros_cur_geo_pose_sub_;
-    ros::Subscriber mavros_cur_vel_sub_;
-    ros::Subscriber mavros_cur_state_sub_;
-    ros::Subscriber mavros_cur_extended_state_sub_;
+    ros::ServiceClient set_local_pos_ref_client_;
+    ros::ServiceClient sdk_control_authority_client_;
+    ros::ServiceClient drone_task_control_client_;
+    ros::ServiceClient mission_waypoint_upload_client;
+    ros::ServiceClient mission_waypoint_setSpeed_client;
+    ros::ServiceClient mission_waypoint_action_client;
+
+    ros::Publisher flight_control_pub_;
+    
+    //test publishers
+    ros::Publisher lookahead_pub;
+    ros::Publisher ref_pose_pub;
+    ros::Publisher offset_y_pub;
+    
+    
+    ros::Subscriber position_sub_;
+    ros::Subscriber position_global_sub_;
+    ros::Subscriber linear_velocity_sub_;
+    ros::Subscriber angular_velocity_sub_;
+    ros::Subscriber attitude_sub_;
+    ros::Subscriber laser_altitude_sub_;
+    ros::Subscriber flight_status_sub_;
+    ros::Subscriber display_mode_sub_;
 
     int robot_id_;
     std::string pose_frame_id_;
-    std::string uav_home_frame_id_;
-    std::string uav_frame_id_;
-    tf2_ros::StaticTransformBroadcaster * static_tf_broadcaster_;
-    std::map <std::string, geometry_msgs::TransformStamped> cached_transforms_;
-    std::map<std::string, double> mavros_params_;
-    Eigen::Vector3d local_start_pos_;
+    // std::string uav_home_frame_id_;
+    // tf2_ros::StaticTransformBroadcaster * static_tf_broadcaster_;
+    // std::map <std::string, geometry_msgs::TransformStamped> cached_transforms_;
+    // Eigen::Vector3d local_start_pos_;
+    
     ros::Time last_command_time_;
 
-    std::thread offboard_thread_;
-    double offboard_thread_frequency_;
-
+    std::thread control_thread_;
+    double control_thread_frequency_;
+    
     bool calling_takeoff = false;
     bool calling_land = false;
+
+    bool activated_ = false;
+    bool home_set_ = false;
 };
 
 }}	// namespace grvc::ual
 
-#endif // UAV_ABSTRACTION_LAYER_BACKEND_MAVROS_H
+#endif // UAV_ABSTRACTION_LAYER_BACKEND_DJI_H

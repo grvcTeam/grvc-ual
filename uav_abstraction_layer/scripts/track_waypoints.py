@@ -14,6 +14,8 @@ def track_waypoints():
                         help='Name of the package where plan to track is stored')
     parser.add_argument('-plan_file', type=str, default='wp_default.yaml',
                         help='Name of the file inside plan_package/plans')
+    parser.add_argument('-wait_for', type=str, default='path',
+                        help='Wait for human response: [none]/[path]/[wp]')
     args, unknown = parser.parse_known_args()
     # utils.check_unknown_args(unknown)
 
@@ -55,16 +57,18 @@ def track_waypoints():
 
         # TODO: Check we're flying!
         print "Ready to track " + str(len(wp_list)) + " waypoints from " + file_url
-        answer = raw_input("Continue? (y/N): ").lower().strip()
-        if answer != 'y' and answer != 'yes':
-            print "Aborted"
-            return
+        if args.wait_for == 'path' or args.wait_for == 'wp':
+            answer = raw_input("Continue? (y/N): ").lower().strip()
+            if answer != 'y' and answer != 'yes':
+                print "Aborted"
+                return
 
         for waypoint in wp_list:
             print "Go to waypoint:"
             print waypoint
             go_to_waypoint(waypoint, True)
-            # raw_input("Arrived. Press Enter to continue...")  # TODO: optional?
+            if args.wait_for == 'wp':
+                raw_input("Arrived. Press Enter to continue...")
 
         return
 

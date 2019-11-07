@@ -7,17 +7,7 @@ from sensor_msgs.msg import Joy
 import yaml
 import time
 import copy
-
-# TODO(franreal): Define expected axes/buttons in file?
-expected_buttons =  ['a', 'b', 'x', 'y', 
-                     'left_shoulder', 'right_shoulder',
-                     'left_trigger', 'right_trigger',
-                     'select', 'start',
-                     'left_thumb', 'right_thumb']
-
-expected_axes =     ['left_analog_x', 'left_analog_y',
-                     'right_analog_x', 'right_analog_y',
-                     'dpad_x', 'dpad_y']
+from joy_handle import expected_axes, expected_buttons
 
 current_joy = Joy()
 joy_is_connected = False
@@ -34,7 +24,7 @@ def wait_button(label):
         if current_joy.buttons != previous_joy.buttons:
             for i, button in enumerate(current_joy.buttons):
                 if button and not previous_joy.buttons[i]:
-                    return {'type': 'button', 'index': i}
+                    return {'index': i}
             previous_joy = copy.deepcopy(current_joy)
         else:
             time.sleep(0.1)
@@ -52,7 +42,7 @@ def wait_axis(label):
         if current_joy.axes != previous_joy.axes:
             for i, axis in enumerate(current_joy.axes):
                 if axis != previous_joy.axes[i] and math.fabs(axis) > 0.99:
-                    return {'type': 'axis', 'index': i, 'reversed': (axis < 0)}
+                    return {'index': i, 'reversed': (axis < 0)}
             previous_joy = copy.deepcopy(current_joy)
         else:
             time.sleep(0.1)
@@ -98,7 +88,7 @@ def main():
 
     if args.joy_name is None:
         args.joy_name = 'new_joy'
-    joy_file = rospkg.RosPack().get_path('ual_teleop') + '/config/' + args.joy_name + '.yaml'
+    joy_file = rospkg.RosPack().get_path('ual_teleop') + '/config/joysticks/' + args.joy_name + '.yaml'
 
     with open(joy_file, 'w') as config:
         yaml.dump({'joy_layout': layout}, config, default_flow_style=False)

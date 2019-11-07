@@ -1,0 +1,114 @@
+<!-- 
+The MIT License (MIT)
+Copyright (c) 2016 GRVC University of Seville
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
+-->
+<launch>
+
+    <arg name="multi" default="false"/>
+    <arg name="ns_prefix" default="uav_"/>
+
+    <arg name="ual_server" default="on"/>
+    <arg name="ual_pub_rate" default="30.0"/>
+
+    <arg name="ual_backend" default="light"/>
+    <arg name="pose_frame_id" default="map"/><!-- To publish ual/pose in other frame than local, e.g. map -->
+
+    <arg name="max_horizontal_velocity" default="1.6"/>
+    <arg name="max_vertical_velocity" default="1.2"/>
+    <arg name="max_yaw_rate" default="1.0"/>
+    <arg name="max_position_error" default="0.1"/>
+    <arg name="max_orientation_error" default="0.01"/>
+    <arg name="noise_var" default="0.0"/>
+    <arg name="position_th" default="0.33"/>
+    <arg name="orientation_th" default="0.65"/>
+
+    <!-- Launch Gazebo simulation TODO: world location? -->
+    <node pkg="px4_bringup" type="launch_gzworld.py" name="gazebo_world" output="screen"
+    args="-physics=none -world=$(find px4_bringup)/config/empty_light.world"/>
+
+    <!-- Launch robot id=1 -->
+    <node pkg="px4_bringup" type="spawn_gzmodel.py" name="spawn_gzmodel_1" output="screen"
+        args="-model=mbzirc -id=1 -material=Orange -ual_backend=$(arg ual_backend) -x 0 -y 0 -z 0 -Y 0"/>
+
+    <group if="$(arg multi)">
+        <!-- Launch robot id=2 -->
+        <node pkg="px4_bringup" type="spawn_gzmodel.py" name="spawn_gzmodel_2" output="screen"
+            args="-model=mbzirc -id=2 -material=Indigo -ual_backend=$(arg ual_backend) -x -10 -y 10 -z 0 -Y 0"/>
+        <!-- Launch robot id=3 -->
+        <node pkg="px4_bringup" type="spawn_gzmodel.py" name="spawn_gzmodel_3" output="screen"
+            args="-model=mbzirc -id=3 -material=ZincYellow -ual_backend=$(arg ual_backend) -x 10 -y 10 -z 0 -Y 0"/>
+    </group>
+
+    <!-- Launch UAL server for uav id=1 -->
+    <node pkg="ual_backend_gazebo_light" type="ual_backend_gazebo_light_server" name="ual" output="screen" unless="$(arg multi)">
+        <param name="uav_id" value="1"/>
+        <param name="ual_server" value="$(arg ual_server)"/>
+        <param name="ual_pub_rate" value="$(arg ual_pub_rate)"/>
+        <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
+        <param name="max_horizontal_velocity" value="$(arg max_horizontal_velocity)"/>
+        <param name="max_vertical_velocity" value="$(arg max_vertical_velocity)"/>
+        <param name="max_yaw_rate" value="$(arg max_yaw_rate)"/>
+        <param name="max_position_error" value="$(arg max_position_error)"/>
+        <param name="max_orientation_error" value="$(arg max_orientation_error)"/>
+        <param name="noise_var" value="$(arg noise_var)"/>
+        <param name="position_th" value="$(arg position_th)"/>
+        <param name="orientation_th" value="$(arg orientation_th)"/>
+        <rosparam param="home_pose">[0, 0, 0]</rosparam><!-- [x,y,z] -->
+    </node>
+
+    <group if="$(arg multi)">
+        <!-- Launch UAL server for uav id=1 -->
+        <node pkg="ual_backend_gazebo_light" type="ual_backend_gazebo_light_server" name="ual" ns="$(arg ns_prefix)1" output="screen">
+            <param name="uav_id" value="1"/>
+            <param name="ual_server" value="$(arg ual_server)"/>
+            <param name="ual_pub_rate" value="$(arg ual_pub_rate)"/>
+            <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
+            <param name="max_horizontal_velocity" value="$(arg max_horizontal_velocity)"/>
+            <param name="max_vertical_velocity" value="$(arg max_vertical_velocity)"/>
+            <param name="max_yaw_rate" value="$(arg max_yaw_rate)"/>
+            <param name="max_position_error" value="$(arg max_position_error)"/>
+            <param name="max_orientation_error" value="$(arg max_orientation_error)"/>
+            <param name="noise_var" value="$(arg noise_var)"/>
+            <param name="position_th" value="$(arg position_th)"/>
+            <param name="orientation_th" value="$(arg orientation_th)"/>
+            <rosparam param="home_pose">[0, 0, 0]</rosparam><!-- [x,y,z] -->
+        </node>
+        <!-- Launch UAL server for uav id=2 -->
+        <node pkg="ual_backend_gazebo_light" type="ual_backend_gazebo_light_server" name="ual" ns="$(arg ns_prefix)2" output="screen">
+            <param name="uav_id" value="2"/>
+            <param name="ual_server" value="$(arg ual_server)"/>
+            <param name="ual_pub_rate" value="$(arg ual_pub_rate)"/>
+            <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
+            <param name="max_vertical_velocity" value="$(arg max_vertical_velocity)"/>
+            <param name="max_yaw_rate" value="$(arg max_yaw_rate)"/>
+            <param name="max_position_error" value="$(arg max_position_error)"/>
+            <param name="max_orientation_error" value="$(arg max_orientation_error)"/>
+            <param name="noise_var" value="$(arg noise_var)"/>
+            <param name="position_th" value="$(arg position_th)"/>
+            <param name="orientation_th" value="$(arg orientation_th)"/>
+            <rosparam param="home_pose">[-10, 10, 0]</rosparam><!-- [x,y,z] -->
+        </node>
+        <!-- Launch UAL server for uav id=3 -->
+        <node pkg="ual_backend_gazebo_light" type="ual_backend_gazebo_light_server" name="ual" ns="$(arg ns_prefix)3" output="screen">
+            <param name="uav_id" value="3"/>
+            <param name="ual_server" value="$(arg ual_server)"/>
+            <param name="ual_pub_rate" value="$(arg ual_pub_rate)"/>
+            <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
+            <param name="max_vertical_velocity" value="$(arg max_vertical_velocity)"/>
+            <param name="max_yaw_rate" value="$(arg max_yaw_rate)"/>
+            <param name="max_position_error" value="$(arg max_position_error)"/>
+            <param name="max_orientation_error" value="$(arg max_orientation_error)"/>
+            <param name="noise_var" value="$(arg noise_var)"/>
+            <param name="position_th" value="$(arg position_th)"/>
+            <param name="orientation_th" value="$(arg orientation_th)"/>
+            <rosparam param="home_pose">[10, 10, 0]</rosparam><!-- [x,y,z] -->
+        </node>
+    </group>
+
+</launch>

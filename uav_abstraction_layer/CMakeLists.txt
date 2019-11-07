@@ -12,33 +12,16 @@ add_definitions(-std=c++11)
 find_package(catkin REQUIRED COMPONENTS
   message_generation
   geometry_msgs
-  mavros
-  mavros_msgs
   roscpp
   std_msgs
   tf2_ros
-  gazebo_msgs
   sensor_msgs
   geodesy
   crazyflie_driver
 )
 
 ## System dependencies are found with CMake's conventions
-# find_package(Boost REQUIRED COMPONENTS system)
-
-# Check for mavros version for compatibility with older versions
-execute_process(COMMAND rosversion mavros
-		OUTPUT_VARIABLE mavros_version
-		OUTPUT_STRIP_TRAILING_WHITESPACE
-		)
-if ("${mavros_version}" VERSION_LESS "0.20.0")
-  add_definitions("-DMAVROS_VERSION_BELOW_0_20_0=\"${mavros_version}\"")
-else()
-  find_file(geographiclib_file "egm96-5.pgm" "/usr/share/GeographicLib/geoids/")
-  if ("${geographiclib_file}" STREQUAL "geographiclib_file-NOTFOUND")
-    message(FATAL_ERROR "GeographicLib exception: File not readable /usr/share/GeographicLib/geoids/egm96-5.pgm \n Run install_geographiclib_dataset.sh script in order to install Geoid Model dataset! \n Or run: $ sudo geographiclib-get-geoids egm96-5")
-  endif()
-endif()
+# find_package(DJIOSDK REQUIRED)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -82,7 +65,6 @@ add_service_files(
   GoToWaypointGeo.srv
   TakeOff.srv
   Land.srv
-  SetVelocity.srv
   SetHome.srv
 )
 
@@ -131,7 +113,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES uav_abstraction_layer
-  CATKIN_DEPENDS message_runtime geometry_msgs mavros mavros_msgs roscpp std_msgs tf2_ros gazebo_msgs sensor_msgs geodesy
+  CATKIN_DEPENDS message_runtime geometry_msgs roscpp std_msgs tf2_ros sensor_msgs geodesy
 #  DEPENDS system_lib
 )
 
@@ -151,7 +133,7 @@ include_directories(
 #   src/${PROJECT_NAME}/uav_abstraction_layer.cpp
 # )
 add_library(${PROJECT_NAME}
-  src/backend.cpp src/backend_mavros.cpp src/backend_light.cpp src/backend_crazyflie src/ual.cpp
+  src/backend.cpp src/ual.cpp
 )
 
 ## Add cmake target dependencies of the library
@@ -163,8 +145,8 @@ add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EX
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/uav_abstraction_layer_node.cpp)
-add_executable(test_ual_interfaces src/test_ual_interfaces.cpp)
-add_executable(server src/server.cpp)
+# add_executable(test_ual_interfaces src/test_ual_interfaces.cpp)
+# add_executable(server src/server.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -174,21 +156,21 @@ add_executable(server src/server.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-add_dependencies(test_ual_interfaces ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-add_dependencies(server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(test_ual_interfaces ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(server ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
-target_link_libraries(test_ual_interfaces
-  ${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-)
-target_link_libraries(server
-  ${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-)
+# target_link_libraries(test_ual_interfaces
+#   ${PROJECT_NAME}
+#   ${catkin_LIBRARIES}
+# )
+# target_link_libraries(server
+#   ${PROJECT_NAME}
+#   ${catkin_LIBRARIES}
+# )
 
 ###################
 ## Documentation ##

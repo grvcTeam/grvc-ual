@@ -19,10 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //----------------------------------------------------------------------------------------------------------------------
 #include <uav_abstraction_layer/backend.h>
-#include <uav_abstraction_layer/backend_mavros.h>
-#include <uav_abstraction_layer/backend_light.h>
-#include <uav_abstraction_layer/backend_dummy.h>
-#include <uav_abstraction_layer/backend_crazyflie.h>
+#include <ros/ros.h>
 
 namespace grvc { namespace ual {
 
@@ -34,25 +31,8 @@ Backend::Backend() {
     });
 }
 
-Backend* Backend::createBackend() {
-    Backend* be = nullptr;
-    // Decide backend from arguments:
-    ros::NodeHandle nh("~");
-    std::string selected_backend;
-    nh.param<std::string>("backend", selected_backend, "mavros");
-    if (selected_backend == "mavros") {
-        be = new BackendMavros();
-    }
-    else if (selected_backend == "light") {
-        be = new BackendLight();
-    }
-    else if (selected_backend == "dummy") {
-        be = new BackendDummy();
-    }
-    else if (selected_backend == "crazyflie"){
-        be = new BackendCrazyflie();
-    }
-    return be;
+Backend::~Backend() {
+    if (spin_thread_.joinable()) { spin_thread_.join(); }
 }
 
 bool Backend::isIdle() {

@@ -22,7 +22,7 @@
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
   <!-- Main multirotor link -->
   <xacro:macro name="multirotor_base_macro"
-    params="model_name robot_namespace mass body_width body_height mesh_file mesh_scale color *inertia">
+    params="model_name description_package:=robots_description robot_namespace mass body_width body_height height_offset:=0 mesh_file mesh_scale color *inertia">
     <link name="base_link"></link>
 
     <joint name="base_joint" type="fixed">
@@ -41,18 +41,15 @@
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0" />
         <geometry>
-          <mesh filename="package://robots_description/models/${model_name}/meshes/${mesh_file}"
+          <mesh filename="package://${description_package}/models/${model_name}/meshes/${mesh_file}"
             scale="${mesh_scale}" />
-          <!-- <box size="${body_width} ${body_width} ${body_height}"/> --> <!-- [m] [m] [m] -->
         </geometry>
       </visual>
 
       <collision>
-        <origin xyz="0 0 0" rpy="0 0 0" />
+        <origin xyz="0 0 ${height_offset}" rpy="0 0 0" />
         <geometry>
-        <!--mesh filename="package://robots_description/TODO/models/${model_name}/meshes/${mesh_file}"
-            scale="${mesh_scale}" /-->
-          <box size="${body_width} ${body_width} ${body_height}" /> <!-- [m] [m] [m] -->
+          <cylinder length="${body_height}" radius="${0.5*body_width}"/>
         </geometry>
       </collision>
     </link>
@@ -85,7 +82,7 @@
 
   <!-- Rotor joint and link -->
   <xacro:macro name="vertical_rotor"
-    params="robot_namespace suffix direction motor_constant moment_constant parent mass_rotor radius_rotor time_constant_up time_constant_down max_rot_velocity motor_number rotor_drag_coefficient rolling_moment_coefficient color mesh mesh_scale *origin *inertia">
+    params="robot_namespace description_package:=robots_description suffix direction motor_constant moment_constant parent mass_rotor radius_rotor time_constant_up time_constant_down max_rot_velocity motor_number rotor_drag_coefficient rolling_moment_coefficient color mesh mesh_scale *origin *inertia">
     <joint name="rotor_${motor_number}_joint" type="continuous">
       <xacro:insert_block name="origin" />
       <axis xyz="0 0 1" />
@@ -107,7 +104,7 @@
         <geometry>
           <!-- <cylinder length="0.005" radius="${radius_rotor}"/> --> <!-- [m] -->
           <!-- <mesh filename="package://rotors_description/meshes/propeller_${direction}.dae" -->
-          <mesh filename="package://robots_description/models/${model_name}/meshes/${mesh}_${direction}.dae"
+          <mesh filename="package://${description_package}/models/${model_name}/meshes/${mesh}_${direction}.dae"
             scale="${mesh_scale}" />
           <!-- <box size="${2*radius_rotor} 0.01 0.005"/> -->
         </geometry>

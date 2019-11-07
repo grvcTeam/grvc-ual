@@ -31,7 +31,7 @@
 #include <geometry_msgs/TransformStamped.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <nav_msgs/Odometry.h>
-// #include <nav_msgs/Path.h>
+#include <uav_abstraction_layer/State.h>
 
 namespace grvc { namespace ual {
 
@@ -41,6 +41,7 @@ typedef sensor_msgs::NavSatFix          WaypointGeo;
 typedef geometry_msgs::TwistStamped     Velocity;
 typedef nav_msgs::Odometry              Odometry;
 typedef geometry_msgs::TransformStamped Transform;
+typedef uint8_t                         State;  
 
 /// Common interface for back-end implementations of ual
 class Backend {
@@ -60,17 +61,6 @@ public:
             return false;  // Call failed
         }
     }
-
-    /// Possible backend states
-    enum State {
-        UNINITIALIZED,
-        LANDED_DISARMED,
-        LANDED_ARMED,
-        TAKING_OFF,
-        FLYING_AUTO,
-        FLYING_MANUAL,
-        LANDING
-    };
 
     /// Constructor inits node
     Backend();
@@ -102,8 +92,6 @@ public:
     /// \param _wp goal waypoint in geographic coordinates
     virtual void	goToWaypointGeo(const WaypointGeo& _wp) = 0;
 
-    /// Follow a list of waypoints, one after another
-    // virtual void	trackPath(const Path& _path) = 0;
     /// Perform a take off maneuver
     /// \param _height target height that must be reached to consider the take off complete
     virtual void    takeOff(double _height) = 0;
@@ -121,16 +109,7 @@ public:
     /// Cancel execution of the current task
     void	        abort(bool _freeze = true);
 
-    virtual ~Backend() = default; // Ensure proper destructor calling for derived classes
-
-    /// \brief Create an adequate Backend depending on current platform and command arguments
-    /// \param _argc number of arguments in _argv
-    /// \param _argv command line arguments passed to the program. This arguments will be parsed
-    /// and used to select the best fitting implementation of Backend from those available in the
-    /// current platform.
-    /// \return the newly created Backend. Whoever calls this method, is responsible for eventually
-    /// destroying the Backend.
-    static Backend* createBackend();
+    virtual ~Backend();  // Ensure proper destructor calling for derived classes
 
 protected:
     /// Abort flag
@@ -149,7 +128,7 @@ protected:
     // Ros spinning thread
     std::thread spin_thread_;
 
-    std::atomic<State> state_ = {UNINITIALIZED};
+    std::atomic<State> state_ = {uav_abstraction_layer::State::UNINITIALIZED};
 };
 
 }}	// namespace grvc::ual

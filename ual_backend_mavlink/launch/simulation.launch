@@ -12,11 +12,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     <arg name="multi" default="false"/>
     <arg name="ns_prefix" default="uav_"/>
-    <arg name="mode" default="sitl"/>
-    <arg name="pose_frame_id" default=""/><!-- To publish ual/pose in other frame than local, e.g. map -->
+
     <arg name="ual_server" default="on"/>
     <arg name="ual_pub_rate" default="30.0"/>
-    <arg name="mavros_offboard_rate" default="30.0"/>
+
+    <arg name="mode" default="sitl"/>
+    <arg name="robot_model" default="mbzirc"/>
+
+    <arg name="pose_frame_id" default=""/><!-- To publish ual/pose in other frame than local, e.g. map -->
+    <arg name="fcu_url" default="udp://:14557"/>
 
     <group if="$(eval mode=='sitl')">
         <!-- Launch Gazebo simulation -->
@@ -29,12 +33,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     <!-- Launch robots. Argument mode can be:
         - sitl: for software in the loop simulation
-        - serial: for serial connection to px4
-        - udp: for udp connection to px4
         - custom: to fully customize fcu and gcs urls
     -->
     <!-- Launch robot id=1 -->
-    <include file="$(find px4_bringup)/launch/spawn_robot.launch" ns="$(arg ns_prefix)1">
+    <include file="$(find px4_bringup)/launch/spawn_robot.launch" unless="$(arg multi)">
         <arg name="id" value="1"/>
         <arg name="material" value="Orange"/>
         <arg name="mode" value="$(arg mode)"/>
@@ -42,9 +44,23 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         <arg name="y" value="0"/>
         <arg name="z" value="0"/>
         <arg name="yaw" value="0"/>
+        <arg name="robot_model" value="$(arg robot_model)"/>
+        <arg name="use_mavros" value="false"/>
     </include>
 
     <group if="$(arg multi)">
+        <!-- Launch robot id=1 -->
+        <include file="$(find px4_bringup)/launch/spawn_robot.launch" ns="$(arg ns_prefix)1">
+            <arg name="id" value="1"/>
+            <arg name="material" value="Orange"/>
+            <arg name="mode" value="$(arg mode)"/>
+            <arg name="x" value="0"/>
+            <arg name="y" value="0"/>
+            <arg name="z" value="0"/>
+            <arg name="yaw" value="0"/>
+            <arg name="robot_model" value="$(arg robot_model)"/>
+            <arg name="use_mavros" value="false"/>
+        </include>
         <!-- Launch robot id=2 -->
         <include file="$(find px4_bringup)/launch/spawn_robot.launch" ns="$(arg ns_prefix)2">
             <arg name="id" value="2"/>
@@ -54,6 +70,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             <arg name="y" value="10"/>
             <arg name="z" value="0"/>
             <arg name="yaw" value="0"/>
+            <arg name="robot_model" value="$(arg robot_model)"/>
+            <arg name="use_mavros" value="false"/>
         </include>
         <!-- Launch robot id=3 -->
         <include file="$(find px4_bringup)/launch/spawn_robot.launch" ns="$(arg ns_prefix)3">
@@ -64,16 +82,18 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             <arg name="y" value="10"/>
             <arg name="z" value="0"/>
             <arg name="yaw" value="0"/>
+            <arg name="robot_model" value="$(arg robot_model)"/>
+            <arg name="use_mavros" value="false"/>
         </include>
     </group>
 
     <!-- Launch UAL server for uav id=1 -->
-    <node pkg="uav_abstraction_layer" type="server" name="ual" ns="$(arg ns_prefix)1" output="screen">
+    <node pkg="ual_backend_mavlink" type="ual_backend_mavlink_server" name="ual" output="screen" unless="$(arg multi)">
         <param name="uav_id" value="1"/>
-        <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
         <param name="ual_server" value="$(arg ual_server)"/>
         <param name="ual_pub_rate" value="$(arg ual_pub_rate)"/>
-        <param name="mavros_offboard_rate" value="$(arg mavros_offboard_rate)"/>
+        <param name="fcu_url" value="udp://:14557"/>
+        <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
         <param name="home_pose_parent_frame" value="map"/><!-- default= map -->
         <!-- Define home pose relative to global map frame -->
         <rosparam param="home_pose">[0, 0, 0]</rosparam><!-- [x,y,z] -->
@@ -82,13 +102,26 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     </node>
 
     <group if="$(arg multi)">
-        <!-- Launch UAL server for uav id=2 -->
-        <node pkg="uav_abstraction_layer" type="server" name="ual" ns="$(arg ns_prefix)2" output="screen">
-            <param name="uav_id" value="2"/>
-            <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
+        <!-- Launch UAL server for uav id=1 -->
+        <node pkg="ual_backend_mavlink" type="ual_backend_mavlink_server" name="ual" ns="$(arg ns_prefix)1" output="screen">
+            <param name="uav_id" value="1"/>
             <param name="ual_server" value="$(arg ual_server)"/>
             <param name="ual_pub_rate" value="$(arg ual_pub_rate)"/>
-            <param name="mavros_offboard_rate" value="$(arg mavros_offboard_rate)"/>
+            <param name="fcu_url" value="udp://:14557"/>
+            <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
+            <param name="home_pose_parent_frame" value="map"/><!-- default= map -->
+            <!-- Define home pose relative to global map frame -->
+            <rosparam param="home_pose">[0, 0, 0]</rosparam><!-- [x,y,z] -->
+            <!-- Define the global map frame geo position and let the UAL estimate the relative home pose -->
+            <!-- <rosparam param="map_origin_geo">[37.558542, -5.931074, 7.89]</rosparam> --><!-- [lat,lon,alt] -->
+        </node>
+        <!-- Launch UAL server for uav id=2 -->
+        <node pkg="ual_backend_mavlink" type="ual_backend_mavlink_server" name="ual" ns="$(arg ns_prefix)2" output="screen">
+            <param name="uav_id" value="2"/>
+            <param name="ual_server" value="$(arg ual_server)"/>
+            <param name="ual_pub_rate" value="$(arg ual_pub_rate)"/>
+            <param name="fcu_url" value="udp://:14567"/>
+            <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
             <param name="home_pose_parent_frame" value="map"/><!-- default= map -->
             <!-- Define home pose relative to global map frame -->
             <rosparam param="home_pose">[-10, 10, 0]</rosparam><!-- [x,y,z] -->
@@ -96,12 +129,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             <!-- <rosparam param="map_origin_geo">[37.558542, -5.931074, 7.89]</rosparam> --><!-- [lat,lon,alt] -->
         </node>
         <!-- Launch UAL server for uav id=3 -->
-        <node pkg="uav_abstraction_layer" type="server" name="ual" ns="$(arg ns_prefix)3" output="screen">
+        <node pkg="ual_backend_mavlink" type="ual_backend_mavlink_server" name="ual" ns="$(arg ns_prefix)3" output="screen">
             <param name="uav_id" value="3"/>
-            <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
             <param name="ual_server" value="$(arg ual_server)"/>
             <param name="ual_pub_rate" value="$(arg ual_pub_rate)"/>
-            <param name="mavros_offboard_rate" value="$(arg mavros_offboard_rate)"/>
+            <param name="fcu_url" value="udp://:14577"/>
+            <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
             <param name="home_pose_parent_frame" value="map"/><!-- default= map -->
             <!-- Define home pose relative to global map frame -->
             <rosparam param="home_pose">[10, 10, 0]</rosparam><!-- [x,y,z] -->
