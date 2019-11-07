@@ -20,6 +20,7 @@ find_package(catkin REQUIRED COMPONENTS
   gazebo_msgs
   sensor_msgs
   geodesy
+  crazyflie_driver
 )
 
 ## System dependencies are found with CMake's conventions
@@ -150,7 +151,7 @@ include_directories(
 #   src/${PROJECT_NAME}/uav_abstraction_layer.cpp
 # )
 add_library(${PROJECT_NAME}
-  src/backend.cpp src/backend_mavros.cpp src/backend_light.cpp src/ual.cpp
+  src/backend.cpp src/backend_mavros.cpp src/backend_light.cpp src/backend_crazyflie src/ual.cpp
 )
 
 ## Add cmake target dependencies of the library
