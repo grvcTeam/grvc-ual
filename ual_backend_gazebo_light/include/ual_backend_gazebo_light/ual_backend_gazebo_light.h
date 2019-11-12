@@ -22,6 +22,7 @@
 #define UAV_ABSTRACTION_LAYER_BACKEND_LIGHT_H
 
 #include <thread>
+#include <random>
 
 #include <uav_abstraction_layer/backend.h>
 #include <ros/ros.h>
