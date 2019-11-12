@@ -17,7 +17,6 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   sensor_msgs
   geodesy
-  crazyflie_driver
 )
 
 ## System dependencies are found with CMake's conventions
