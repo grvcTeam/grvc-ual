@@ -17,7 +17,8 @@ def main():
         "mavlink" : ["MAVLink", "    Download and install MAVSDK .deb: https://github.com/mavlink/MAVSDK/releases"],
         "gazebo_light" : ["Gazebo Light", ""],
         "dji_ros" : ["DJI ROS", "    Download and install DJI SDK core library: https://github.com/dji-sdk/Onboard-SDK \n    Download in your catkin workspace the DJI Onboard SDK ROS: https://github.com/dji-sdk/Onboard-SDK-ROS"],
-        "crazyflie" : ["Crazyflie", "    Download and install crazyflie_ros: https://github.com/whoenig/crazyflie_ros"]
+        "crazyflie" : ["Crazyflie", "    Download and install crazyflie_ros: https://github.com/whoenig/crazyflie_ros"],
+        "ue" : ["Unreal Engine", "    TBD"]
     }
     instructions = ""
 
