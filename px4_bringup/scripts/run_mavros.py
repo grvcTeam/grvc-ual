@@ -53,6 +53,8 @@ def main():
     elif args.mode == "serial":
         fcu_url = "serial:///dev/ttyUSB0:921600"
         subprocess.call("rosparam set " + node_name + "/fcu_url " + fcu_url, shell=True)
+        if args.gcs_url:
+            subprocess.call("rosparam set " + node_name + "/gcs_url " + args.gcs_url, shell=True)
     elif args.mode =="custom":
         subprocess.call("rosparam set " + node_name + "/fcu_url " + args.fcu_url, shell=True)
         if args.gcs_url:
