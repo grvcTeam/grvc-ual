@@ -136,7 +136,7 @@ BackendMavros::BackendMavros()
     while (heartbeat_str[0]=='/') {
         heartbeat_str.erase(0,1);
     }
-    while (!found_diagnostic) {
+    while (!found_diagnostic && ros::ok()) {
         diagnostic_msgs::DiagnosticArrayConstPtr diag_msg = ros::topic::waitForMessage<diagnostic_msgs::DiagnosticArray>("/diagnostics",nh);
         for (auto d : diag_msg->status) {
             if (d.name == heartbeat_str) {
@@ -159,6 +159,10 @@ BackendMavros::BackendMavros()
                 }
             }
         }
+    }
+    if (!found_diagnostic) {
+        ROS_ERROR("BackendMavros [%d]: Diagnostic message not found", robot_id_);
+        exit(0);
     }
 
     // TODO: Check this and solve frames issue
@@ -292,6 +296,7 @@ void BackendMavros::recoverFromManual() {
         mavros_state_.mode != "STABILIZED" &&
         mavros_state_.mode != "STABILIZE" &&
         mavros_state_.mode != "POSITION" &&
+        mavros_state_.mode != "LOITER" &&
         mavros_state_.mode != "ALT_HOLD") {
         ROS_WARN("Unable to recover from manual mode (not in manual!)");
         return;
