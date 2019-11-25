@@ -33,6 +33,11 @@
 #include <diagnostic_msgs/DiagnosticArray.h>
 #include <mavros_msgs/CommandTOL.h>
 
+#define MAX_XY_VEL 3.0
+#define MAX_Z_VEL 1.0
+#define MAX_YAW_VEL M_PI/6
+#define PID_INTEGRAL_LIMIT 5
+
 namespace grvc { namespace ual {
 
 BackendMavros::BackendMavros()
@@ -517,7 +522,7 @@ bool BackendMavros::isReady() const {
 }
 
 void BackendMavros::setPose(const geometry_msgs::PoseStamped& _world) {
-    control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
+    control_mode_ = eControlMode::LOCAL_VEL;    // Control in position
 
     geometry_msgs::PoseStamped homogen_world_pos;
     tf2_ros::Buffer tfBuffer;
@@ -552,7 +557,59 @@ void BackendMavros::setPose(const geometry_msgs::PoseStamped& _world) {
     homogen_world_pos.pose.position.y -= local_start_pos_[1];
     homogen_world_pos.pose.position.z -= local_start_pos_[2];
 
-    ref_pose_.pose = homogen_world_pos.pose;
+    geometry_msgs::PoseStamped ref_pose = homogen_world_pos;
+    //ref_pose_.pose = homogen_world_pos.pose;
+
+    // Get yaw error
+    geometry_msgs::Quaternion q = cur_pose_.pose.orientation;
+    double cur_yaw = atan2(2.0 * (q.w * q.z + q.x * q.y), 1.0 - 2.0 * (q.y * q.y + q.z * q.z));
+    q = ref_pose.pose.orientation;
+    double ref_yaw = atan2(2.0 * (q.w * q.z + q.x * q.y), 1.0 - 2.0 * (q.y * q.y + q.z * q.z));
+    double yaw_error = ref_yaw - cur_yaw;
+    if (yaw_error > M_PI) {yaw_error -= 2*M_PI;}
+    if (yaw_error < -M_PI) {yaw_error += 2*M_PI;}
+    
+    // Add velocity control
+    Eigen::Vector4d vector_error = {ref_pose.pose.position.x - cur_pose_.pose.position.x, 
+        ref_pose.pose.position.y - cur_pose_.pose.position.y,
+        ref_pose.pose.position.z - cur_pose_.pose.position.z,
+        yaw_error};
+    double dt = 0.033;  // TODO: use time in headers?
+    integral_control_vel_ += vector_error * dt;
+    for (int i=0;i<4;i++) {
+        if (integral_control_vel_[i] > PID_INTEGRAL_LIMIT) {integral_control_vel_[i] = PID_INTEGRAL_LIMIT;}
+        if (integral_control_vel_[i] < -PID_INTEGRAL_LIMIT) {integral_control_vel_[i] = -PID_INTEGRAL_LIMIT;}
+    }
+    Velocity vel;
+    // TODO: create pid util?
+    vel.twist.linear.x = p_gain_xy_ * vector_error[0] + \
+        k_i_xy_ * integral_control_vel_[0] + \
+        k_d_xy_ * (vector_error[0] - previous_error_control_vel_[0]) / dt;
+    vel.twist.linear.y = p_gain_xy_ * vector_error[1] + \
+        k_i_xy_ * integral_control_vel_[1] + \
+        k_d_xy_ * (vector_error[1] - previous_error_control_vel_[1]) / dt;
+    vel.twist.linear.z = p_gain_z_ * vector_error[2] + \
+        k_i_z_ * integral_control_vel_[2] + \
+        k_d_z_ * (vector_error[2] - previous_error_control_vel_[2]) / dt;
+    vel.twist.angular.z  = p_gain_yaw_ * vector_error[3] + \
+        k_i_yaw_ * integral_control_vel_[3] + \
+        k_d_yaw_ * (vector_error[3] - previous_error_control_vel_[3]) / dt;
+
+    previous_error_control_vel_ = vector_error;
+
+    if (vel.twist.linear.x > MAX_XY_VEL) {vel.twist.linear.x = MAX_XY_VEL;}
+    if (vel.twist.linear.x < -MAX_XY_VEL) {vel.twist.linear.x = -MAX_XY_VEL;}
+    if (vel.twist.linear.y > MAX_XY_VEL) {vel.twist.linear.y = MAX_XY_VEL;}
+    if (vel.twist.linear.y < -MAX_XY_VEL) {vel.twist.linear.y = -MAX_XY_VEL;}
+    if (vel.twist.linear.z > MAX_Z_VEL) {vel.twist.linear.z = MAX_Z_VEL;}
+    if (vel.twist.linear.z < -MAX_Z_VEL) {vel.twist.linear.z = -MAX_Z_VEL;}
+    if (vel.twist.angular.z > MAX_YAW_VEL) {vel.twist.angular.z = MAX_YAW_VEL;}
+    if (vel.twist.angular.z < -MAX_YAW_VEL) {vel.twist.angular.z = -MAX_YAW_VEL;}
+
+    ROS_INFO("Ref vel: %.2f %.2f %.2f %.2f", vel.twist.linear.x, vel.twist.linear.y, vel.twist.linear.z, vel.twist.angular.z);
+    vel.header.stamp = ros::Time::now();
+    ref_vel_ = vel;
+    last_command_time_ = ros::Time::now();
 }
 
 // TODO: Move from here?

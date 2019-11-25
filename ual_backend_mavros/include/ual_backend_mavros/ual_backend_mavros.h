@@ -189,6 +189,18 @@ private:
     float hold_pose_time_;
     HistoryBuffer position_error_;
     HistoryBuffer orientation_error_;
+    // PID
+    Eigen::Vector4d integral_control_vel_ = {0,0,0,0};
+    Eigen::Vector4d previous_error_control_vel_ = {0,0,0,0};
+    float p_gain_xy_ = 0.4;  // TODO: PID? Tune!
+    float k_i_xy_ = 0.05;
+    float k_d_xy_ = 0.0;
+    float p_gain_z_ = 0.4;  // TODO: PID? Tune!
+    float k_i_z_ = 0.05;
+    float k_d_z_ = 0.0;
+    float p_gain_yaw_ = 0.4;  // TODO: PID? Tune!
+    float k_i_yaw_ = 0.05;
+    float k_d_yaw_ = 0.0;
 
     /// Ros Communication
     ros::ServiceClient flight_mode_client_;
