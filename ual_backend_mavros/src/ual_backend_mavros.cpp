@@ -32,6 +32,15 @@
 #include <mavros_msgs/ParamGet.h>
 #include <diagnostic_msgs/DiagnosticArray.h>
 #include <mavros_msgs/CommandTOL.h>
+#include <mavros_msgs/VehicleInfoGet.h>
+#include <mavros/mavlink_diag.h>
+
+#define FIRMWARE_VERSION_TYPE_DEV 0 /* development release | */
+#define FIRMWARE_VERSION_TYPE_ALPHA 64 /* alpha release | */
+#define FIRMWARE_VERSION_TYPE_BETA 128 /* beta release | */
+#define FIRMWARE_VERSION_TYPE_RC 192 /* release candidate | */
+#define FIRMWARE_VERSION_TYPE_OFFICIAL 255 /* official stable release | */
+#define FIRMWARE_VERSION_TYPE_ENUM_END 256 /*  | */
 
 namespace grvc { namespace ual {
 
@@ -164,6 +173,8 @@ BackendMavros::BackendMavros()
         ROS_ERROR("BackendMavros [%d]: Diagnostic message not found", robot_id_);
         exit(0);
     }
+
+    getAutopilotInformation();
 
     // TODO: Check this and solve frames issue
     initHomeFrame();
@@ -923,6 +934,52 @@ double BackendMavros::updateParam(const std::string& _param_id) {
             get_param_service.request.param_id.c_str());
     }
     return mavros_params_[_param_id];
+}
+
+void BackendMavros::getAutopilotInformation() {
+    // Call vehicle information service
+    ros::NodeHandle nh;
+    ros::ServiceClient vehicle_information_cl = nh.serviceClient<mavros_msgs::VehicleInfoGet>("mavros/vehicle_info_get");
+    mavros_msgs::VehicleInfoGet vehicle_info_srv;
+    if (!vehicle_information_cl.call(vehicle_info_srv)) {
+        ROS_ERROR("Failed to get vehicle information: service call failed");
+        exit(0);
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    if (!vehicle_info_srv.response.success) {
+        ROS_ERROR("Failed to get vehicle information");
+        exit(0);
+    }
+    // Autopilot type
+    switch (vehicle_info_srv.response.vehicles[0].autopilot) {
+        case 
+    }
+
+    // Autopilot version
+    int major_version = (vehicle_info_srv.response.vehicles[0].flight_sw_version >> (8*3)) & 0xFF;
+    int minor_version = (vehicle_info_srv.response.vehicles[0].flight_sw_version >> (8*2)) & 0xFF;
+    int patch_version = (vehicle_info_srv.response.vehicles[0].flight_sw_version >> (8*1)) & 0xFF;
+    int version_type_int = (vehicle_info_srv.response.vehicles[0].flight_sw_version >> (8*0)) & 0xFF;
+    std::string version_type;
+    switch (version_type_int) {
+        case FIRMWARE_VERSION_TYPE_DEV:
+            version_type = "dev";
+            break;
+        case FIRMWARE_VERSION_TYPE_ALPHA:
+            version_type = "alpha";
+            break;
+        case FIRMWARE_VERSION_TYPE_BETA:
+            version_type = "beta";
+            break;
+        case FIRMWARE_VERSION_TYPE_RC:
+            version_type = "rc";
+            break;
+        case FIRMWARE_VERSION_TYPE_OFFICIAL:
+        default:
+            version_type = "";
+    }
+    std::string autopilot_version = std::to_string(major_version) + "." + std::to_string(minor_version) + "." + std::to_string(patch_version) + " " + version_type;
+    ROS_INFO("Connected to autopilot version %s", autopilot_version.c_str());
 }
 
 }}	// namespace grvc::ual
