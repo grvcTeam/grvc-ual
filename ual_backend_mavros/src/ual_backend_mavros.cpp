@@ -433,12 +433,14 @@ bool BackendMavros::takeOffAPM(double _height) {
         return false;
     }
 
+    std::this_thread::sleep_for(std::chrono::seconds(15));
     // Now wait (unabortable!)
-    while (!referencePoseReached() && (this->mavros_state_.mode == "GUIDED" || this->mavros_state_.mode == "GUIDED_NOGPS") && ros::ok()) {
+/*    while (!referencePoseReached() && (this->mavros_state_.mode == "GUIDED" || this->mavros_state_.mode == "GUIDED_NOGPS") && ros::ok()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
+    }*/
     ref_pose_ = cur_pose_;
     control_mode_ = eControlMode::LOCAL_POSE;
+
     return true;
 }
 
