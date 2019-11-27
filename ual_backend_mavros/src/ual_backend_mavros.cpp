@@ -203,9 +203,9 @@ void BackendMavros::offboardThreadLoop(){
         case eControlMode::LOCAL_VEL:
             mavros_ref_vel_pub_.publish(ref_vel_);
             ref_pose_ = cur_pose_;
-            if ( ros::Time::now().toSec() - last_command_time_.toSec() >=0.5 ) {
+            /*if ( ros::Time::now().toSec() - last_command_time_.toSec() >= 3) {
                 control_mode_ = eControlMode::LOCAL_POSE;
-            }
+            }*/
             break;
         case eControlMode::LOCAL_POSE:
             ref_pose_.header.stamp = ros::Time::now();
@@ -481,8 +481,8 @@ void BackendMavros::land() {
 void BackendMavros::setVelocity(const Velocity& _vel) {
     control_mode_ = eControlMode::LOCAL_VEL;  // Velocity control!
 
-    tf2_ros::Buffer tfBuffer;
-    tf2_ros::TransformListener tfListener(tfBuffer);
+//    tf2_ros::Buffer tfBuffer;
+//    tf2_ros::TransformListener tfListener(tfBuffer);
     geometry_msgs::Vector3Stamped vel_in, vel_out;
     vel_in.header = _vel.header;
     vel_in.vector = _vel.twist.linear;
@@ -493,7 +493,8 @@ void BackendMavros::setVelocity(const Velocity& _vel) {
         ref_vel_ = _vel;
     }
     else {
-        // We need to transform
+	ROS_ERROR("It is the end of the world, not using map frame");
+/*        // We need to transform
         geometry_msgs::TransformStamped transform;
         bool tf_exists = true;
         try {
@@ -504,15 +505,15 @@ void BackendMavros::setVelocity(const Velocity& _vel) {
             tf_exists = false;
             ref_vel_ = _vel;
         }
-        
+
         if(tf_exists) {
             tf2::doTransform(vel_in, vel_out, transform);
             ref_vel_.header = vel_out.header;
             ref_vel_.twist.linear = vel_out.vector;
             ref_vel_.twist.angular = _vel.twist.angular;
-        }
+        }*/
     }
-    last_command_time_ = ros::Time::now();
+//    last_command_time_ = ros::Time::now();
 }
 
 bool BackendMavros::isReady() const {
@@ -611,7 +612,7 @@ void BackendMavros::setPose(const geometry_msgs::PoseStamped& _world) {
     ROS_INFO("Ref vel: %.2f %.2f %.2f %.2f", vel.twist.linear.x, vel.twist.linear.y, vel.twist.linear.z, vel.twist.angular.z);
     vel.header.stamp = ros::Time::now();
     ref_vel_ = vel;
-    last_command_time_ = ros::Time::now();
+//    last_command_time_ = ros::Time::now();
 }
 
 // TODO: Move from here?
