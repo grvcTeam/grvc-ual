@@ -7,7 +7,14 @@ A repository for the GRVC UAV abstraction layer.
 
 Download the latest stable version from [here](https://github.com/grvcTeam/grvc-ual/releases).
 
-You can find the instructions for installation and how to use the UAL in the [Wiki](https://github.com/grvcTeam/grvc-ual/wiki).
+Start configuring which backends should be active:
+
+```
+    $ cd ~/catkin_ws/src/grvc-ual
+    $ ./configure.py
+```
+
+You can find detailed instructions for installation and how to use the UAL in the [Wiki](https://github.com/grvcTeam/grvc-ual/wiki).
 
 ## Compatibile autopilots
 
