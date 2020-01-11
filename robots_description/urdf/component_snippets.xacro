@@ -541,4 +541,70 @@
     </xacro:imu_plugin_macro>
   </xacro:macro>
 
+  <!-- Macro to add a laser scanner -->
+  <xacro:macro name="laser_scanner"
+    params="namespace id parent_link update_rate sample_count
+    angle_min angle_max range_min range_max range_res visualize:=false *origin">
+    <joint name="${namespace}/laser_${id}_joint" type="fixed">
+      <xacro:insert_block name="origin" />
+      <parent link="${parent_link}"/>
+      <child link="${namespace}/laser_${id}_link"/>
+    </joint>
+    <link name="${namespace}/laser_${id}_link">
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <cylinder length="0.03" radius="0.04" />
+        </geometry>
+      </collision>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <cylinder length="0.03" radius="0.04" />
+        </geometry>
+      </visual>
+      <inertial>
+        <mass value="1e-5" />
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6" />
+      </inertial>
+    </link>
+    <gazebo reference="${namespace}/laser_${id}_link">
+      <sensor type="ray" name="${namespace}_laser_${id}_sensor">
+        <pose>0 0 0 0 0 0</pose>
+        <visualize>${visualize}</visualize>
+        <update_rate>${update_rate}</update_rate>
+        <ray>
+          <scan>
+            <horizontal>
+              <samples>${sample_count}</samples>
+              <resolution>1</resolution>
+              <min_angle>${angle_min}</min_angle>
+              <max_angle>${angle_max}</max_angle>
+            </horizontal>
+          </scan>
+          <range>
+            <min>${range_min}</min>
+            <max>${range_max}</max>
+            <resolution>${range_res}</resolution>
+          </range>
+          <noise>
+            <type>gaussian</type>
+            <!-- Noise parameters based on published spec for Hokuyo laser
+                achieving "+-30mm" accuracy at range < 10m.  A mean of 0.0m and
+                stddev of 0.01m will put 99.7% of samples within 0.03m of the true
+                reading. -->
+            <mean>0.0</mean>
+            <stddev>0.01</stddev>
+          </noise>
+        </ray>
+        <plugin name="${namespace}_laser_${id}_controller" filename="libgazebo_ros_laser.so">
+          <robotNamespace>${namespace}</robotNamespace>
+          <topicName>scan_${id}</topicName>
+          <frameName>${namespace}/laser_${id}_link</frameName>
+        </plugin>
+      </sensor>
+    </gazebo>
+  </xacro:macro>
+
 </robot>
