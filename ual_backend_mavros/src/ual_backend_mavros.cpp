@@ -396,17 +396,16 @@ bool BackendMavros::takeOffAPM(double _height) {
         ROS_ERROR("Failed Takeoff: service call failed");
         return false;
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
     if (!srv_takeoff.response.success) {
         ROS_ERROR("Failed Takeoff: error code %d",srv_takeoff.response.result);
         return false;
     }
 
-    // Now wait (unabortable!)
-    while (!referencePoseReached() && (this->mavros_state_.mode == "GUIDED" || this->mavros_state_.mode == "GUIDED_NOGPS") && ros::ok()) {
+    // Now wait until it reaches 95% of commanded altitude (unabortable!)
+    while ( (cur_pose_.pose.position.z < 0.95 * ref_pose_.pose.position.z) && (this->mavros_state_.mode == "GUIDED" || this->mavros_state_.mode == "GUIDED_NOGPS") && ros::ok() ) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-    ref_pose_ = cur_pose_;
     control_mode_ = eControlMode::LOCAL_POSE;
     return true;
 }
