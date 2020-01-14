@@ -543,7 +543,7 @@
 
   <!-- Macro to add a laser scanner -->
   <xacro:macro name="laser_scanner"
-    params="namespace id parent_link update_rate sample_count
+    params="namespace id pub_topic tf parent_link update_rate sample_count
     angle_min angle_max range_min range_max range_res visualize:=false *origin">
     <joint name="${namespace}/laser_${id}_joint" type="fixed">
       <xacro:insert_block name="origin" />
@@ -600,8 +600,8 @@
         </ray>
         <plugin name="${namespace}_laser_${id}_controller" filename="libgazebo_ros_laser.so">
           <robotNamespace>${namespace}</robotNamespace>
-          <topicName>scan_${id}</topicName>
-          <frameName>${namespace}/laser_${id}_link</frameName>
+          <topicName>${pub_topic}</topicName>
+          <frameName>${tf}</frameName>
         </plugin>
       </sensor>
     </gazebo>
