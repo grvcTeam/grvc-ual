@@ -30,10 +30,9 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <uav_abstraction_layer/geographic_to_cartesian.h>
 #include <mavros_msgs/ParamGet.h>
-#include <diagnostic_msgs/DiagnosticArray.h>
 #include <mavros_msgs/CommandTOL.h>
 #include <mavros_msgs/VehicleInfoGet.h>
-#include <mavros/mavlink_diag.h>
+#include <mavros/utils.h>
 
 #define FIRMWARE_VERSION_TYPE_DEV 0 /* development release | */
 #define FIRMWARE_VERSION_TYPE_ALPHA 64 /* alpha release | */
@@ -136,42 +135,6 @@ BackendMavros::BackendMavros()
     // Wait until mavros is connected
     while (!mavros_state_.connected && ros::ok()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    }
-
-    // Check autopilot type
-    bool found_diagnostic = false;
-    std::string ns = ros::this_node::getNamespace();
-    std::string heartbeat_str = ns + "/mavros: Heartbeat";
-    while (heartbeat_str[0]=='/') {
-        heartbeat_str.erase(0,1);
-    }
-    while (!found_diagnostic && ros::ok()) {
-        diagnostic_msgs::DiagnosticArrayConstPtr diag_msg = ros::topic::waitForMessage<diagnostic_msgs::DiagnosticArray>("/diagnostics",nh);
-        for (auto d : diag_msg->status) {
-            if (d.name == heartbeat_str) {
-                for (auto k : d.values) {
-                    if (k.key == "Autopilot type") {
-                        if (k.value == "PX4 Autopilot") {
-                            autopilot_type_ = AutopilotType::PX4;
-                            ROS_INFO("BackendMavros [%d]: Connected to PX4 autopilot",robot_id_);
-                        }
-                        else if (k.value == "ArduPilot") {
-                            autopilot_type_ = AutopilotType::APM;
-                            ROS_INFO("BackendMavros [%d]: Connected to APM autopilot",robot_id_);
-                        }
-                        else {
-                            ROS_ERROR("BackendMavros [%d]: Wrong autopilot type: %s", robot_id_, k.value.c_str());
-                            exit(0);
-                        }
-                        found_diagnostic = true;
-                    }
-                }
-            }
-        }
-    }
-    if (!found_diagnostic) {
-        ROS_ERROR("BackendMavros [%d]: Diagnostic message not found", robot_id_);
-        exit(0);
     }
 
     getAutopilotInformation();
@@ -940,6 +903,8 @@ void BackendMavros::getAutopilotInformation() {
     // Call vehicle information service
     ros::NodeHandle nh;
     ros::ServiceClient vehicle_information_cl = nh.serviceClient<mavros_msgs::VehicleInfoGet>("mavros/vehicle_info_get");
+    ros::service::waitForService("mavros/vehicle_info_get");
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     mavros_msgs::VehicleInfoGet vehicle_info_srv;
     if (!vehicle_information_cl.call(vehicle_info_srv)) {
         ROS_ERROR("Failed to get vehicle information: service call failed");
@@ -952,11 +917,19 @@ void BackendMavros::getAutopilotInformation() {
     }
     // Autopilot type
     switch (vehicle_info_srv.response.vehicles[0].autopilot) {
-        case 
+        case 3:
+            autopilot_type_ = AutopilotType::APM;
+            break;
+        case 12:
+            autopilot_type_ = AutopilotType::PX4;
+            break;
+        default:
+            ROS_ERROR("BackendMavros [%d]: Wrong autopilot type: %s", robot_id_, mavros::utils::to_string((mavlink::common::MAV_AUTOPILOT) vehicle_info_srv.response.vehicles[0].autopilot).c_str());
+            exit(0);
     }
 
     // Autopilot version
-    int major_version = (vehicle_info_srv.response.vehicles[0].flight_sw_version >> (8*3)) & 0xFF;
+    int major_version = ( ((int) vehicle_info_srv.response.vehicles[0].flight_sw_version) >> (8*3)) & 0xFF;
     int minor_version = (vehicle_info_srv.response.vehicles[0].flight_sw_version >> (8*2)) & 0xFF;
     int patch_version = (vehicle_info_srv.response.vehicles[0].flight_sw_version >> (8*1)) & 0xFF;
     int version_type_int = (vehicle_info_srv.response.vehicles[0].flight_sw_version >> (8*0)) & 0xFF;
@@ -978,8 +951,12 @@ void BackendMavros::getAutopilotInformation() {
         default:
             version_type = "";
     }
-    std::string autopilot_version = std::to_string(major_version) + "." + std::to_string(minor_version) + "." + std::to_string(patch_version) + " " + version_type;
-    ROS_INFO("Connected to autopilot version %s", autopilot_version.c_str());
+    std::string autopilot_version = std::to_string(major_version) + "." + std::to_string(minor_version) + "." + std::to_string(patch_version) + version_type;
+
+    // Autopilot string
+    ROS_INFO("BackendMavros [%d]: Connected to %s version %s. Type: %s.", robot_id_,
+    mavros::utils::to_string((mavlink::common::MAV_AUTOPILOT) vehicle_info_srv.response.vehicles[0].autopilot).c_str(),
+    autopilot_version.c_str(), mavros::utils::to_string((mavlink::common::MAV_TYPE) vehicle_info_srv.response.vehicles[0].type).c_str());
 }
 
 }}	// namespace grvc::ual

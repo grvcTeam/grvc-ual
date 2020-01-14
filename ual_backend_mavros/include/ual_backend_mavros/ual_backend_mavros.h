@@ -160,6 +160,7 @@ public:
 
 private:
     void offboardThreadLoop();
+    void getAutopilotInformation();
     void initHomeFrame();
     bool referencePoseReached();
     void setFlightMode(const std::string& _flight_mode);
