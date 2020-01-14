@@ -51,7 +51,7 @@ BackendUE::BackendUE() : Backend()
     airsim_client_.enableApiControl(true);
     airsim_client_.armDisarm(true);
 
-    state_ = LANDED_ARMED;
+    state_ = uav_abstraction_layer::State::LANDED_ARMED;
 
 }
 
@@ -151,13 +151,13 @@ void BackendUE::takeOff(double _height) {
     /// 666 TODO: Check altitude
     airsim_client_.takeoffAsync()->waitOnLastTask();
 
-    state_ = FLYING_AUTO;
+    state_ = uav_abstraction_layer::State::FLYING_AUTO;
 }
 
 void BackendUE::land() {
     airsim_client_.landAsync()->waitOnLastTask();
     
-    state_ = LANDED_ARMED;
+    state_ = uav_abstraction_layer::State::LANDED_ARMED;
 }
 
 void BackendUE::setVelocity(const Velocity& _vel) {
