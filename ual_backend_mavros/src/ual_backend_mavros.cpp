@@ -584,7 +584,6 @@ PurePursuitOutput PurePursuit(geometry_msgs::Point _current, geometry_msgs::Poin
 }
 
 void BackendMavros::goToWaypoint(const Waypoint& _world) {
-    control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
 
     geometry_msgs::PoseStamped homogen_world_pos;
     tf2_ros::Buffer tfBuffer;
@@ -612,22 +611,35 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
         
     }
 
-//    std::cout << "Going to waypoint: " << homogen_world_pos.pose.position << std::endl;
-
     // Do we still need local_start_pos_?
     homogen_world_pos.pose.position.x -= local_start_pos_[0];
     homogen_world_pos.pose.position.y -= local_start_pos_[1];
     homogen_world_pos.pose.position.z -= local_start_pos_[2];
 
+    switch (autopilot_type_) {
+        case AutopilotType::PX4:
+            goToWaypointPX4(homogen_world_pos);
+            break;
+        case AutopilotType::APM:
+            goToWaypointAPM(homogen_world_pos);
+            break;
+        default:
+            ROS_ERROR("BackendMavros [%d]: Wrong autopilot type", robot_id_);
+            return;
+    }
+}
+
+void BackendMavros::goToWaypointPX4(const Waypoint& _wp) {
+
     // Smooth pose reference passing!
-    geometry_msgs::Point final_position = homogen_world_pos.pose.position;
+    geometry_msgs::Point final_position = _wp.pose.position;
     geometry_msgs::Point initial_position = cur_pose_.pose.position;
     double ab_x = final_position.x - initial_position.x;
     double ab_y = final_position.y - initial_position.y;
     double ab_z = final_position.z - initial_position.z;
 
-    Eigen::Quaterniond final_orientation = Eigen::Quaterniond(homogen_world_pos.pose.orientation.w, 
-        homogen_world_pos.pose.orientation.x, homogen_world_pos.pose.orientation.y, homogen_world_pos.pose.orientation.z);
+    Eigen::Quaterniond final_orientation = Eigen::Quaterniond(_wp.pose.orientation.w, 
+        _wp.pose.orientation.x, _wp.pose.orientation.y, _wp.pose.orientation.z);
     Eigen::Quaterniond initial_orientation = Eigen::Quaterniond(cur_pose_.pose.orientation.w, 
         cur_pose_.pose.orientation.x, cur_pose_.pose.orientation.y, cur_pose_.pose.orientation.z);
 
@@ -644,6 +656,7 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
         float z_distance = fabs(ab_z);
         bool z_vel_is_limit = (mpc_z_vel_max*xy_distance < mpc_xy_vel_max*z_distance);
 
+        control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
         ros::Rate rate(10);  // [Hz]
         float next_to_final_distance = linear_distance;
         float lookahead = 0.05;
@@ -679,7 +692,7 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
 
     // Finally set pose (if not aborted!)
     if (!abort_) {
-        ref_pose_.pose = homogen_world_pos.pose;
+        ref_pose_.pose = _wp.pose;
     }
 
     position_error_.reset();
@@ -692,6 +705,29 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
     // Freeze in case it's been aborted
     if (abort_ && freeze_) {
         ref_pose_ = cur_pose_;
+    }
+}
+
+void BackendMavros::goToWaypointAPM(const Waypoint& _wp) {
+
+    ref_pose_ = _wp;
+    ref_vel_.twist.linear.x = 0;
+    ref_vel_.twist.linear.y = 0;
+    ref_vel_.twist.linear.z = 0;
+    ref_vel_.twist.angular.z = 0;
+    control_mode_ = eControlMode::NONE;
+
+    ref_pose_.header.stamp = ros::Time::now();
+    mavros_ref_pose_pub_.publish(ref_pose_);
+    
+    // Wait until we arrive: abortable
+    while(!referencePoseReached() && !abort_ && ros::ok()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    // Freeze in case it's been aborted
+    if (abort_ && freeze_) {
+        ref_pose_ = cur_pose_;
+        control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
     }
 }
 
