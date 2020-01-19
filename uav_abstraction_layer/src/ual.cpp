@@ -363,8 +363,8 @@ bool UAL::recoverFromManual() {
 
 bool UAL::setHome(bool set_z) {
     // Check required state
-    if (backend_->state() != uav_abstraction_layer::State::LANDED_DISARMED) {
-        ROS_ERROR("Unable to setHome: not LANDED_DISARMED!");
+    if ((backend_->state() != uav_abstraction_layer::State::LANDED_DISARMED) && (backend_->state() != uav_abstraction_layer::State::LANDED_ARMED)) {
+        ROS_ERROR("Unable to setHome: not LANDED_*!");
         return false;
     }
     backend_->setHome(set_z);
