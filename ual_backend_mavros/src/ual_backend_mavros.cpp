@@ -389,6 +389,7 @@ bool BackendMavros::takeOffAPM(double _height) {
 
     ref_pose_ = cur_pose_;
     ref_pose_.pose.position.z += _height;
+    double landed_altitude = cur_pose_.pose.position.z;
 
     setFlightMode("GUIDED");
     ROS_INFO("Taking off...");
@@ -403,7 +404,7 @@ bool BackendMavros::takeOffAPM(double _height) {
     }
 
     // Now wait until it reaches 95% of commanded altitude (unabortable!)
-    while ( (cur_pose_.pose.position.z < 0.95 * ref_pose_.pose.position.z) && (this->mavros_state_.mode == "GUIDED" || this->mavros_state_.mode == "GUIDED_NOGPS") && ros::ok() ) {
+    while ( ((cur_pose_.pose.position.z - landed_altitude) < 0.95 * (ref_pose_.pose.position.z - landed_altitude)) && (this->mavros_state_.mode == "GUIDED" || this->mavros_state_.mode == "GUIDED_NOGPS") && ros::ok() ) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     control_mode_ = eControlMode::LOCAL_POSE;
