@@ -35,6 +35,7 @@
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <std_srvs/Empty.h>
+#include <tf2_ros/transform_listener.h>
 
 // MavSDK
 #include <mavsdk/mavsdk.h>
@@ -130,6 +131,8 @@ public:
     virtual Odometry odometry() const override;
     /// Latest transform estimation of the robot
     virtual Transform transform() const override;
+    /// Current reference pose
+    virtual Pose referencePose() override;
 
     /// Set pose
     /// \param _pose target pose
@@ -199,6 +202,8 @@ private:
     float hold_pose_time_;
     HistoryBuffer position_error_;
     HistoryBuffer orientation_error_;
+    tf2_ros::Buffer tf_buffer_;
+    tf2_ros::TransformListener tf_listener_;
 
     int robot_id_;
     std::string pose_frame_id_;
