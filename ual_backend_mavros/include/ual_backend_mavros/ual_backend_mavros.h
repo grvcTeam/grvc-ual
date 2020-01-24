@@ -24,9 +24,10 @@
 #include <thread>
 #include <vector>
 #include <Eigen/Core>
+#include <ros/ros.h>
 
 #include <uav_abstraction_layer/backend.h>
-#include <ros/ros.h>
+#include <uav_abstraction_layer/posePID.h>
 
 //Mavros services
 #include <mavros_msgs/CommandBool.h>
@@ -165,6 +166,7 @@ private:
     void offboardThreadLoop();
     void getAutopilotInformation();
     void initHomeFrame();
+    void initPosePID();
     bool referencePoseReached();
     void setFlightMode(const std::string& _flight_mode);
     double updateParam(const std::string& _param_id);
@@ -195,6 +197,8 @@ private:
     float hold_pose_time_;
     HistoryBuffer position_error_;
     HistoryBuffer orientation_error_;
+    PosePID *pose_pid_;
+    bool is_pose_pid_enabled_ = false;
 
     /// Ros Communication
     ros::ServiceClient flight_mode_client_;

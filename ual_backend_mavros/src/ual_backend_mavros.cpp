@@ -96,6 +96,9 @@ BackendMavros::BackendMavros()
         [this](const geometry_msgs::PoseStamped::ConstPtr& _msg) {
             this->cur_pose_ = *_msg;
             this->mavros_has_pose_ = true;
+            if (is_pose_pid_enabled_) {
+                ref_vel_ = pose_pid_->update(cur_pose_);
+            }
     });
     mavros_cur_vel_sub_ = nh.subscribe<geometry_msgs::TwistStamped>(vel_topic_local.c_str(), 1, \
         [this](const geometry_msgs::TwistStamped::ConstPtr& _msg) {
@@ -140,6 +143,11 @@ BackendMavros::BackendMavros()
     // TODO: Check this and solve frames issue
     initHomeFrame();
 
+    // Initialize PID for pose control in Ardupilot
+    if (autopilot_type_ == AutopilotType::APM) {
+        initPosePID();
+    }
+
     // Thread publishing target pose at 10Hz for offboard mode
     offboard_thread_ = std::thread(&BackendMavros::offboardThreadLoop, this);
 
@@ -169,7 +177,9 @@ void BackendMavros::offboardThreadLoop(){
         switch(control_mode_){
         case eControlMode::LOCAL_VEL:
             mavros_ref_vel_pub_.publish(ref_vel_);
-            ref_pose_ = cur_pose_;
+            if (!is_pose_pid_enabled_) {
+                ref_pose_ = cur_pose_;
+            }
             if ( ros::Time::now().toSec() - last_command_time_.toSec() >=0.5 ) {
                 control_mode_ = eControlMode::LOCAL_POSE;
             }
@@ -299,6 +309,7 @@ void BackendMavros::setHome(bool set_z) {
 }
 
 void BackendMavros::takeOff(double _height) {
+    is_pose_pid_enabled_ = false;
     if (_height < 0.0) {
         ROS_ERROR("Takeoff height must be positive!");
         return;
@@ -411,6 +422,7 @@ bool BackendMavros::takeOffAPM(double _height) {
 
 void BackendMavros::land() {
     calling_land_ = true;
+    is_pose_pid_enabled_ = false;
 
     control_mode_ = eControlMode::LOCAL_POSE;  // Back to control in position (just in case)
     // Set land mode
@@ -445,6 +457,7 @@ void BackendMavros::land() {
 
 void BackendMavros::setVelocity(const Velocity& _vel) {
     control_mode_ = eControlMode::LOCAL_VEL;  // Velocity control!
+    is_pose_pid_enabled_ = false;
 
     geometry_msgs::Vector3Stamped vel_in, vel_out;
     vel_in.header = _vel.header;
@@ -487,8 +500,6 @@ bool BackendMavros::isReady() const {
 }
 
 void BackendMavros::setPose(const geometry_msgs::PoseStamped& _world) {
-    control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
-
     geometry_msgs::PoseStamped homogen_world_pos;
     std::string waypoint_frame_id = tf2::getFrameId(_world);
 
@@ -525,6 +536,24 @@ void BackendMavros::setPose(const geometry_msgs::PoseStamped& _world) {
     homogen_world_pos.pose.position.z -= local_start_pos_[2];
 
     ref_pose_.pose = homogen_world_pos.pose;
+
+    switch (autopilot_type_) {
+        case AutopilotType::PX4:
+            // Control in position
+            control_mode_ = eControlMode::LOCAL_POSE;
+            is_pose_pid_enabled_ = false;
+            break;
+        case AutopilotType::APM:
+            // Control in velocity with PID
+            pose_pid_->reference(ref_pose_);
+            is_pose_pid_enabled_ = true;
+            last_command_time_ = ros::Time::now();
+            control_mode_ = eControlMode::LOCAL_VEL;
+            break;
+        default:
+            ROS_ERROR("BackendMavros [%d]: Wrong autopilot type", robot_id_);
+            return;
+    }
 }
 
 // TODO: Move from here?
@@ -584,6 +613,7 @@ PurePursuitOutput PurePursuit(geometry_msgs::Point _current, geometry_msgs::Poin
 
 void BackendMavros::goToWaypoint(const Waypoint& _world) {
 
+    is_pose_pid_enabled_ = false;
     geometry_msgs::PoseStamped homogen_world_pos;
     std::string waypoint_frame_id = tf2::getFrameId(_world);
 
@@ -722,7 +752,11 @@ void BackendMavros::goToWaypointAPM(const Waypoint& _wp) {
 
     ref_pose_.header.stamp = ros::Time::now();
     mavros_ref_pose_pub_.publish(ref_pose_);
-    
+
+    // Reset error buffers    
+    position_error_.reset();
+    orientation_error_.reset();
+
     // Wait until we arrive: abortable
     while(!referencePoseReached() && !abort_ && ros::ok()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -1041,6 +1075,53 @@ void BackendMavros::getAutopilotInformation() {
     ROS_INFO("BackendMavros [%d]: Connected to %s version %s. Type: %s.", robot_id_,
     mavros::utils::to_string((mavlink::common::MAV_AUTOPILOT) vehicle_info_srv.response.vehicles[0].autopilot).c_str(),
     autopilot_version.c_str(), mavros::utils::to_string((mavlink::common::MAV_TYPE) vehicle_info_srv.response.vehicles[0].type).c_str());
+}
+
+void BackendMavros::initPosePID() {
+    PIDParams params_x, params_y, params_z, params_yaw;
+
+    // Get PID X params
+    ros::param::param<float>("~pid/x/kp", params_x.kp, 1.0);
+    ros::param::param<float>("~pid/x/ki", params_x.ki, 0.0);
+    ros::param::param<float>("~pid/x/kd", params_x.kd, 0.0);
+    ros::param::param<float>("~pid/x/min_sat", params_x.min_sat, -2.0);
+    ros::param::param<float>("~pid/x/max_sat", params_x.max_sat, 2.0);
+    ros::param::param<float>("~pid/x/min_wind", params_x.min_wind, -10.0);
+    ros::param::param<float>("~pid/x/max_wind", params_x.max_wind, 10.0);
+    // Get PID Y params
+    ros::param::param<float>("~pid/y/kp", params_y.kp, 1.0);
+    ros::param::param<float>("~pid/y/ki", params_y.ki, 0.0);
+    ros::param::param<float>("~pid/y/kd", params_y.kd, 0.0);
+    ros::param::param<float>("~pid/y/min_sat", params_y.min_sat, -2.0);
+    ros::param::param<float>("~pid/y/max_sat", params_y.max_sat, 2.0);
+    ros::param::param<float>("~pid/y/min_wind", params_y.min_wind, -10.0);
+    ros::param::param<float>("~pid/y/max_wind", params_y.max_wind, 10.0);
+    // Get PID Z params
+    ros::param::param<float>("~pid/z/kp", params_z.kp, 1.0);
+    ros::param::param<float>("~pid/z/ki", params_z.ki, 0.0);
+    ros::param::param<float>("~pid/z/kd", params_z.kd, 0.0);
+    ros::param::param<float>("~pid/z/min_sat", params_z.min_sat, -2.0);
+    ros::param::param<float>("~pid/z/max_sat", params_z.max_sat, 2.0);
+    ros::param::param<float>("~pid/z/min_wind", params_z.min_wind, -10.0);
+    ros::param::param<float>("~pid/z/max_wind", params_z.max_wind, 10.0);
+    // Get PID Yaw params
+    ros::param::param<float>("~pid/yaw/kp", params_yaw.kp, 1.0);
+    ros::param::param<float>("~pid/yaw/ki", params_yaw.ki, 0.0);
+    ros::param::param<float>("~pid/yaw/kd", params_yaw.kd, 0.0);
+    ros::param::param<float>("~pid/yaw/min_sat", params_yaw.min_sat, -2.0);
+    ros::param::param<float>("~pid/yaw/max_sat", params_yaw.max_sat, 2.0);
+    ros::param::param<float>("~pid/yaw/min_wind", params_yaw.min_wind, -10.0);
+    ros::param::param<float>("~pid/yaw/max_wind", params_yaw.max_wind, 10.0);
+
+    // Create PID for pose control
+    pose_pid_ = new PosePID(params_x, params_y, params_z, params_yaw);
+
+    // Check if enabling ROS interface
+    bool enable_pid_ros_interface;
+    ros::param::param<bool>("~pid/ros", enable_pid_ros_interface, false);
+    if (enable_pid_ros_interface) {
+        pose_pid_->enableRosInterface("ual/pid");
+    }
 }
 
 }}	// namespace grvc::ual
