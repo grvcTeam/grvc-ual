@@ -39,6 +39,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
 #include <geometry_msgs/TransformStamped.h>
+#include <tf2_ros/transform_listener.h>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <sensor_msgs/NavSatFix.h>
 
@@ -208,6 +209,8 @@ private:
     ros::Subscriber mavros_cur_vel_body_sub_;
     ros::Subscriber mavros_cur_state_sub_;
     ros::Subscriber mavros_cur_extended_state_sub_;
+    tf2_ros::Buffer tf_buffer_;
+    tf2_ros::TransformListener tf_listener_;
 
     int robot_id_;
     enum struct AutopilotType {PX4, APM, UNKNOWN};

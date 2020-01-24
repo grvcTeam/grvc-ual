@@ -23,9 +23,7 @@
 #include <chrono>
 #include <ual_backend_mavros/ual_backend_mavros.h>
 #include <Eigen/Eigen>
-#include <ros/ros.h>
 #include <ros/package.h>
-#include <tf2_ros/transform_listener.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <uav_abstraction_layer/geographic_to_cartesian.h>
@@ -44,7 +42,7 @@
 namespace grvc { namespace ual {
 
 BackendMavros::BackendMavros()
-    : Backend()
+    : Backend(), tf_listener_(tf_buffer_)
 {
     // Parse arguments
     ros::NodeHandle pnh("~");
@@ -448,8 +446,6 @@ void BackendMavros::land() {
 void BackendMavros::setVelocity(const Velocity& _vel) {
     control_mode_ = eControlMode::LOCAL_VEL;  // Velocity control!
 
-    tf2_ros::Buffer tfBuffer;
-    tf2_ros::TransformListener tfListener(tfBuffer);
     geometry_msgs::Vector3Stamped vel_in, vel_out;
     vel_in.header = _vel.header;
     vel_in.vector = _vel.twist.linear;
@@ -464,10 +460,10 @@ void BackendMavros::setVelocity(const Velocity& _vel) {
         geometry_msgs::TransformStamped transform;
         bool tf_exists = true;
         try {
-            transform = tfBuffer.lookupTransform(uav_home_frame_id_, vel_frame_id, ros::Time(0), ros::Duration(0.3));
+            transform = tf_buffer_.lookupTransform(uav_home_frame_id_, vel_frame_id, ros::Time(0), ros::Duration(0.3));
         }
         catch (tf2::TransformException &ex) {
-            ROS_WARN("%s",ex.what());
+            ROS_WARN("In setVelocity: %s. Setting velocity in ENU frame.",ex.what());
             tf_exists = false;
             ref_vel_ = _vel;
         }
@@ -494,8 +490,6 @@ void BackendMavros::setPose(const geometry_msgs::PoseStamped& _world) {
     control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
 
     geometry_msgs::PoseStamped homogen_world_pos;
-    tf2_ros::Buffer tfBuffer;
-    tf2_ros::TransformListener tfListener(tfBuffer);
     std::string waypoint_frame_id = tf2::getFrameId(_world);
 
     if ( waypoint_frame_id == "" || waypoint_frame_id == uav_home_frame_id_ ) {
@@ -508,8 +502,14 @@ void BackendMavros::setPose(const geometry_msgs::PoseStamped& _world) {
 
         if ( cached_transforms_.find(waypoint_frame_id) == cached_transforms_.end() ) {
             // waypoint_frame_id not found in cached_transforms_
-            transformToHomeFrame = tfBuffer.lookupTransform(uav_home_frame_id_, waypoint_frame_id, ros::Time(0), ros::Duration(1.0));
-            cached_transforms_[waypoint_frame_id] = transformToHomeFrame; // Save transform in cache
+            try {
+                transformToHomeFrame = tf_buffer_.lookupTransform(uav_home_frame_id_, waypoint_frame_id, ros::Time(0), ros::Duration(1.0));
+                cached_transforms_[waypoint_frame_id] = transformToHomeFrame; // Save transform in cache
+            }
+            catch (tf2::TransformException &ex) {
+                ROS_ERROR("In setPose: %s. Not sending pose to Autopilot.", ex.what());
+                return;
+            }
         } else {
             // found in cache
             transformToHomeFrame = cached_transforms_[waypoint_frame_id];
@@ -518,8 +518,6 @@ void BackendMavros::setPose(const geometry_msgs::PoseStamped& _world) {
         tf2::doTransform(_world, homogen_world_pos, transformToHomeFrame);
         
     }
-
-//    std::cout << "Going to waypoint: " << homogen_world_pos.pose.position << std::endl;
 
     // Do we still need local_start_pos_?
     homogen_world_pos.pose.position.x -= local_start_pos_[0];
@@ -587,8 +585,6 @@ PurePursuitOutput PurePursuit(geometry_msgs::Point _current, geometry_msgs::Poin
 void BackendMavros::goToWaypoint(const Waypoint& _world) {
 
     geometry_msgs::PoseStamped homogen_world_pos;
-    tf2_ros::Buffer tfBuffer;
-    tf2_ros::TransformListener tfListener(tfBuffer);
     std::string waypoint_frame_id = tf2::getFrameId(_world);
 
     if ( waypoint_frame_id == "" || waypoint_frame_id == uav_home_frame_id_ ) {
@@ -601,8 +597,14 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
 
         if ( cached_transforms_.find(waypoint_frame_id) == cached_transforms_.end() ) {
             // waypoint_frame_id not found in cached_transforms_
-            transformToHomeFrame = tfBuffer.lookupTransform(uav_home_frame_id_, waypoint_frame_id, ros::Time(0), ros::Duration(1.0));
-            cached_transforms_[waypoint_frame_id] = transformToHomeFrame; // Save transform in cache
+            try {
+                transformToHomeFrame = tf_buffer_.lookupTransform(uav_home_frame_id_, waypoint_frame_id, ros::Time(0), ros::Duration(1.0));
+                cached_transforms_[waypoint_frame_id] = transformToHomeFrame; // Save transform in cache
+            }
+            catch (tf2::TransformException &ex) {
+                ROS_ERROR("In goToWaypoint: %s. Not sending waypoint to Autopilot.", ex.what());
+                return;
+            }
         } else {
             // found in cache
             transformToHomeFrame = cached_transforms_[waypoint_frame_id];
@@ -773,10 +775,14 @@ Pose BackendMavros::pose() {
 
             if ( cached_transforms_.find(pose_frame_id_map) == cached_transforms_.end() ) {
                 // inv_pose_frame_id_ not found in cached_transforms_
-                tf2_ros::Buffer tfBuffer;
-                tf2_ros::TransformListener tfListener(tfBuffer);
-                transformToPoseFrame = tfBuffer.lookupTransform(pose_frame_id_,uav_home_frame_id_, ros::Time(0), ros::Duration(1.0));
-                cached_transforms_[pose_frame_id_map] = transformToPoseFrame; // Save transform in cache
+                try {
+                    transformToPoseFrame = tf_buffer_.lookupTransform(pose_frame_id_,uav_home_frame_id_, ros::Time(0), ros::Duration(1.0));
+                    cached_transforms_[pose_frame_id_map] = transformToPoseFrame; // Save transform in cache
+                }
+                catch (tf2::TransformException &ex) {
+                    ROS_WARN("In pose: %s. Returning non transformed pose.", ex.what());
+                    return out;
+                }
             } else {
                 // found in cache
                 transformToPoseFrame = cached_transforms_[pose_frame_id_map];
@@ -810,10 +816,14 @@ Pose BackendMavros::referencePose() {
 
         if ( cached_transforms_.find(pose_frame_id_map) == cached_transforms_.end() ) {
             // inv_pose_frame_id_ not found in cached_transforms_
-            tf2_ros::Buffer tfBuffer;
-            tf2_ros::TransformListener tfListener(tfBuffer);
-            transformToPoseFrame = tfBuffer.lookupTransform(pose_frame_id_,uav_home_frame_id_, ros::Time(0), ros::Duration(1.0));
-            cached_transforms_[pose_frame_id_map] = transformToPoseFrame; // Save transform in cache
+            try {
+                transformToPoseFrame = tf_buffer_.lookupTransform(pose_frame_id_,uav_home_frame_id_, ros::Time(0), ros::Duration(1.0));
+                cached_transforms_[pose_frame_id_map] = transformToPoseFrame; // Save transform in cache
+            }
+            catch (tf2::TransformException &ex) {
+                ROS_WARN("In referencePose: %s. Returning non transformed pose.", ex.what());
+                return out;
+            }
         } else {
             // found in cache
             transformToPoseFrame = cached_transforms_[pose_frame_id_map];
@@ -935,19 +945,20 @@ void BackendMavros::initHomeFrame() {
     static_transformStamped.transform.translation.x = home_pose[0];
     static_transformStamped.transform.translation.y = home_pose[1];
     static_transformStamped.transform.translation.z = home_pose[2];
+    static_transformStamped.transform.rotation.x = 0;
+    static_transformStamped.transform.rotation.y = 0;
+    static_transformStamped.transform.rotation.z = 0;
+    static_transformStamped.transform.rotation.w = 1;
 
-    if(parent_frame == "map" || parent_frame == "") {
-        static_transformStamped.transform.rotation.x = 0;
-        static_transformStamped.transform.rotation.y = 0;
-        static_transformStamped.transform.rotation.z = 0;
-        static_transformStamped.transform.rotation.w = 1;
-    }
-    else {
-        tf2_ros::Buffer tfBuffer;
-        tf2_ros::TransformListener tfListener(tfBuffer);
+    if(parent_frame != "map" && parent_frame != "") {
         geometry_msgs::TransformStamped transform_to_map;
-        transform_to_map = tfBuffer.lookupTransform(parent_frame, "map", ros::Time(0), ros::Duration(2.0));
-        static_transformStamped.transform.rotation = transform_to_map.transform.rotation;
+        try {
+            transform_to_map = tf_buffer_.lookupTransform(parent_frame, "map", ros::Time(0), ros::Duration(2.0));
+            static_transformStamped.transform.rotation = transform_to_map.transform.rotation;
+        }
+        catch (tf2::TransformException &ex) {
+            ROS_WARN("In initHomeFrame: %s. Publishing static TF in ENU.", ex.what());
+        }
     }
 
     static_tf_broadcaster_ = new tf2_ros::StaticTransformBroadcaster();
