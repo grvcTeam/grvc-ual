@@ -79,6 +79,8 @@ public:
     virtual Transform transform() const = 0;
     /// Current robot state
     inline State state() { return this->state_; }
+    /// Current reference pose
+    virtual Pose referencePose() = 0;
 
     /// Set pose
     /// \param _pose target pose

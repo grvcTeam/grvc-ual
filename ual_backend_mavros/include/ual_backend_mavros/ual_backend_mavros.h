@@ -129,6 +129,8 @@ public:
     virtual Odometry odometry() const override;
     /// Latest transform estimation of the robot
     virtual Transform transform() const override;
+    /// Current reference pose
+    virtual Pose referencePose() override;
 
     /// Set pose
     /// \param _pose target pose

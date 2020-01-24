@@ -790,6 +790,43 @@ Pose BackendMavros::pose() {
         return out;
 }
 
+Pose BackendMavros::referencePose() {
+    Pose out;
+
+    out.pose.position.x = ref_pose_.pose.position.x + local_start_pos_[0];
+    out.pose.position.y = ref_pose_.pose.position.y + local_start_pos_[1];
+    out.pose.position.z = ref_pose_.pose.position.z + local_start_pos_[2];
+    out.pose.orientation = ref_pose_.pose.orientation;
+
+    if (pose_frame_id_ == "") {
+        // Default: local pose
+        out.header.frame_id = uav_home_frame_id_;
+    }
+    else {
+        // Publish pose in different frame
+        Pose aux = out;
+        geometry_msgs::TransformStamped transformToPoseFrame;
+        std::string pose_frame_id_map = "inv_" + pose_frame_id_;
+
+        if ( cached_transforms_.find(pose_frame_id_map) == cached_transforms_.end() ) {
+            // inv_pose_frame_id_ not found in cached_transforms_
+            tf2_ros::Buffer tfBuffer;
+            tf2_ros::TransformListener tfListener(tfBuffer);
+            transformToPoseFrame = tfBuffer.lookupTransform(pose_frame_id_,uav_home_frame_id_, ros::Time(0), ros::Duration(1.0));
+            cached_transforms_[pose_frame_id_map] = transformToPoseFrame; // Save transform in cache
+        } else {
+            // found in cache
+            transformToPoseFrame = cached_transforms_[pose_frame_id_map];
+        }
+
+        tf2::doTransform(aux, out, transformToPoseFrame);
+        out.header.frame_id = pose_frame_id_;
+    }
+
+    out.header.stamp = ref_pose_.header.stamp;
+    return out;
+}
+
 Velocity BackendMavros::velocity() const {
     return cur_vel_;
 }
