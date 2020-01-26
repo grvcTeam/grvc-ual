@@ -1,34 +1,35 @@
 # PID params for Ardupilot setPose pose control
 pid:
+  ros: true
   x:
-    kp: 1.0
-    ki: 0.0
-    kd: 0.0
-    min_sat: -2.0
-    max_sat: 2.0
-    min_wind: -10.0
-    max_wind: 10.0
+    kp: 0.7
+    ki: 0.05
+    kd: 0.1
+    min_sat: -2
+    max_sat: 2
+    min_wind: -5
+    max_wind: 5
   y:
-    kp: 1.0
-    ki: 0.0
-    kd: 0.0
-    min_sat: -2.0
-    max_sat: 2.0
-    min_wind: -10.0
-    max_wind: 10.0
+    kp: 0.7
+    ki: 0.05
+    kd: 0.1
+    min_sat: -2
+    max_sat: 2
+    min_wind: -5
+    max_wind: 5
   z:
-    kp: 1.0
-    ki: 0.0
-    kd: 0.0
-    min_sat: -2.0
-    max_sat: 2.0
-    min_wind: -10.0
-    max_wind: 10.0
+    kp: 0.7
+    ki: 0.05
+    kd: 0.05
+    min_sat: -1
+    max_sat: 1
+    min_wind: -3
+    max_wind: 3
   yaw:
-    kp: 1.0
-    ki: 0.0
-    kd: 0.0
-    min_sat: -2.0
-    max_sat: 2.0
-    min_wind: -10.0
-    max_wind: 10.0
+    ki: 0.05
+    kp: 1
+    min_sat: -2
+    kd: 0
+    max_sat: 2
+    min_wind: -1.57
+    max_wind: 1.57
