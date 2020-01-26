@@ -25,9 +25,12 @@
 #include <ros/ros.h>
 #include <uav_abstraction_layer/Float32Param.h>
 #include <std_msgs/Float32.h>
+#include <std_srvs/Trigger.h>
 #include <thread>
 #include <algorithm>
 #include <chrono>
+#include <yaml-cpp/yaml.h>
+#include <fstream>
 
 namespace grvc { namespace ual {
 
@@ -68,7 +71,7 @@ public:
     float update(float _val, float _dt) {
         float dt = _dt; // 666 input arg?
     
-        float err = mReference - _val;
+        float err = reference_ - _val;
         // Normalize angular error
         if (is_angular_) {
             if (err > M_PI) {err -= 2*M_PI;}
@@ -81,6 +84,7 @@ public:
         // Compute PID
         last_result_ = kp_*err + ki_*accum_err_ + kd_*(err- last_error_)/dt;
         last_error_ = err;
+        last_value_ = _val;
     
         // Saturate signal
         last_result_ = std::min(std::max(last_result_, min_sat_), max_sat_);
@@ -90,23 +94,31 @@ public:
     bool enableRosInterface(std::string _tag) {
         if (ros::isInitialized()) {
             ros::NodeHandle np;
+            tag_ = _tag;
             
             service_kp_   = np.advertiseService(_tag +"/kp",         &PID::serviceKp,      this);
             service_ki_   = np.advertiseService(_tag +"/ki",         &PID::serviceKi,      this);
             service_kd_   = np.advertiseService(_tag +"/kd",         &PID::serviceKd,      this);
             service_sat_  = np.advertiseService(_tag +"/saturation", &PID::serviceKsat,    this);
             service_wind_ = np.advertiseService(_tag +"/windup",     &PID::serviceKwindup, this);
+            service_save_params_ = np.advertiseService(_tag +"/save_params", &PID::saveParams, this);
             
             pub_kp_ = np.advertise<std_msgs::Float32>(_tag +"/kp", 1);
             pub_ki_ = np.advertise<std_msgs::Float32>(_tag +"/ki", 1);
             pub_kd_ = np.advertise<std_msgs::Float32>(_tag +"/kd", 1);
             pub_sat_ = np.advertise<std_msgs::Float32>(_tag +"/saturation", 1);
             pub_wind_ = np.advertise<std_msgs::Float32>(_tag +"/windup", 1);
+
+            pub_reference_ = np.advertise<std_msgs::Float32>(_tag +"/reference", 1);
+            pub_last_value_ = np.advertise<std_msgs::Float32>(_tag +"/system_output", 1);
+            pub_last_result_ = np.advertise<std_msgs::Float32>(_tag +"/control_output", 1);
+            pub_last_error_ = np.advertise<std_msgs::Float32>(_tag +"/error", 1);
+            pub_accum_err_ = np.advertise<std_msgs::Float32>(_tag +"/accum_err", 1);
             
-            mParamPubThread = std::thread([&](){
+            param_pub_thread_ = std::thread([&](){
                 while(ros::ok()){
                     std_msgs::Float32 param;
-        
+
                     param.data = kp_; pub_kp_.publish(param);
                     param.data = ki_; pub_ki_.publish(param);
                     param.data = kd_; pub_kd_.publish(param);
@@ -115,14 +127,28 @@ public:
                     std::this_thread::sleep_for(std::chrono::seconds(3));
                 }
             });
+
+            status_pub_thread_ = std::thread([&](){
+                while(ros::ok()){
+                    std_msgs::Float32 value;
+
+                    value.data = reference_; pub_reference_.publish(value);
+                    value.data = last_value_; pub_last_value_.publish(value);
+                    value.data = last_result_; pub_last_result_.publish(value);
+                    value.data = last_error_; pub_last_error_.publish(value);
+                    value.data = accum_err_; pub_accum_err_.publish(value);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                }
+            });
+
             return true;
         } else {
             return false;
         }
     }
  
-    float reference() { return mReference; }
-    void reference(float _ref) { mReference = _ref;}
+    float reference() { return reference_; }
+    void reference(float _ref) { reference_ = _ref;}
 
     void reset() { accum_err_ = 0; last_error_ = 0; last_result_ = 0;}
  
@@ -139,24 +165,54 @@ public:
  
     void setWindupTerms(float _min, float _max) { min_windup_ = _min; max_windup_ = _max; reset();}
     void getWindupTerms(float _min, float _max) { _min = min_windup_; _max = max_windup_; }
+
+    YAML::Node getParamsInYaml() {
+        YAML::Node yaml_node;
+        yaml_node["kp"] = kp_;
+        yaml_node["ki"] = ki_;
+        yaml_node["kd"] = kd_;
+        yaml_node["min_sat"] = min_sat_;
+        yaml_node["max_sat"] = max_sat_;
+        yaml_node["min_wind"] = min_windup_;
+        yaml_node["max_wind"] = max_windup_;
+
+        return yaml_node;
+    }
  
 private:
-    bool serviceKp       (uav_abstraction_layer::Float32Param::Request &_req, uav_abstraction_layer::Float32Param::Response &_res)  {kp_ = _req.param;};
-    bool serviceKi       (uav_abstraction_layer::Float32Param::Request &_req, uav_abstraction_layer::Float32Param::Response &_res)  {ki_ = _req.param;};
-    bool serviceKd       (uav_abstraction_layer::Float32Param::Request &_req, uav_abstraction_layer::Float32Param::Response &_res)  {kd_ = _req.param;};
-    bool serviceKsat     (uav_abstraction_layer::Float32Param::Request &_req, uav_abstraction_layer::Float32Param::Response &_res)  {min_sat_ = -_req.param; max_sat_ = _req.param;};
-    bool serviceKwindup  (uav_abstraction_layer::Float32Param::Request &_req, uav_abstraction_layer::Float32Param::Response &_res)  {min_windup_ = -_req.param; max_windup_ = _req.param;};
+    bool serviceKp      (uav_abstraction_layer::Float32Param::Request &_req, uav_abstraction_layer::Float32Param::Response &_res)  {kp_ = _req.param; return true;};
+    bool serviceKi      (uav_abstraction_layer::Float32Param::Request &_req, uav_abstraction_layer::Float32Param::Response &_res)  {ki_ = _req.param; return true;};
+    bool serviceKd      (uav_abstraction_layer::Float32Param::Request &_req, uav_abstraction_layer::Float32Param::Response &_res)  {kd_ = _req.param; return true;};
+    bool serviceKsat    (uav_abstraction_layer::Float32Param::Request &_req, uav_abstraction_layer::Float32Param::Response &_res)  {min_sat_ = -_req.param; max_sat_ = _req.param; return true;};
+    bool serviceKwindup (uav_abstraction_layer::Float32Param::Request &_req, uav_abstraction_layer::Float32Param::Response &_res)  {min_windup_ = -_req.param; max_windup_ = _req.param; return true;};
+
+    bool saveParams (std_srvs::Trigger::Request &_req, std_srvs::Trigger::Response &_res) {
+        YAML::Node parent_node;
+        parent_node[tag_] = getParamsInYaml();
+
+        std::string file_name = tag_ + ".yaml";
+        std::replace( file_name.begin(), file_name.end(), '/', '_' );
+        ROS_INFO("Saving params in file: %s", file_name.c_str());
+        std::ofstream fout(file_name.c_str());
+        fout << parent_node;
+        fout << std::endl;
+        fout.close();
+        _res.success = true;
+        return true;
+    }
 
 private:
     bool is_angular_;
-    float mReference;
+    float reference_;
     float kp_, ki_, kd_;
     float min_sat_, max_sat_;
     float min_windup_, max_windup_;
-    float last_result_, last_error_, accum_err_;
-    ros::ServiceServer service_kp_, service_ki_, service_kd_, service_sat_, service_wind_;
+    float last_value_, last_result_, last_error_, accum_err_;
+    ros::ServiceServer service_kp_, service_ki_, service_kd_, service_sat_, service_wind_, service_save_params_;
     ros::Publisher pub_kp_, pub_ki_, pub_kd_, pub_sat_, pub_wind_;
-    std::thread mParamPubThread;
+    ros::Publisher pub_reference_, pub_last_value_, pub_last_result_, pub_last_error_, pub_accum_err_;
+    std::thread param_pub_thread_, status_pub_thread_;
+    std::string tag_;
 };
 
 }} // namespace grvc::ual

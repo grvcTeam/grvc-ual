@@ -34,10 +34,19 @@ public:
         pid_x_(_x_params), pid_y_(_y_params), pid_z_(_z_params), pid_yaw_(_yaw_params) {}
 
     bool enableRosInterface(std::string _tag) {
+        tag_ = _tag;
         pid_x_.enableRosInterface(_tag + "/x");
         pid_y_.enableRosInterface(_tag + "/y");
         pid_z_.enableRosInterface(_tag + "/z");
         pid_yaw_.enableRosInterface(_tag + "/yaw");
+        if (ros::isInitialized()) {
+            ros::NodeHandle np;
+            service_save_params_ = np.advertiseService(_tag +"/save_params", &PosePID::saveParams, this);
+        }
+        else {
+            return false;
+        }
+        return true;
     }
 
     void reference(geometry_msgs::PoseStamped _ref_pose) {
@@ -77,11 +86,32 @@ private:
         return atan2( 2.0 * (q.w * q.z + q.x * q.y), 1.0 - 2.0 * (q.y * q.y + q.z * q.z) );
     }
 
+    bool saveParams (std_srvs::Trigger::Request &_req, std_srvs::Trigger::Response &_res) {
+        YAML::Node parent_node, child_node;
+        child_node["x"] = pid_x_.getParamsInYaml();
+        child_node["y"] = pid_y_.getParamsInYaml();
+        child_node["z"] = pid_z_.getParamsInYaml();
+        child_node["yaw"] = pid_yaw_.getParamsInYaml();
+        parent_node[tag_] = child_node;
+
+        std::string file_name = tag_ + ".yaml";
+        std::replace( file_name.begin(), file_name.end(), '/', '_' );
+        ROS_INFO("Saving params in file: %s", file_name.c_str());
+        std::ofstream fout(file_name.c_str());
+        fout << parent_node;
+        fout << std::endl;
+        fout.close();
+        _res.success = true;
+        return true;
+    }
+
     PID pid_x_;
     PID pid_y_;
     PID pid_z_;
     PID pid_yaw_;
 
+    ros::ServiceServer service_save_params_;
+    std::string tag_;
     geometry_msgs::PoseStamped last_pose_;
 };
 
