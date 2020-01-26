@@ -545,6 +545,9 @@ void BackendMavros::setPose(const geometry_msgs::PoseStamped& _world) {
             break;
         case AutopilotType::APM:
             // Control in velocity with PID
+            if (!is_pose_pid_enabled_) {
+                pose_pid_->reset();
+            }
             pose_pid_->reference(ref_pose_);
             is_pose_pid_enabled_ = true;
             last_command_time_ = ros::Time::now();
@@ -1112,6 +1115,7 @@ void BackendMavros::initPosePID() {
     ros::param::param<float>("~pid/yaw/max_sat", params_yaw.max_sat, 2.0);
     ros::param::param<float>("~pid/yaw/min_wind", params_yaw.min_wind, -10.0);
     ros::param::param<float>("~pid/yaw/max_wind", params_yaw.max_wind, 10.0);
+    params_yaw.is_angular = true;
 
     // Create PID for pose control
     pose_pid_ = new PosePID(params_x, params_y, params_z, params_yaw);
