@@ -55,6 +55,9 @@ public:
     /// Latest transform estimation of the robot
     Transform transform() const { return backend_->transform(); }
 
+    /// Current reference pose
+    Pose    referencePose() const { return backend_->referencePose(); }
+
     /// Current robot state
     uav_abstraction_layer::State state() {
         uav_abstraction_layer::State output;

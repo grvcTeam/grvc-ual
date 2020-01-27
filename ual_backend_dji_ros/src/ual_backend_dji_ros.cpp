@@ -941,6 +941,10 @@ Pose BackendDjiRos::pose() {
         return out;
 }
 
+Pose BackendDjiRos::referencePose() {
+    return reference_pose_;
+}
+
 Velocity BackendDjiRos::velocity() const {
     Velocity out;
 

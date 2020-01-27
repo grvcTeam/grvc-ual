@@ -90,6 +90,7 @@ UAL::UAL(Backend* _backend) {
             std::string velocity_topic = ual_ns + "/velocity";
             std::string odometry_topic = ual_ns + "/odom";
             std::string state_topic = ual_ns + "/state";
+            std::string ref_pose_topic = ual_ns + "/ref_pose";
 
             ros::NodeHandle nh;
             ros::ServiceServer take_off_service =
@@ -144,6 +145,7 @@ UAL::UAL(Backend* _backend) {
             ros::Publisher velocity_pub = nh.advertise<geometry_msgs::TwistStamped>(velocity_topic, 10);
             ros::Publisher odometry_pub = nh.advertise<nav_msgs::Odometry>(odometry_topic, 10);
             ros::Publisher state_pub = nh.advertise<uav_abstraction_layer::State>(state_topic, 10);
+            ros::Publisher ref_pose_pub = nh.advertise<geometry_msgs::PoseStamped>(ref_pose_topic, 10);
             static tf2_ros::TransformBroadcaster tf_pub;
 
             // Publish @ 30Hz default
@@ -156,6 +158,7 @@ UAL::UAL(Backend* _backend) {
                 odometry_pub.publish(this->odometry());
                 state_pub.publish(this->state());
                 tf_pub.sendTransform(this->transform());
+                ref_pose_pub.publish(this->referencePose()); //!TODO: publish only during position control?
                 loop_rate.sleep();
             }
         });
@@ -363,8 +366,8 @@ bool UAL::recoverFromManual() {
 
 bool UAL::setHome(bool set_z) {
     // Check required state
-    if (backend_->state() != uav_abstraction_layer::State::LANDED_DISARMED) {
-        ROS_ERROR("Unable to setHome: not LANDED_DISARMED!");
+    if ((backend_->state() != uav_abstraction_layer::State::LANDED_DISARMED) && (backend_->state() != uav_abstraction_layer::State::LANDED_ARMED)) {
+        ROS_ERROR("Unable to setHome: not LANDED_*!");
         return false;
     }
     backend_->setHome(set_z);

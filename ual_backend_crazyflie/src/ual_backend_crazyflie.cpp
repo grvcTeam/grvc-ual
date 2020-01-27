@@ -294,6 +294,10 @@ Pose BackendCrazyflie::pose() {
     return out;
 }
 
+Pose BackendCrazyflie::referencePose() {
+    return ref_pose_;
+}
+
 Velocity BackendCrazyflie::velocity() const {
     // TODO: WARNING
     return cur_vel_;

@@ -23,9 +23,7 @@
 #include <chrono>
 #include <ual_backend_mavros/ual_backend_mavros.h>
 #include <Eigen/Eigen>
-#include <ros/ros.h>
 #include <ros/package.h>
-#include <tf2_ros/transform_listener.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <uav_abstraction_layer/geographic_to_cartesian.h>
@@ -44,7 +42,7 @@
 namespace grvc { namespace ual {
 
 BackendMavros::BackendMavros()
-    : Backend()
+    : Backend(), tf_listener_(tf_buffer_)
 {
     // Parse arguments
     ros::NodeHandle pnh("~");
@@ -98,6 +96,9 @@ BackendMavros::BackendMavros()
         [this](const geometry_msgs::PoseStamped::ConstPtr& _msg) {
             this->cur_pose_ = *_msg;
             this->mavros_has_pose_ = true;
+            if (is_pose_pid_enabled_) {
+                ref_vel_ = pose_pid_->update(cur_pose_);
+            }
     });
     mavros_cur_vel_sub_ = nh.subscribe<geometry_msgs::TwistStamped>(vel_topic_local.c_str(), 1, \
         [this](const geometry_msgs::TwistStamped::ConstPtr& _msg) {
@@ -142,6 +143,11 @@ BackendMavros::BackendMavros()
     // TODO: Check this and solve frames issue
     initHomeFrame();
 
+    // Initialize PID for pose control in Ardupilot
+    if (autopilot_type_ == AutopilotType::APM) {
+        initPosePID();
+    }
+
     // Thread publishing target pose at 10Hz for offboard mode
     offboard_thread_ = std::thread(&BackendMavros::offboardThreadLoop, this);
 
@@ -171,7 +177,9 @@ void BackendMavros::offboardThreadLoop(){
         switch(control_mode_){
         case eControlMode::LOCAL_VEL:
             mavros_ref_vel_pub_.publish(ref_vel_);
-            ref_pose_ = cur_pose_;
+            if (!is_pose_pid_enabled_) {
+                ref_pose_ = cur_pose_;
+            }
             if ( ros::Time::now().toSec() - last_command_time_.toSec() >=0.5 ) {
                 control_mode_ = eControlMode::LOCAL_POSE;
             }
@@ -301,6 +309,7 @@ void BackendMavros::setHome(bool set_z) {
 }
 
 void BackendMavros::takeOff(double _height) {
+    is_pose_pid_enabled_ = false;
     if (_height < 0.0) {
         ROS_ERROR("Takeoff height must be positive!");
         return;
@@ -389,6 +398,7 @@ bool BackendMavros::takeOffAPM(double _height) {
 
     ref_pose_ = cur_pose_;
     ref_pose_.pose.position.z += _height;
+    double landed_altitude = cur_pose_.pose.position.z;
 
     setFlightMode("GUIDED");
     ROS_INFO("Taking off...");
@@ -396,23 +406,23 @@ bool BackendMavros::takeOffAPM(double _height) {
         ROS_ERROR("Failed Takeoff: service call failed");
         return false;
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
     if (!srv_takeoff.response.success) {
         ROS_ERROR("Failed Takeoff: error code %d",srv_takeoff.response.result);
         return false;
     }
 
-    // Now wait (unabortable!)
-    while (!referencePoseReached() && (this->mavros_state_.mode == "GUIDED" || this->mavros_state_.mode == "GUIDED_NOGPS") && ros::ok()) {
+    // Now wait until it reaches 95% of commanded altitude (unabortable!)
+    while ( ((cur_pose_.pose.position.z - landed_altitude) < 0.95 * (ref_pose_.pose.position.z - landed_altitude)) && (this->mavros_state_.mode == "GUIDED" || this->mavros_state_.mode == "GUIDED_NOGPS") && ros::ok() ) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-    ref_pose_ = cur_pose_;
     control_mode_ = eControlMode::LOCAL_POSE;
     return true;
 }
 
 void BackendMavros::land() {
     calling_land_ = true;
+    is_pose_pid_enabled_ = false;
 
     control_mode_ = eControlMode::LOCAL_POSE;  // Back to control in position (just in case)
     // Set land mode
@@ -447,9 +457,8 @@ void BackendMavros::land() {
 
 void BackendMavros::setVelocity(const Velocity& _vel) {
     control_mode_ = eControlMode::LOCAL_VEL;  // Velocity control!
+    is_pose_pid_enabled_ = false;
 
-    tf2_ros::Buffer tfBuffer;
-    tf2_ros::TransformListener tfListener(tfBuffer);
     geometry_msgs::Vector3Stamped vel_in, vel_out;
     vel_in.header = _vel.header;
     vel_in.vector = _vel.twist.linear;
@@ -464,10 +473,10 @@ void BackendMavros::setVelocity(const Velocity& _vel) {
         geometry_msgs::TransformStamped transform;
         bool tf_exists = true;
         try {
-            transform = tfBuffer.lookupTransform(uav_home_frame_id_, vel_frame_id, ros::Time(0), ros::Duration(0.3));
+            transform = tf_buffer_.lookupTransform(uav_home_frame_id_, vel_frame_id, ros::Time(0), ros::Duration(0.3));
         }
         catch (tf2::TransformException &ex) {
-            ROS_WARN("%s",ex.what());
+            ROS_WARN("In setVelocity: %s. Setting velocity in ENU frame.",ex.what());
             tf_exists = false;
             ref_vel_ = _vel;
         }
@@ -491,11 +500,7 @@ bool BackendMavros::isReady() const {
 }
 
 void BackendMavros::setPose(const geometry_msgs::PoseStamped& _world) {
-    control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
-
     geometry_msgs::PoseStamped homogen_world_pos;
-    tf2_ros::Buffer tfBuffer;
-    tf2_ros::TransformListener tfListener(tfBuffer);
     std::string waypoint_frame_id = tf2::getFrameId(_world);
 
     if ( waypoint_frame_id == "" || waypoint_frame_id == uav_home_frame_id_ ) {
@@ -508,8 +513,14 @@ void BackendMavros::setPose(const geometry_msgs::PoseStamped& _world) {
 
         if ( cached_transforms_.find(waypoint_frame_id) == cached_transforms_.end() ) {
             // waypoint_frame_id not found in cached_transforms_
-            transformToHomeFrame = tfBuffer.lookupTransform(uav_home_frame_id_, waypoint_frame_id, ros::Time(0), ros::Duration(1.0));
-            cached_transforms_[waypoint_frame_id] = transformToHomeFrame; // Save transform in cache
+            try {
+                transformToHomeFrame = tf_buffer_.lookupTransform(uav_home_frame_id_, waypoint_frame_id, ros::Time(0), ros::Duration(1.0));
+                cached_transforms_[waypoint_frame_id] = transformToHomeFrame; // Save transform in cache
+            }
+            catch (tf2::TransformException &ex) {
+                ROS_ERROR("In setPose: %s. Not sending pose to Autopilot.", ex.what());
+                return;
+            }
         } else {
             // found in cache
             transformToHomeFrame = cached_transforms_[waypoint_frame_id];
@@ -519,14 +530,33 @@ void BackendMavros::setPose(const geometry_msgs::PoseStamped& _world) {
         
     }
 
-//    std::cout << "Going to waypoint: " << homogen_world_pos.pose.position << std::endl;
-
     // Do we still need local_start_pos_?
     homogen_world_pos.pose.position.x -= local_start_pos_[0];
     homogen_world_pos.pose.position.y -= local_start_pos_[1];
     homogen_world_pos.pose.position.z -= local_start_pos_[2];
 
     ref_pose_.pose = homogen_world_pos.pose;
+
+    switch (autopilot_type_) {
+        case AutopilotType::PX4:
+            // Control in position
+            control_mode_ = eControlMode::LOCAL_POSE;
+            is_pose_pid_enabled_ = false;
+            break;
+        case AutopilotType::APM:
+            // Control in velocity with PID
+            if (!is_pose_pid_enabled_) {
+                pose_pid_->reset();
+            }
+            pose_pid_->reference(ref_pose_);
+            is_pose_pid_enabled_ = true;
+            last_command_time_ = ros::Time::now();
+            control_mode_ = eControlMode::LOCAL_VEL;
+            break;
+        default:
+            ROS_ERROR("BackendMavros [%d]: Wrong autopilot type", robot_id_);
+            return;
+    }
 }
 
 // TODO: Move from here?
@@ -585,11 +615,9 @@ PurePursuitOutput PurePursuit(geometry_msgs::Point _current, geometry_msgs::Poin
 }
 
 void BackendMavros::goToWaypoint(const Waypoint& _world) {
-    control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
 
+    is_pose_pid_enabled_ = false;
     geometry_msgs::PoseStamped homogen_world_pos;
-    tf2_ros::Buffer tfBuffer;
-    tf2_ros::TransformListener tfListener(tfBuffer);
     std::string waypoint_frame_id = tf2::getFrameId(_world);
 
     if ( waypoint_frame_id == "" || waypoint_frame_id == uav_home_frame_id_ ) {
@@ -602,8 +630,14 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
 
         if ( cached_transforms_.find(waypoint_frame_id) == cached_transforms_.end() ) {
             // waypoint_frame_id not found in cached_transforms_
-            transformToHomeFrame = tfBuffer.lookupTransform(uav_home_frame_id_, waypoint_frame_id, ros::Time(0), ros::Duration(1.0));
-            cached_transforms_[waypoint_frame_id] = transformToHomeFrame; // Save transform in cache
+            try {
+                transformToHomeFrame = tf_buffer_.lookupTransform(uav_home_frame_id_, waypoint_frame_id, ros::Time(0), ros::Duration(1.0));
+                cached_transforms_[waypoint_frame_id] = transformToHomeFrame; // Save transform in cache
+            }
+            catch (tf2::TransformException &ex) {
+                ROS_ERROR("In goToWaypoint: %s. Not sending waypoint to Autopilot.", ex.what());
+                return;
+            }
         } else {
             // found in cache
             transformToHomeFrame = cached_transforms_[waypoint_frame_id];
@@ -613,22 +647,35 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
         
     }
 
-//    std::cout << "Going to waypoint: " << homogen_world_pos.pose.position << std::endl;
-
     // Do we still need local_start_pos_?
     homogen_world_pos.pose.position.x -= local_start_pos_[0];
     homogen_world_pos.pose.position.y -= local_start_pos_[1];
     homogen_world_pos.pose.position.z -= local_start_pos_[2];
 
+    switch (autopilot_type_) {
+        case AutopilotType::PX4:
+            goToWaypointPX4(homogen_world_pos);
+            break;
+        case AutopilotType::APM:
+            goToWaypointAPM(homogen_world_pos);
+            break;
+        default:
+            ROS_ERROR("BackendMavros [%d]: Wrong autopilot type", robot_id_);
+            return;
+    }
+}
+
+void BackendMavros::goToWaypointPX4(const Waypoint& _wp) {
+
     // Smooth pose reference passing!
-    geometry_msgs::Point final_position = homogen_world_pos.pose.position;
+    geometry_msgs::Point final_position = _wp.pose.position;
     geometry_msgs::Point initial_position = cur_pose_.pose.position;
     double ab_x = final_position.x - initial_position.x;
     double ab_y = final_position.y - initial_position.y;
     double ab_z = final_position.z - initial_position.z;
 
-    Eigen::Quaterniond final_orientation = Eigen::Quaterniond(homogen_world_pos.pose.orientation.w, 
-        homogen_world_pos.pose.orientation.x, homogen_world_pos.pose.orientation.y, homogen_world_pos.pose.orientation.z);
+    Eigen::Quaterniond final_orientation = Eigen::Quaterniond(_wp.pose.orientation.w, 
+        _wp.pose.orientation.x, _wp.pose.orientation.y, _wp.pose.orientation.z);
     Eigen::Quaterniond initial_orientation = Eigen::Quaterniond(cur_pose_.pose.orientation.w, 
         cur_pose_.pose.orientation.x, cur_pose_.pose.orientation.y, cur_pose_.pose.orientation.z);
 
@@ -645,6 +692,7 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
         float z_distance = fabs(ab_z);
         bool z_vel_is_limit = (mpc_z_vel_max*xy_distance < mpc_xy_vel_max*z_distance);
 
+        control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
         ros::Rate rate(10);  // [Hz]
         float next_to_final_distance = linear_distance;
         float lookahead = 0.05;
@@ -680,7 +728,7 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
 
     // Finally set pose (if not aborted!)
     if (!abort_) {
-        ref_pose_.pose = homogen_world_pos.pose;
+        ref_pose_.pose = _wp.pose;
     }
 
     position_error_.reset();
@@ -693,6 +741,33 @@ void BackendMavros::goToWaypoint(const Waypoint& _world) {
     // Freeze in case it's been aborted
     if (abort_ && freeze_) {
         ref_pose_ = cur_pose_;
+    }
+}
+
+void BackendMavros::goToWaypointAPM(const Waypoint& _wp) {
+
+    ref_pose_ = _wp;
+    ref_vel_.twist.linear.x = 0;
+    ref_vel_.twist.linear.y = 0;
+    ref_vel_.twist.linear.z = 0;
+    ref_vel_.twist.angular.z = 0;
+    control_mode_ = eControlMode::NONE;
+
+    ref_pose_.header.stamp = ros::Time::now();
+    mavros_ref_pose_pub_.publish(ref_pose_);
+
+    // Reset error buffers    
+    position_error_.reset();
+    orientation_error_.reset();
+
+    // Wait until we arrive: abortable
+    while(!referencePoseReached() && !abort_ && ros::ok()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    // Freeze in case it's been aborted
+    if (abort_ && freeze_) {
+        ref_pose_ = cur_pose_;
+        control_mode_ = eControlMode::LOCAL_POSE;    // Control in position
     }
 }
 
@@ -737,10 +812,14 @@ Pose BackendMavros::pose() {
 
             if ( cached_transforms_.find(pose_frame_id_map) == cached_transforms_.end() ) {
                 // inv_pose_frame_id_ not found in cached_transforms_
-                tf2_ros::Buffer tfBuffer;
-                tf2_ros::TransformListener tfListener(tfBuffer);
-                transformToPoseFrame = tfBuffer.lookupTransform(pose_frame_id_,uav_home_frame_id_, ros::Time(0), ros::Duration(1.0));
-                cached_transforms_[pose_frame_id_map] = transformToPoseFrame; // Save transform in cache
+                try {
+                    transformToPoseFrame = tf_buffer_.lookupTransform(pose_frame_id_,uav_home_frame_id_, ros::Time(0), ros::Duration(1.0));
+                    cached_transforms_[pose_frame_id_map] = transformToPoseFrame; // Save transform in cache
+                }
+                catch (tf2::TransformException &ex) {
+                    ROS_WARN("In pose: %s. Returning non transformed pose.", ex.what());
+                    return out;
+                }
             } else {
                 // found in cache
                 transformToPoseFrame = cached_transforms_[pose_frame_id_map];
@@ -752,6 +831,47 @@ Pose BackendMavros::pose() {
 
         out.header.stamp = cur_pose_.header.stamp;
         return out;
+}
+
+Pose BackendMavros::referencePose() {
+    Pose out;
+
+    out.pose.position.x = ref_pose_.pose.position.x + local_start_pos_[0];
+    out.pose.position.y = ref_pose_.pose.position.y + local_start_pos_[1];
+    out.pose.position.z = ref_pose_.pose.position.z + local_start_pos_[2];
+    out.pose.orientation = ref_pose_.pose.orientation;
+
+    if (pose_frame_id_ == "") {
+        // Default: local pose
+        out.header.frame_id = uav_home_frame_id_;
+    }
+    else {
+        // Publish pose in different frame
+        Pose aux = out;
+        geometry_msgs::TransformStamped transformToPoseFrame;
+        std::string pose_frame_id_map = "inv_" + pose_frame_id_;
+
+        if ( cached_transforms_.find(pose_frame_id_map) == cached_transforms_.end() ) {
+            // inv_pose_frame_id_ not found in cached_transforms_
+            try {
+                transformToPoseFrame = tf_buffer_.lookupTransform(pose_frame_id_,uav_home_frame_id_, ros::Time(0), ros::Duration(1.0));
+                cached_transforms_[pose_frame_id_map] = transformToPoseFrame; // Save transform in cache
+            }
+            catch (tf2::TransformException &ex) {
+                ROS_WARN("In referencePose: %s. Returning non transformed pose.", ex.what());
+                return out;
+            }
+        } else {
+            // found in cache
+            transformToPoseFrame = cached_transforms_[pose_frame_id_map];
+        }
+
+        tf2::doTransform(aux, out, transformToPoseFrame);
+        out.header.frame_id = pose_frame_id_;
+    }
+
+    out.header.stamp = ref_pose_.header.stamp;
+    return out;
 }
 
 Velocity BackendMavros::velocity() const {
@@ -862,19 +982,20 @@ void BackendMavros::initHomeFrame() {
     static_transformStamped.transform.translation.x = home_pose[0];
     static_transformStamped.transform.translation.y = home_pose[1];
     static_transformStamped.transform.translation.z = home_pose[2];
+    static_transformStamped.transform.rotation.x = 0;
+    static_transformStamped.transform.rotation.y = 0;
+    static_transformStamped.transform.rotation.z = 0;
+    static_transformStamped.transform.rotation.w = 1;
 
-    if(parent_frame == "map" || parent_frame == "") {
-        static_transformStamped.transform.rotation.x = 0;
-        static_transformStamped.transform.rotation.y = 0;
-        static_transformStamped.transform.rotation.z = 0;
-        static_transformStamped.transform.rotation.w = 1;
-    }
-    else {
-        tf2_ros::Buffer tfBuffer;
-        tf2_ros::TransformListener tfListener(tfBuffer);
+    if(parent_frame != "map" && parent_frame != "") {
         geometry_msgs::TransformStamped transform_to_map;
-        transform_to_map = tfBuffer.lookupTransform(parent_frame, "map", ros::Time(0), ros::Duration(2.0));
-        static_transformStamped.transform.rotation = transform_to_map.transform.rotation;
+        try {
+            transform_to_map = tf_buffer_.lookupTransform(parent_frame, "map", ros::Time(0), ros::Duration(2.0));
+            static_transformStamped.transform.rotation = transform_to_map.transform.rotation;
+        }
+        catch (tf2::TransformException &ex) {
+            ROS_WARN("In initHomeFrame: %s. Publishing static TF in ENU.", ex.what());
+        }
     }
 
     static_tf_broadcaster_ = new tf2_ros::StaticTransformBroadcaster();
@@ -957,6 +1078,54 @@ void BackendMavros::getAutopilotInformation() {
     ROS_INFO("BackendMavros [%d]: Connected to %s version %s. Type: %s.", robot_id_,
     mavros::utils::to_string((mavlink::common::MAV_AUTOPILOT) vehicle_info_srv.response.vehicles[0].autopilot).c_str(),
     autopilot_version.c_str(), mavros::utils::to_string((mavlink::common::MAV_TYPE) vehicle_info_srv.response.vehicles[0].type).c_str());
+}
+
+void BackendMavros::initPosePID() {
+    PIDParams params_x, params_y, params_z, params_yaw;
+
+    // Get PID X params
+    ros::param::param<float>("~pid/x/kp", params_x.kp, 1.0);
+    ros::param::param<float>("~pid/x/ki", params_x.ki, 0.0);
+    ros::param::param<float>("~pid/x/kd", params_x.kd, 0.0);
+    ros::param::param<float>("~pid/x/min_sat", params_x.min_sat, -2.0);
+    ros::param::param<float>("~pid/x/max_sat", params_x.max_sat, 2.0);
+    ros::param::param<float>("~pid/x/min_wind", params_x.min_wind, -10.0);
+    ros::param::param<float>("~pid/x/max_wind", params_x.max_wind, 10.0);
+    // Get PID Y params
+    ros::param::param<float>("~pid/y/kp", params_y.kp, 1.0);
+    ros::param::param<float>("~pid/y/ki", params_y.ki, 0.0);
+    ros::param::param<float>("~pid/y/kd", params_y.kd, 0.0);
+    ros::param::param<float>("~pid/y/min_sat", params_y.min_sat, -2.0);
+    ros::param::param<float>("~pid/y/max_sat", params_y.max_sat, 2.0);
+    ros::param::param<float>("~pid/y/min_wind", params_y.min_wind, -10.0);
+    ros::param::param<float>("~pid/y/max_wind", params_y.max_wind, 10.0);
+    // Get PID Z params
+    ros::param::param<float>("~pid/z/kp", params_z.kp, 1.0);
+    ros::param::param<float>("~pid/z/ki", params_z.ki, 0.0);
+    ros::param::param<float>("~pid/z/kd", params_z.kd, 0.0);
+    ros::param::param<float>("~pid/z/min_sat", params_z.min_sat, -2.0);
+    ros::param::param<float>("~pid/z/max_sat", params_z.max_sat, 2.0);
+    ros::param::param<float>("~pid/z/min_wind", params_z.min_wind, -10.0);
+    ros::param::param<float>("~pid/z/max_wind", params_z.max_wind, 10.0);
+    // Get PID Yaw params
+    ros::param::param<float>("~pid/yaw/kp", params_yaw.kp, 1.0);
+    ros::param::param<float>("~pid/yaw/ki", params_yaw.ki, 0.0);
+    ros::param::param<float>("~pid/yaw/kd", params_yaw.kd, 0.0);
+    ros::param::param<float>("~pid/yaw/min_sat", params_yaw.min_sat, -2.0);
+    ros::param::param<float>("~pid/yaw/max_sat", params_yaw.max_sat, 2.0);
+    ros::param::param<float>("~pid/yaw/min_wind", params_yaw.min_wind, -10.0);
+    ros::param::param<float>("~pid/yaw/max_wind", params_yaw.max_wind, 10.0);
+    params_yaw.is_angular = true;
+
+    // Create PID for pose control
+    pose_pid_ = new PosePID(params_x, params_y, params_z, params_yaw);
+
+    // Check if enabling ROS interface
+    bool enable_pid_ros_interface;
+    ros::param::param<bool>("~pid/ros", enable_pid_ros_interface, false);
+    if (enable_pid_ros_interface) {
+        pose_pid_->enableRosInterface("ual/pid");
+    }
 }
 
 }}	// namespace grvc::ual

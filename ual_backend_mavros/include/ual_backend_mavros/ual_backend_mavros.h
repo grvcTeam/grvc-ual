@@ -24,9 +24,10 @@
 #include <thread>
 #include <vector>
 #include <Eigen/Core>
+#include <ros/ros.h>
 
 #include <uav_abstraction_layer/backend.h>
-#include <ros/ros.h>
+#include <uav_abstraction_layer/posePID.h>
 
 //Mavros services
 #include <mavros_msgs/CommandBool.h>
@@ -39,6 +40,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
 #include <geometry_msgs/TransformStamped.h>
+#include <tf2_ros/transform_listener.h>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <sensor_msgs/NavSatFix.h>
 
@@ -129,6 +131,8 @@ public:
     virtual Odometry odometry() const override;
     /// Latest transform estimation of the robot
     virtual Transform transform() const override;
+    /// Current reference pose
+    virtual Pose referencePose() override;
 
     /// Set pose
     /// \param _pose target pose
@@ -162,12 +166,15 @@ private:
     void offboardThreadLoop();
     void getAutopilotInformation();
     void initHomeFrame();
+    void initPosePID();
     bool referencePoseReached();
     void setFlightMode(const std::string& _flight_mode);
     double updateParam(const std::string& _param_id);
     State guessState();
     bool takeOffPX4(double _height);
     bool takeOffAPM(double _height);
+    void goToWaypointPX4(const Waypoint& _wp);
+    void goToWaypointAPM(const Waypoint& _wp);
 
     //WaypointList path_;
     geometry_msgs::PoseStamped  ref_pose_;
@@ -190,6 +197,8 @@ private:
     float hold_pose_time_;
     HistoryBuffer position_error_;
     HistoryBuffer orientation_error_;
+    PosePID *pose_pid_;
+    bool is_pose_pid_enabled_ = false;
 
     /// Ros Communication
     ros::ServiceClient flight_mode_client_;
@@ -204,6 +213,8 @@ private:
     ros::Subscriber mavros_cur_vel_body_sub_;
     ros::Subscriber mavros_cur_state_sub_;
     ros::Subscriber mavros_cur_extended_state_sub_;
+    tf2_ros::Buffer tf_buffer_;
+    tf2_ros::TransformListener tf_listener_;
 
     int robot_id_;
     enum struct AutopilotType {PX4, APM, UNKNOWN};

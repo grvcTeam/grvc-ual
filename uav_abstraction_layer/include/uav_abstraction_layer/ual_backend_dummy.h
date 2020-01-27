@@ -103,6 +103,8 @@ public:
     void    setHome(bool set_z) override {
         ROS_INFO("BackendDummy::setHome: set_z = %s", set_z ? "true" : "false");
     }
+
+    grvc::ual::Pose referencePose() override {}  // TODO: Move this info to State.msg?
 };
 
 }}	// namespace grvc::ual

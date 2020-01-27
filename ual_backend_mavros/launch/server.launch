@@ -54,6 +54,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         <rosparam param="home_pose">[0, 0, 0]</rosparam><!-- [x,y,z] -->
         <!-- Define the global map frame geo position and let the UAL estimate the relative home pose -->
         <!-- <rosparam param="map_origin_geo">[37.558542, -5.931074, 7.89]</rosparam> --><!-- [lat,lon,alt] -->
+        <!-- PID params for Ardupilot setPose pose control -->
+        <rosparam file="$(find ual_backend_mavros)/config/pid.yaml" />
     </node>
 
 </launch>
