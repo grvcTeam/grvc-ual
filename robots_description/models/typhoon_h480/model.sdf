@@ -632,6 +632,7 @@
             <uri>file://media/materials/scripts/gazebo.material</uri>
           </script>
         </material>
+        <transparency>1</transparency>
       </visual>
     </link>
     <joint name='left_leg_joint' type='revolute'>
@@ -739,6 +740,7 @@
             <uri>file://media/materials/scripts/gazebo.material</uri>
           </script>
         </material>
+        <transparency>1</transparency>
       </visual>
     </link>
     <joint name='right_leg_joint' type='revolute'>
