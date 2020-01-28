@@ -223,7 +223,10 @@ class TakeoffState(State):
         self.console.set_footer('')
         self.console.reset_box()
         # time.sleep(2)
-        self.take_off(z_takeoff, True)  # TODO: Non-blocking?
+        try:
+            self.take_off(z_takeoff, True)  # TODO: Non-blocking?
+        except rospy.ServiceException as exc:
+            print("Service takeOff not process request: " + str(exc))
         return 'quit'
 
 class LandState(State):
@@ -240,7 +243,10 @@ class LandState(State):
         self.console.set_footer('')
         self.console.reset_box()
         # time.sleep(2)
-        self.land(True)  # TODO: Non-blocking?
+        try:
+            self.land(True)  # TODO: Non-blocking?
+        except rospy.ServiceException as exc:
+            print("Service takeOff not process request: " + str(exc))
         return 'quit'
 
 class VelState(State):
