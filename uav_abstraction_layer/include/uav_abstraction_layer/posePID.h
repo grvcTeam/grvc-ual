@@ -41,12 +41,23 @@ public:
         pid_yaw_.enableRosInterface(_tag + "/yaw");
         if (ros::isInitialized()) {
             ros::NodeHandle np;
+            is_ros_enabled_ = true;
             service_save_params_ = np.advertiseService(_tag +"/save_params", &PosePID::saveParams, this);
         }
         else {
             return false;
         }
         return true;
+    }
+
+    void disableRosInterface() {
+        pid_x_.disableRosInterface();
+        pid_y_.disableRosInterface();
+        pid_z_.disableRosInterface();
+        pid_yaw_.disableRosInterface();
+        if (is_ros_enabled_) {
+            service_save_params_.shutdown();
+        }
     }
 
     void reference(geometry_msgs::PoseStamped _ref_pose) {
@@ -112,6 +123,7 @@ private:
 
     ros::ServiceServer service_save_params_;
     std::string tag_;
+    bool is_ros_enabled_ = false;
     geometry_msgs::PoseStamped last_pose_;
 };
 

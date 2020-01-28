@@ -90,6 +90,10 @@ public:
         last_result_ = std::min(std::max(last_result_, min_sat_), max_sat_);
         return last_result_;
     }
+
+    ~PID() {
+        disableRosInterface();
+    }
  
     bool enableRosInterface(std::string _tag) {
         if (ros::isInitialized()) {
@@ -114,9 +118,11 @@ public:
             pub_last_result_ = np.advertise<std_msgs::Float32>(_tag +"/control_output", 1);
             pub_last_error_ = np.advertise<std_msgs::Float32>(_tag +"/error", 1);
             pub_accum_err_ = np.advertise<std_msgs::Float32>(_tag +"/accum_err", 1);
-            
+
+            is_ros_enabled_ = true;
+
             param_pub_thread_ = std::thread([&](){
-                while(ros::ok()){
+                while(ros::ok() && is_ros_enabled_){
                     std_msgs::Float32 param;
 
                     param.data = kp_; pub_kp_.publish(param);
@@ -124,12 +130,12 @@ public:
                     param.data = kd_; pub_kd_.publish(param);
                     param.data = max_sat_; pub_sat_.publish(param);
                     param.data = max_windup_; pub_wind_.publish(param);
-                    std::this_thread::sleep_for(std::chrono::seconds(3));
+                    std::this_thread::sleep_for(std::chrono::seconds(1));
                 }
             });
 
             status_pub_thread_ = std::thread([&](){
-                while(ros::ok()){
+                while(ros::ok() && is_ros_enabled_){
                     std_msgs::Float32 value;
 
                     value.data = reference_; pub_reference_.publish(value);
@@ -144,6 +150,34 @@ public:
             return true;
         } else {
             return false;
+        }
+    }
+
+    void disableRosInterface() {
+        if (is_ros_enabled_) {
+            // Close threads
+            is_ros_enabled_ = false;
+            if(param_pub_thread_.joinable()) {param_pub_thread_.join();}
+            if(status_pub_thread_.joinable()) {status_pub_thread_.join();}
+            // Shutdown service servers
+            service_kp_.shutdown();
+            service_ki_.shutdown();
+            service_kd_.shutdown();
+            service_sat_.shutdown();
+            service_wind_.shutdown();
+            service_save_params_.shutdown();
+            // Shutdown params publishers
+            pub_kp_.shutdown();
+            pub_ki_.shutdown();
+            pub_kd_.shutdown();
+            pub_sat_.shutdown();
+            pub_wind_.shutdown();
+            // Shutdown status publishers
+            pub_reference_.shutdown();
+            pub_last_value_.shutdown();
+            pub_last_result_.shutdown();
+            pub_last_error_.shutdown();
+            pub_accum_err_.shutdown();
         }
     }
  
@@ -213,6 +247,7 @@ private:
     ros::Publisher pub_reference_, pub_last_value_, pub_last_result_, pub_last_error_, pub_accum_err_;
     std::thread param_pub_thread_, status_pub_thread_;
     std::string tag_;
+    bool is_ros_enabled_ = false;
 };
 
 }} // namespace grvc::ual
