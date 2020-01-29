@@ -69,22 +69,24 @@ public:
             params.min_wind, params.max_wind, params.is_angular) {}
 
     float update(float _val, float _dt) {
-        float dt = _dt; // 666 input arg?
-    
         float err = reference_ - _val;
+        
+        return updateError(err,_dt);
+    }
+
+    float updateError(float _err, float _dt) {
         // Normalize angular error
         if (is_angular_) {
-            if (err > M_PI) {err -= 2*M_PI;}
-            if (err < -M_PI) {err += 2*M_PI;}
+            if (_err > M_PI) {_err -= 2*M_PI;}
+            if (_err < -M_PI) {_err += 2*M_PI;}
         }
-        accum_err_ += err*dt;
+        accum_err_ += _err*_dt;
         // Apply anti wind-up 777 Analyze other options
         accum_err_ = std::min(std::max(accum_err_, min_windup_), max_windup_);
     
         // Compute PID
-        last_result_ = kp_*err + ki_*accum_err_ + kd_*(err- last_error_)/dt;
-        last_error_ = err;
-        last_value_ = _val;
+        last_result_ = kp_*_err + ki_*accum_err_ + kd_*(_err- last_error_)/_dt;
+        last_error_ = _err;
     
         // Saturate signal
         last_result_ = std::min(std::max(last_result_, min_sat_), max_sat_);

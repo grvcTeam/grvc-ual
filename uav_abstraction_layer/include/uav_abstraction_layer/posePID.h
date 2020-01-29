@@ -85,6 +85,24 @@ public:
         return velocity;
     }
 
+    geometry_msgs::TwistStamped updateError(geometry_msgs::PoseStamped _err_pose) {
+        geometry_msgs::TwistStamped velocity;
+        auto time_inc = _err_pose.header.stamp - last_pose_err_.header.stamp;
+
+        velocity.twist.linear.x = pid_x_.updateError(_err_pose.pose.position.x, time_inc.toSec());
+        velocity.twist.linear.y = pid_y_.updateError(_err_pose.pose.position.y, time_inc.toSec());
+        velocity.twist.linear.z = pid_z_.updateError(_err_pose.pose.position.z, time_inc.toSec());
+        velocity.twist.angular.x = 0;
+        velocity.twist.angular.y = 0;
+        velocity.twist.angular.z = pid_yaw_.updateError(quaternion2Yaw(_err_pose.pose.orientation), time_inc.toSec());
+        velocity.header.frame_id = _err_pose.header.frame_id;
+        velocity.header.stamp = ros::Time::now();
+        
+        last_pose_err_ = _err_pose;
+
+        return velocity;
+    }
+
     void reset() {
         pid_x_.reset();
         pid_y_.reset();
@@ -124,7 +142,7 @@ private:
     ros::ServiceServer service_save_params_;
     std::string tag_;
     bool is_ros_enabled_ = false;
-    geometry_msgs::PoseStamped last_pose_;
+    geometry_msgs::PoseStamped last_pose_, last_pose_err_;
 };
 
 }}
