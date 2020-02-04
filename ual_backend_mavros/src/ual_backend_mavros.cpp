@@ -176,6 +176,17 @@ void BackendMavros::offboardThreadLoop(){
     while (ros::ok()) {
         switch(control_mode_){
         case eControlMode::LOCAL_VEL:
+            // Check consistency of velocity data (isnan?) before sending to the autopilot
+            if ( std::isnan(ref_vel_.twist.linear.x) || std::isnan(ref_vel_.twist.linear.y) || std::isnan(ref_vel_.twist.linear.z) ||
+                std::isnan(ref_vel_.twist.angular.x) || std::isnan(ref_vel_.twist.angular.y) || std::isnan(ref_vel_.twist.angular.z) ) {
+                ROS_ERROR("Found NaN in local velocity control, setting velocity to 0.");
+                ref_vel_.twist.linear.x = 0;
+                ref_vel_.twist.linear.y = 0;
+                ref_vel_.twist.linear.z = 0;
+                ref_vel_.twist.angular.x = 0;
+                ref_vel_.twist.angular.y = 0;
+                ref_vel_.twist.angular.z = 0;
+            }
             mavros_ref_vel_pub_.publish(ref_vel_);
             if (!is_pose_pid_enabled_) {
                 ref_pose_ = cur_pose_;
@@ -185,6 +196,13 @@ void BackendMavros::offboardThreadLoop(){
             }
             break;
         case eControlMode::LOCAL_POSE:
+            // Check consistency of pose data (isnan?) before sending to the autopilot
+            if ( std::isnan(ref_pose_.pose.position.x) || std::isnan(ref_pose_.pose.position.y) || std::isnan(ref_pose_.pose.position.z) ||
+                std::isnan(ref_pose_.pose.orientation.x) || std::isnan(ref_pose_.pose.orientation.y) || std::isnan(ref_pose_.pose.orientation.z) ||
+                std::isnan(ref_pose_.pose.orientation.w) ) {
+                ROS_ERROR("Found NaN in local position control, holding pose.");
+                ref_pose_ = cur_pose_;
+            }
             ref_pose_.header.stamp = ros::Time::now();
             mavros_ref_pose_pub_.publish(ref_pose_);
             ref_vel_.twist.linear.x = 0;
