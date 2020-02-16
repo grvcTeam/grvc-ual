@@ -1107,32 +1107,32 @@ void BackendMavros::initPosePID() {
     ros::param::param<float>("~pid/x/kd", params_x.kd, 0.0);
     ros::param::param<float>("~pid/x/min_sat", params_x.min_sat, -2.0);
     ros::param::param<float>("~pid/x/max_sat", params_x.max_sat, 2.0);
-    ros::param::param<float>("~pid/x/min_wind", params_x.min_wind, -10.0);
-    ros::param::param<float>("~pid/x/max_wind", params_x.max_wind, 10.0);
+    ros::param::param<float>("~pid/x/min_wind", params_x.min_wind, -5.0);
+    ros::param::param<float>("~pid/x/max_wind", params_x.max_wind, 5.0);
     // Get PID Y params
     ros::param::param<float>("~pid/y/kp", params_y.kp, 1.0);
     ros::param::param<float>("~pid/y/ki", params_y.ki, 0.0);
     ros::param::param<float>("~pid/y/kd", params_y.kd, 0.0);
     ros::param::param<float>("~pid/y/min_sat", params_y.min_sat, -2.0);
     ros::param::param<float>("~pid/y/max_sat", params_y.max_sat, 2.0);
-    ros::param::param<float>("~pid/y/min_wind", params_y.min_wind, -10.0);
-    ros::param::param<float>("~pid/y/max_wind", params_y.max_wind, 10.0);
+    ros::param::param<float>("~pid/y/min_wind", params_y.min_wind, -5.0);
+    ros::param::param<float>("~pid/y/max_wind", params_y.max_wind, 5.0);
     // Get PID Z params
     ros::param::param<float>("~pid/z/kp", params_z.kp, 1.0);
     ros::param::param<float>("~pid/z/ki", params_z.ki, 0.0);
     ros::param::param<float>("~pid/z/kd", params_z.kd, 0.0);
-    ros::param::param<float>("~pid/z/min_sat", params_z.min_sat, -2.0);
-    ros::param::param<float>("~pid/z/max_sat", params_z.max_sat, 2.0);
-    ros::param::param<float>("~pid/z/min_wind", params_z.min_wind, -10.0);
-    ros::param::param<float>("~pid/z/max_wind", params_z.max_wind, 10.0);
+    ros::param::param<float>("~pid/z/min_sat", params_z.min_sat, -1.0);
+    ros::param::param<float>("~pid/z/max_sat", params_z.max_sat, 1.0);
+    ros::param::param<float>("~pid/z/min_wind", params_z.min_wind, -5.0);
+    ros::param::param<float>("~pid/z/max_wind", params_z.max_wind, 5.0);
     // Get PID Yaw params
     ros::param::param<float>("~pid/yaw/kp", params_yaw.kp, 1.0);
     ros::param::param<float>("~pid/yaw/ki", params_yaw.ki, 0.0);
     ros::param::param<float>("~pid/yaw/kd", params_yaw.kd, 0.0);
-    ros::param::param<float>("~pid/yaw/min_sat", params_yaw.min_sat, -2.0);
-    ros::param::param<float>("~pid/yaw/max_sat", params_yaw.max_sat, 2.0);
-    ros::param::param<float>("~pid/yaw/min_wind", params_yaw.min_wind, -10.0);
-    ros::param::param<float>("~pid/yaw/max_wind", params_yaw.max_wind, 10.0);
+    ros::param::param<float>("~pid/yaw/min_sat", params_yaw.min_sat, -1.0);
+    ros::param::param<float>("~pid/yaw/max_sat", params_yaw.max_sat, 1.0);
+    ros::param::param<float>("~pid/yaw/min_wind", params_yaw.min_wind, -5.0);
+    ros::param::param<float>("~pid/yaw/max_wind", params_yaw.max_wind, 5.0);
     params_yaw.is_angular = true;
 
     // Create PID for pose control
