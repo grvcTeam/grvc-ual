@@ -200,6 +200,9 @@ private:
     PosePID *pose_pid_;
     bool is_pose_pid_enabled_ = false;
 
+    // Dynamic yaw estimation
+    double yaw_offset_ = 0.0;
+
     /// Ros Communication
     ros::ServiceClient flight_mode_client_;
     ros::ServiceClient arming_client_;

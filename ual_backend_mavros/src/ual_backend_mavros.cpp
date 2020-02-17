@@ -41,6 +41,10 @@
 
 namespace grvc { namespace ual {
 
+float quaternion2Yaw(geometry_msgs::Quaternion q) {
+    return atan2( 2.0 * (q.w * q.z + q.x * q.y), 1.0 - 2.0 * (q.y * q.y + q.z * q.z) );
+}
+
 BackendMavros::BackendMavros()
     : Backend(), tf_listener_(tf_buffer_)
 {
@@ -95,6 +99,10 @@ BackendMavros::BackendMavros()
     mavros_cur_pose_sub_ = nh.subscribe<geometry_msgs::PoseStamped>(pose_topic.c_str(), 1, \
         [this](const geometry_msgs::PoseStamped::ConstPtr& _msg) {
             this->cur_pose_ = *_msg;
+            tf2::Quaternion yaw_offset_rotation, cur_orientation;
+            yaw_offset_rotation.setRPY(0,0,this->yaw_offset_);
+            tf2::fromMsg(this->cur_pose_.pose.orientation, cur_orientation);
+            this->cur_pose_.pose.orientation = tf2::toMsg( (yaw_offset_rotation * cur_orientation).normalize() );
             this->mavros_has_pose_ = true;
             if (is_pose_pid_enabled_) {
                 ref_vel_ = pose_pid_->update(cur_pose_);
@@ -104,6 +112,30 @@ BackendMavros::BackendMavros()
         [this](const geometry_msgs::TwistStamped::ConstPtr& _msg) {
             this->cur_vel_ = *_msg;
             this->cur_vel_.header.frame_id = this->uav_home_frame_id_;
+            // Dynamic yaw offset estimation
+            // double v_x = this->cur_vel_.twist.linear.x;
+            // double v_y = this->cur_vel_.twist.linear.y;
+            // double mod_v = v_x*v_x + v_y*v_y;
+            // double dx = this->ref_pose_.pose.position.x - this->cur_pose_.pose.position.x;
+            // double dy = this->ref_pose_.pose.position.y - this->cur_pose_.pose.position.y;
+            // double positionD = dx*dx + dy*dy; // Equals distance^2
+            // if (mod_v > 0.25 && positionD > 1) { // If enough velocity and target pose distance
+            //     double bearing = atan2(dy,dx);
+            //     double v_yaw = atan2(v_y,v_x);
+            //     //double current_yaw = quaternion2Yaw(this->cur_pose_.pose.orientation); //2.0 * atan2(this->cur_pose_.pose.orientation.z, this->cur_pose_.pose.orientation.w);
+            //     double new_yaw_offset = bearing - v_yaw;// - current_yaw;
+            //     while (new_yaw_offset >  M_PI) { new_yaw_offset -=  2*M_PI;}
+            //     while (new_yaw_offset < -M_PI) { new_yaw_offset += -2*M_PI;}
+            //     if (std::isnan(new_yaw_offset)) {
+            //         new_yaw_offset = 0.0;
+            //         ROS_WARN("Estimated yaw offset is NaN, set to zero instead.");
+            //     }
+            //     if (fabs(new_yaw_offset - this->yaw_offset_) > 5*M_PI/180) {
+            //         ROS_WARN("New yaw offset detected: %.2f deg", new_yaw_offset*180/M_PI);
+            //         this->yaw_offset_ = new_yaw_offset;
+            //     }
+            //     printf("Yaw offset: %6.2f deg = %6.2f - %6.2f\tv: %4.2f [%4.2f %4.2f]\n",new_yaw_offset*180/M_PI, bearing*180/M_PI, v_yaw*180/M_PI, mod_v, v_x, v_y);
+            // }
 #ifdef MAVROS_VERSION_BELOW_0_29_0
             this->cur_vel_body_ = *_msg;
             this->cur_vel_body_.header.frame_id = this->uav_frame_id_;
@@ -174,6 +206,9 @@ void BackendMavros::offboardThreadLoop(){
     orientation_error_.set_size(buffer_size);
     ros::Rate rate(offboard_thread_frequency_);
     while (ros::ok()) {
+        // Yaw offset correction
+        Waypoint ref_pose_to_mavros = ref_pose_;
+        tf2::Quaternion yaw_offset_rotation, ref_orientation;
         switch(control_mode_){
         case eControlMode::LOCAL_VEL:
             // Check consistency of velocity data (isnan?) before sending to the autopilot
@@ -203,8 +238,14 @@ void BackendMavros::offboardThreadLoop(){
                 ROS_ERROR("Found NaN in local position control, holding pose.");
                 ref_pose_ = cur_pose_;
             }
+            // Yaw offset correction
+            yaw_offset_rotation.setRPY(0,0,-yaw_offset_);
+            tf2::fromMsg(ref_pose_to_mavros.pose.orientation, ref_orientation);
+            ref_pose_to_mavros.pose.orientation = tf2::toMsg( (yaw_offset_rotation * ref_orientation).normalize() );
+
             ref_pose_.header.stamp = ros::Time::now();
-            mavros_ref_pose_pub_.publish(ref_pose_);
+            ref_pose_to_mavros.header.stamp = ref_pose_.header.stamp;
+            mavros_ref_pose_pub_.publish(ref_pose_to_mavros);
             ref_vel_.twist.linear.x = 0;
             ref_vel_.twist.linear.y = 0;
             ref_vel_.twist.linear.z = 0;
@@ -417,6 +458,7 @@ bool BackendMavros::takeOffAPM(double _height) {
     ref_pose_ = cur_pose_;
     ref_pose_.pose.position.z += _height;
     double landed_altitude = cur_pose_.pose.position.z;
+    double landed_yaw = 2.0 * atan2(cur_pose_.pose.orientation.z, cur_pose_.pose.orientation.w);
 
     setFlightMode("GUIDED");
     ROS_INFO("Taking off...");
@@ -434,6 +476,15 @@ bool BackendMavros::takeOffAPM(double _height) {
     while ( ((cur_pose_.pose.position.z - landed_altitude) < 0.95 * (ref_pose_.pose.position.z - landed_altitude)) && (this->mavros_state_.mode == "GUIDED" || this->mavros_state_.mode == "GUIDED_NOGPS") && ros::ok() ) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+    // Yaw offset estimation
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    double current_yaw = 2.0 * atan2(cur_pose_.pose.orientation.z, cur_pose_.pose.orientation.w);
+    yaw_offset_ = landed_yaw - current_yaw;
+    if (yaw_offset_ > 5 * M_PI/180) {
+        ROS_WARN("Detected yaw offset greater than 5 deg: %.2f deg.",yaw_offset_*180/M_PI);
+    }
+
+    // Set local position control mode and finish take-off
     control_mode_ = eControlMode::LOCAL_POSE;
     return true;
 }
@@ -771,8 +822,16 @@ void BackendMavros::goToWaypointAPM(const Waypoint& _wp) {
     ref_vel_.twist.angular.z = 0;
     control_mode_ = eControlMode::NONE;
 
+    // Yaw offset correction
+    Waypoint ref_pose_to_mavros = ref_pose_;
+    tf2::Quaternion yaw_offset_rotation, ref_orientation;
+    yaw_offset_rotation.setRPY(0,0,-yaw_offset_);
+    tf2::fromMsg(ref_pose_to_mavros.pose.orientation, ref_orientation);
+    ref_pose_to_mavros.pose.orientation = tf2::toMsg( (yaw_offset_rotation * ref_orientation).normalize() );
+
     ref_pose_.header.stamp = ros::Time::now();
-    mavros_ref_pose_pub_.publish(ref_pose_);
+    ref_pose_to_mavros.header.stamp = ref_pose_.header.stamp;
+    mavros_ref_pose_pub_.publish(ref_pose_to_mavros);
 
     // Reset error buffers    
     position_error_.reset();
