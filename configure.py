@@ -13,12 +13,12 @@ class bcolors:
 
 def main():
     backends = {
-        "mavros" : ["MAVROS", "    $ sudo apt install ros-kinetic-mavros ros-kinetic-mavros-extras \n    $ sudo geographiclib-get-geoids egm96-5"],
-        "mavlink" : ["MAVLink", "    Download and install MAVSDK .deb: https://github.com/mavlink/MAVSDK/releases"],
-        "gazebo_light" : ["Gazebo Light", ""],
-        "dji_ros" : ["DJI ROS", "    Download and install DJI SDK core library: https://github.com/dji-sdk/Onboard-SDK \n    Download in your catkin workspace the DJI Onboard SDK ROS: https://github.com/dji-sdk/Onboard-SDK-ROS"],
-        "crazyflie" : ["Crazyflie", "    Download and install crazyflie_ros: https://github.com/whoenig/crazyflie_ros"],
-        "ue" : ["Unreal Engine", "    TBD"]
+        "mavros" : ["MAVROS", "    $ sudo apt install ros-kinetic-mavros ros-kinetic-mavros-extras \n    $ sudo geographiclib-get-geoids egm96-5", False],
+        "mavlink" : ["MAVLink", "    Download and install MAVSDK .deb: https://github.com/mavlink/MAVSDK/releases", False],
+        "gazebo_light" : ["Gazebo Light", "",False],
+        "dji_ros" : ["DJI ROS", "    Download and install DJI SDK core library: https://github.com/dji-sdk/Onboard-SDK \n    Download in your catkin workspace the DJI Onboard SDK ROS: https://github.com/dji-sdk/Onboard-SDK-ROS", False],
+        "crazyflie" : ["Crazyflie", "    Download and install crazyflie_ros: https://github.com/whoenig/crazyflie_ros", False],
+        "ue" : ["Unreal Engine", "    TBD", False]
     }
     instructions = ""
 
@@ -32,11 +32,29 @@ def main():
     for b in backends:
         selected = raw_input("  - " + backends[b][0] + " [y/N]: ")
         if (selected == 'y' or selected == 'Y'):
-            instructions += "\n* Backend " + backends[b][0] + ":\n" + backends[b][1] + "\n"
+            if b != "mavros" and backends[b][1]:
+                instructions += "\n* Backend " + backends[b][0] + ":\n" + backends[b][1] + "\n"
             subprocess.call("rm -f ual_backend_" + b + "/CATKIN_IGNORE", shell=True)
+            backends[b][2] = True
         else:
             subprocess.call("touch ual_backend_" + b + "/CATKIN_IGNORE", shell=True)
     
+    selected = raw_input(bcolors.BOLD + "\n> Would you like to install needed dependencies? " + bcolors.ENDC + "[y/N]: ")
+    if (selected == 'y' or selected == 'Y'):
+        subprocess.call("sudo apt install -y libeigen3-dev", shell=True)
+        subprocess.call("sudo apt install -y ros-$(rosversion -d)-joy", shell=True)
+        subprocess.call("sudo apt install -y ros-$(rosversion -d)-geodesy", shell=True)
+
+        if backends["mavros"][2]:
+            subprocess.call("sudo apt install -y ros-$(rosversion -d)-mavros", shell=True)
+            subprocess.call("sudo apt install -y ros-$(rosversion -d)-mavros-extras", shell=True)
+            subprocess.call("sudo geographiclib-get-geoids egm96-5", shell=True)
+            subprocess.call("sudo usermod -a -G dialout $USER", shell=True)
+            subprocess.call("sudo apt remove modemmanager", shell=True)
+    else:
+        if backends["mavros"][2]:
+            instructions += "\n* Backend " + backends["mavros"][0] + ":\n" + backends["mavros"][1] + "\n"
+
     # Print instructions
     print bcolors.BOLD + "\n> Instructions to build the selected backends:" + bcolors.ENDC
     print instructions
