@@ -1,0 +1,4 @@
+WaypointSet[] waypoint_sets
+bool blocking
+---
+bool success

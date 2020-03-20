@@ -24,6 +24,7 @@
 #include <ros/ros.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <std_srvs/Empty.h>
+#include <std_msgs/Int8.h>
 
 using namespace uav_abstraction_layer;
 
@@ -82,6 +83,7 @@ UAL::UAL(Backend* _backend) {
             std::string land_srv = ual_ns + "/land";
             std::string go_to_waypoint_srv = ual_ns + "/go_to_waypoint";
             std::string go_to_waypoint_geo_srv = ual_ns + "/go_to_waypoint_geo";
+            std::string set_mission_srv = ual_ns + "/set_mission";
             std::string set_pose_topic = ual_ns + "/set_pose";
             std::string set_velocity_topic = ual_ns + "/set_velocity";
             std::string recover_from_manual_srv = ual_ns + "/recover_from_manual";
@@ -91,6 +93,7 @@ UAL::UAL(Backend* _backend) {
             std::string odometry_topic = ual_ns + "/odom";
             std::string state_topic = ual_ns + "/state";
             std::string ref_pose_topic = ual_ns + "/ref_pose";
+            std::string mission_state_topic = ual_ns + "/mission_state";
 
             ros::NodeHandle nh;
             ros::ServiceServer take_off_service =
@@ -116,6 +119,12 @@ UAL::UAL(Backend* _backend) {
                 go_to_waypoint_geo_srv,
                 [this](GoToWaypointGeo::Request &req, GoToWaypointGeo::Response &res) {
                 return this->goToWaypointGeo(req.waypoint, req.blocking);
+            });
+                        ros::ServiceServer set_mission_service =
+                nh.advertiseService<SetMission::Request, SetMission::Response>(
+                set_mission_srv,
+                [this](SetMission::Request &req, SetMission::Response &res) {
+                return this->setMission(req.waypoint_sets, req.blocking);
             });
             ros::Subscriber set_pose_sub =
                 nh.subscribe<geometry_msgs::PoseStamped>(
@@ -145,6 +154,7 @@ UAL::UAL(Backend* _backend) {
             ros::Publisher velocity_pub = nh.advertise<geometry_msgs::TwistStamped>(velocity_topic, 10);
             ros::Publisher odometry_pub = nh.advertise<nav_msgs::Odometry>(odometry_topic, 10);
             ros::Publisher state_pub = nh.advertise<uav_abstraction_layer::State>(state_topic, 10);
+            ros::Publisher mission_state_pub = nh.advertise<std_msgs::Int8>(mission_state_topic, 10);
             ros::Publisher ref_pose_pub = nh.advertise<geometry_msgs::PoseStamped>(ref_pose_topic, 10);
             static tf2_ros::TransformBroadcaster tf_pub;
 
@@ -157,6 +167,7 @@ UAL::UAL(Backend* _backend) {
                 velocity_pub.publish(this->velocity());
                 odometry_pub.publish(this->odometry());
                 state_pub.publish(this->state());
+                mission_state_pub.publish(this->mission_state());
                 tf_pub.sendTransform(this->transform());
                 ref_pose_pub.publish(this->referencePose()); //!TODO: publish only during position control?
                 loop_rate.sleep();
@@ -361,6 +372,20 @@ bool UAL::recoverFromManual() {
 
     backend_->threadSafeCall(&Backend::recoverFromManual);
 
+    return true;
+}
+
+bool UAL::setMission(const std::vector<uav_abstraction_layer::WaypointSet>& _waypoint_set_list, bool blocking) {
+    if ((backend_->state() != uav_abstraction_layer::State::LANDED_DISARMED) & (backend_->state() != uav_abstraction_layer::State::LANDED_ARMED) & (backend_->state() != uav_abstraction_layer::State::FLYING_AUTO)) {
+        ROS_ERROR("Unable to setMission: not LANDED_DISARMED, LANDED_ARMED or FLYING_AUTO!");
+        return false;
+    }
+
+    // Override any previous FLYING function
+    if (!backend_->isIdle()) { backend_->abort(); }
+
+    // Function is non-blocking in backend TODO: non-thread-safe-call?
+    backend_->threadSafeCall(&Backend::setMission, _waypoint_set_list);
     return true;
 }
 
