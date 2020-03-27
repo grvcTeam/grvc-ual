@@ -3,6 +3,7 @@ import subprocess
 import argparse
 import utils
 import rospkg
+import os
 
 
 def main():
@@ -11,6 +12,8 @@ def main():
     parser = argparse.ArgumentParser(description='Spawn px4 controller for SITL')
     parser.add_argument('-model', type=str, default="mbzirc",
                         help='robot model name, must match xacro description folder name')
+    parser.add_argument('-estimator', type=str, default="ekf2",
+                        help='estimator to use')
     parser.add_argument('-id', type=int, default=1,
                         help='robot id, used to compute udp ports')
     parser.add_argument('-description_package', type=str, default="robots_description",
@@ -23,33 +26,34 @@ def main():
 
     # Create temporary directory for robot sitl stuff
     temp_dir = utils.temp_dir(args.id)
-    subprocess.call("mkdir -p " + temp_dir, shell=True)
     subprocess.call("rm -rf " + temp_dir + "/rootfs", shell=True)
+    subprocess.call("mkdir -p " + temp_dir + "/rootfs", shell=True)
 
     # Get udp configuration, depending on id
     udp_config = utils.udp_config(args.id)
 
     # Modify commands file to fit robot ports
     commands_file = rospack.get_path(args.description_package) + "/models/" + args.model + "/px4cmd"
-    modified_cmds = temp_dir + "/cmds"
-    with open(commands_file, 'r') as origin, open(modified_cmds, 'w') as modified:
-        for line in origin:
-            modified_line = line\
-            .replace("_SIMPORT_", str(udp_config["sim_port"]))\
-            .replace("_MAVPORT_", str(udp_config["u_port"][0]))\
-            .replace("_MAVPORT2_", str(udp_config["u_port"][1]))\
-            .replace("_MAVOPORT_", str(udp_config["o_port"][0]))\
-            .replace("_MAVOPORT2_", str(udp_config["o_port"][1]))\
-            .replace("_MAVSYSID_", str(args.id))
-            modified.write(modified_line)
+    modified_cmds = temp_dir + "/rootfs/cmds"
+
+    # Create symlink to the PX4 command file
+    px4_src = rospack.get_path("px4")
+    px4_commands_dir = px4_src + "/ROMFS/px4fmu_common/init.d-posix/" + str(hash(args.model) % 10**8) + "_" + args.model
+    subprocess.call("ln -sf " + commands_file + " " + px4_commands_dir, shell=True)
+
+    # Set PX4 environment variables
+    px4_env = os.environ.copy()
+    px4_env['PX4_SIM_MODEL'] = args.model
+    px4_env['PX4_ESTIMATOR'] = args.estimator
 
     # Spawn px4
-    px4_src = rospack.get_path("px4")
-    px4_bin = px4_src + "/build/posix_sitl_default/px4"
-    px4_args = px4_bin + " " + px4_src + " " + modified_cmds
+    px4_bin = px4_src + "/build/px4_sitl_default/bin/px4"
+    px4_rootfs = px4_src + "/ROMFS/px4fmu_common"
+    rcs_file = "etc/init.d-posix/rcS"
+    px4_args = px4_bin + " " + px4_rootfs + " -s " + rcs_file + " -i " + str(args.id-1) + " -w " + temp_dir + "/rootfs"
     px4_out = open(temp_dir+"/px4.out", 'w')
     px4_err = open(temp_dir+"/px4.err", 'w')
-    px4 = subprocess.Popen(px4_args, shell=True, stdout=px4_out, stderr=px4_err, cwd=temp_dir)
+    px4 = subprocess.Popen(px4_args, env=px4_env, shell=True, stdout=px4_out, stderr=px4_err, cwd=temp_dir)
 
     # Wait for it!
     try:

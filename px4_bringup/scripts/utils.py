@@ -8,12 +8,15 @@ def temp_dir(id):
     return path
 
 def udp_config(id):
-    init_port = 14550 + 10*(id-1)
+    px4_id = id-1
     config = {}
-    config["gcs_url"] = "udp://:" + str(init_port+1) + "@127.0.0.1:" + str(init_port)
-    config["sim_port"] = init_port+2
-    config["u_port"] = [init_port+3, init_port+4]
-    config["o_port"] = [init_port+6, init_port+7]
+    config["gcs_url"] = "udp://@127.0.0.1:" + str(18570+px4_id)
+    config["simulator_tcp_port"] = 4560+px4_id
+    config["simulator_udp_port"] = 14560+px4_id
+    config["udp_offboard_port_local"] = 14580+px4_id
+    config["udp_offboard_port_remote"] = 14540+px4_id
+    config["udp_onboard_payload_port_local"] = 14280+px4_id
+    config["udp_onboard_payload_port_remote"] = 14030+px4_id
     return config
 
 def check_unknown_args(unknown):

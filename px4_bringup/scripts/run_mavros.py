@@ -46,8 +46,8 @@ def main():
     # Set params for mavros...
     node_name = ns + "/mavros"
     if args.mode == "sitl":
-        fcu_url = "udp://:" + str(udp_config["o_port"][1]) + \
-        "@127.0.0.1:" + str(udp_config["u_port"][1])
+        fcu_url = "udp://:" + str(udp_config["udp_offboard_port_remote"]) + \
+        "@127.0.0.1:" + str(udp_config["udp_offboard_port_local"])
         subprocess.call("rosparam set " + node_name + "/fcu_url " + fcu_url, shell=True)
         subprocess.call("rosparam set " + node_name + "/gcs_url " + \
         udp_config["gcs_url"], shell=True)

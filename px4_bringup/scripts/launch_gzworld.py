@@ -31,7 +31,7 @@ def main():
     # Set environment variables as in px4/Firmware/Tools/setup_gazebo.bash
     gz_env = os.environ.copy()
     current_gz_plugin_path = gz_env.get('GAZEBO_PLUGIN_PATH', '')
-    gz_env['GAZEBO_PLUGIN_PATH'] = px4_dir + '/build/posix_sitl_default/build_gazebo' + \
+    gz_env['GAZEBO_PLUGIN_PATH'] = px4_dir + '/build/px4_sitl_default/build_gazebo' + \
                                    ':' + current_gz_plugin_path
     current_gz_model_path = gz_env.get('GAZEBO_MODEL_PATH', '')
     # Always include robots_description parent path
@@ -80,13 +80,13 @@ def main():
 
     # Start gazebo client
     time.sleep(0.2)
-    client_args = "rosrun gazebo_ros gzclient __name:=gzclient"
+    client_args = "rosrun gazebo_ros gzclient __name:=gazebo_gui"
     client_out = open(temp_dir + '/gzclient.out', 'w')
     client_err = open(temp_dir + '/gzclient.err', 'w')
     client = subprocess.Popen(client_args, stdout=client_out, stderr=client_err, cwd=temp_dir, \
                                            env=gz_env, shell=True, preexec_fn=os.setsid)
 
-    rospy.spin()  # Now I'm a ros node, jus wait
+    rospy.spin()  # Now I'm a ros node, just wait
 
     # Kill'em all
     if client.poll() is None:

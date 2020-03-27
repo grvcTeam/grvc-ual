@@ -82,7 +82,8 @@ def main():
         " enable_logging:=false" + \
         " enable_camera:=false" + \
         " enable_wind:=false" + \
-        " mavlink_udp_port:=" + str(udp_config["sim_port"]) + \
+        " mavlink_tcp_port:=" + str(udp_config["simulator_tcp_port"]) + \
+        " mavlink_udp_port:=" + str(udp_config["simulator_udp_port"]) + \
         " visual_material:=" + args.material
 
         if args.append_xacro_args:
@@ -181,12 +182,15 @@ def main():
             rospy.logerr('Failed to lookup transform from [{}] to [map], ignoring frame_id'.format(args.frame_id))
 
     # Spawn robot sdf in gazebo
-    gzmodel_args = "gz model -f " + temp_sdf + \
-    " -m " + args.model + "_" + str(args.id) + \
+    gzmodel_args = "rosrun gazebo_ros spawn_model -sdf" + \
+    " -file " + temp_sdf + \
+    " -model " + args.model + "_" + str(args.id) + \
     " -x " + str(spawn_x) + \
     " -y " + str(spawn_y) + \
     " -z " + str(spawn_z + z_min) + \
-    " -Y " + str(spawn_yaw)
+    " -Y " + str(spawn_yaw) + \
+    " __name:=spawn_" + args.model + "_" + str(args.id)
+    rospy.sleep(args.id)
     subprocess.call(gzmodel_args, shell=True)
 
 if __name__ == "__main__":

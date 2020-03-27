@@ -17,8 +17,9 @@
               9   0.009        111
               10  0.01         100
       -->
-      <max_step_size>0.002</max_step_size>
-      <real_time_update_rate>500</real_time_update_rate>
+      <max_step_size>0.004</max_step_size>
+      <real_time_factor>1</real_time_factor>
+      <real_time_update_rate>250</real_time_update_rate>
     </physics>
     <!-- A global light source -->
     <include>
