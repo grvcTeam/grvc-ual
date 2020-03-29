@@ -28,7 +28,7 @@
 #include <uav_abstraction_layer/SetMission.h>
 #include <uav_abstraction_layer/State.h>
 #include <uav_abstraction_layer/ParamFloat.h>
-#include <uav_abstraction_layer/WaypointSet.h>
+#include <uav_abstraction_layer/MissionElement.h>
 #include <std_msgs/Int8.h>
 #include <thread>
 
@@ -102,7 +102,7 @@ public:
     /// Execute specified mission
     /// \param waypoint set indicates the waypoint groups with its parameters
     /// \param _blocking indicates if function call is blocking (default = true)
-    bool	setMission(const std::vector<uav_abstraction_layer::WaypointSet>& _waypoint_set_list, bool _blocking = true);
+    bool	setMission(const std::vector<uav_abstraction_layer::MissionElement>& _waypoint_set_list, bool _blocking = true);
 
     /// Set velocities
     /// \param _vel target velocity in world coordinates

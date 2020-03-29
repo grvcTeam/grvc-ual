@@ -46,81 +46,13 @@
 #include <mavros_msgs/WaypointList.h>
 #include <mavros_msgs/Waypoint.h>
 #include <geographic_msgs/GeoPoint.h>
+#include <geographic_msgs/GeoPoseStamped.h>
 
 //UAL messages (TRASLADAR A ESTE BACKEND?)
-#include <uav_abstraction_layer/WaypointSet.h>
+#include <uav_abstraction_layer/MissionElement.h>
 #include <uav_abstraction_layer/ParamFloat.h>
 
 namespace grvc { namespace ual {
-
-// class HistoryBuffer {  // TODO: template? utils?
-// public:
-//     void set_size(size_t _size) {
-//         std::lock_guard<std::mutex> lock(mutex_);
-//         buffer_size_ = _size;
-//         buffer_.clear();
-//         current_ = 0;
-//     }
-
-//     void reset() {
-//         std::lock_guard<std::mutex> lock(mutex_);
-//         buffer_.clear();
-//         current_ = 0;
-//     }
-
-//     void update(double _value) {
-//         std::lock_guard<std::mutex> lock(mutex_);
-//         if (buffer_.size() < buffer_size_) {
-//             buffer_.push_back(_value);
-//         } else {
-//             buffer_[current_] = _value;
-//             current_ = (current_ + 1) % buffer_size_;
-//         }
-//     }
-
-//     bool get_stats(double& _min, double& _mean, double& _max) {
-//         std::lock_guard<std::mutex> lock(mutex_);
-//         if (buffer_.size() >= buffer_size_) {
-//             double min_value = +std::numeric_limits<double>::max();
-//             double max_value = -std::numeric_limits<double>::max();
-//             double sum = 0;
-//             for (int i = 0; i < buffer_.size(); i++) {
-//                 if (buffer_[i] < min_value) { min_value = buffer_[i]; }
-//                 if (buffer_[i] > max_value) { max_value = buffer_[i]; }
-//                 sum += buffer_[i];
-//             }
-//             _min = min_value;
-//             _max = max_value;
-//             _mean = sum / buffer_.size();
-//             return true;
-//         }
-//         return false;
-//     }
-
-//     bool get_variance(double& _var) {
-//         std::lock_guard<std::mutex> lock(mutex_);
-//         if (buffer_.size() >= buffer_size_) {
-//             double mean = 0;
-//             double sum = 0;
-//             _var = 0;
-//             for (int i = 0; i < buffer_.size(); i++) {
-//                 sum += buffer_[i];
-//             }
-//             mean = sum / buffer_.size();
-//             for (int i = 0; i < buffer_.size(); i++) {
-//                 _var += (buffer_[i]-mean)*(buffer_[i]-mean);
-//             }
-//             return true;
-//         }
-//         return false;
-//     }
-
-// protected:
-//     size_t buffer_size_ = 0;
-//     unsigned int current_ = 0;
-//     std::vector<double> buffer_;
-//     std::mutex mutex_;
-// };
 
 class BackendMavrosFW : public Backend {
 
@@ -153,15 +85,13 @@ public:
     /// \param _wp goal waypoint in geographic coordinates
     void	goToWaypointGeo(const WaypointGeo& _wp);
 
-    /// Follow a list of waypoints, one after another
-    // void trackPath(const Path& _path) override;
     /// Perform a take off maneuver
     /// \param _height target height that must be reached to consider the take off complete
     void    takeOff(double _height) override;
     /// Land on the current position.
     void	land() override;
     /// Execute mission of a sequence of waypoints
-    void	setMission(const std::vector<uav_abstraction_layer::WaypointSet>& _waypoint_set_list) override;
+    void	setMission(const std::vector<uav_abstraction_layer::MissionElement>& _waypoint_set_list) override;
     /// Set velocities
     /// \param _vel target velocity in world coordinates
     void    setVelocity(const Velocity& _vel) override;
@@ -188,14 +118,19 @@ private:
     // FW specifics
     void arm(const bool& _arm);
     void setParam(const std::string& _param_id,const int& _param_value);
-    void pushMission(const mavros_msgs::WaypointList& _wp_list);
+    bool pushMission(const mavros_msgs::WaypointList& _wp_list);
     void clearMission();
-    void addTakeOffWp(mavros_msgs::WaypointList& _wp_list, const uav_abstraction_layer::WaypointSet& _waypoint_set, const int& wp_set_index);
-    void addPassWpList(mavros_msgs::WaypointList& _wp_list, const uav_abstraction_layer::WaypointSet& _waypoint_set, const int& wp_set_index);
-    void addLoiterWpList(mavros_msgs::WaypointList& _wp_list, const uav_abstraction_layer::WaypointSet& _waypoint_set, const int& wp_set_index);
-    void addLandWpList(mavros_msgs::WaypointList& _wp_list, const uav_abstraction_layer::WaypointSet& _waypoint_set, const int& wp_set_index);
-    mavros_msgs::Waypoint poseStampedtoGlobalWaypoint(const geometry_msgs::PoseStamped& _actual_cartesian);
-    void checkParams(const std::map<std::string, float>& existing_params_map, const std::vector<std::string>& required_params, const int& wp_set_index);
+    void addTakeOffWp(mavros_msgs::WaypointList& _wp_list, const uav_abstraction_layer::MissionElement& _waypoint_set, const int& wp_set_index);
+    void addPassWpList(mavros_msgs::WaypointList& _wp_list, const uav_abstraction_layer::MissionElement& _waypoint_set, const int& wp_set_index);
+    void addLoiterWpList(mavros_msgs::WaypointList& _wp_list, const uav_abstraction_layer::MissionElement& _waypoint_set, const int& wp_set_index);
+    void addLandWpList(mavros_msgs::WaypointList& _wp_list, const uav_abstraction_layer::MissionElement& _waypoint_set, const int& wp_set_index);
+    void addSpeedWpList(mavros_msgs::WaypointList& _wp_list, const uav_abstraction_layer::MissionElement& _waypoint_set, const int& wp_set_index);
+    std::vector<geographic_msgs::GeoPoseStamped> uniformizeSpatialField( const uav_abstraction_layer::MissionElement& _waypoint_set);
+    geographic_msgs::GeoPoseStamped poseStampedtoGeoPoseStamped(const geometry_msgs::PoseStamped& _posestamped );
+    geometry_msgs::PoseStamped geoPoseStampedtoPoseStamped(const geographic_msgs::GeoPoseStamped _geoposestamped );
+    mavros_msgs::Waypoint geoPoseStampedtoGlobalWaypoint(const geographic_msgs::GeoPoseStamped& _geoposestamped );
+    float getMissionYaw(const geometry_msgs::Quaternion& quat);
+    void checkMissionParams(const std::map<std::string, float>& existing_params_map, const std::vector<std::string>& required_params, const int& wp_set_index);
     void initMission();
     
     //WaypointList path_;
@@ -216,7 +151,7 @@ private:
     std::vector<int> takeoff_wps_on_mission_;
     std::vector<int> land_wps_on_mission_;
     /// Possible mission waypoint types
-    enum WaypointSetType {
+    enum MissionElementType {
         TAKEOFF_POSE,
         TAKEOFF_AUX,
         PASS,
@@ -236,8 +171,6 @@ private:
     float position_th_;
     float orientation_th_;
     float hold_pose_time_;
-    // HistoryBuffer position_error_;
-    // HistoryBuffer orientation_error_;
     PosePID *pose_pid_;
     bool is_pose_pid_enabled_ = false;
 

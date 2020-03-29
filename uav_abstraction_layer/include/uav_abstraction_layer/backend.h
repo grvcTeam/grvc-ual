@@ -33,7 +33,7 @@
 #include <sensor_msgs/NavSatFix.h>
 #include <nav_msgs/Odometry.h>
 #include <uav_abstraction_layer/State.h>
-#include <uav_abstraction_layer/WaypointSet.h>
+#include <uav_abstraction_layer/MissionElement.h>
 
 namespace grvc { namespace ual {
 
@@ -44,7 +44,7 @@ typedef geometry_msgs::TwistStamped     Velocity;
 typedef nav_msgs::Odometry              Odometry;
 typedef geometry_msgs::TransformStamped Transform;
 typedef uint8_t                         State;  
-typedef uav_abstraction_layer::WaypointSet WaypointSet;
+typedef uav_abstraction_layer::MissionElement MissionElement;
 
 /// Common interface for back-end implementations of ual
 class Backend {
@@ -102,7 +102,7 @@ public:
 
     /// Execute specified mission following provided waypoints
     /// \param _waypoint_set_list is the list of groups of waypoints with same parameters
-    virtual void	setMission(const std::vector<WaypointSet>& _waypoint_set_list) = 0;
+    virtual void	setMission(const std::vector<MissionElement>& _waypoint_set_list) = 0;
 
     /// Perform a take off maneuver
     /// \param _height target height that must be reached to consider the take off complete

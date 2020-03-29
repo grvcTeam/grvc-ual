@@ -56,7 +56,7 @@ add_message_files(
   FILES
   State.msg
   ParamFloat.msg
-  WaypointSet.msg
+  MissionElement.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -81,7 +81,7 @@ add_service_files(
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
   DEPENDENCIES
-  geometry_msgs std_msgs sensor_msgs
+  geometry_msgs std_msgs sensor_msgs geographic_msgs
 )
 
 ################################################

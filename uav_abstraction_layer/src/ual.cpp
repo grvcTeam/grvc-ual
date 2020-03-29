@@ -375,7 +375,7 @@ bool UAL::recoverFromManual() {
     return true;
 }
 
-bool UAL::setMission(const std::vector<uav_abstraction_layer::WaypointSet>& _waypoint_set_list, bool blocking) {
+bool UAL::setMission(const std::vector<uav_abstraction_layer::MissionElement>& _waypoint_set_list, bool blocking) {
     if ((backend_->state() != uav_abstraction_layer::State::LANDED_DISARMED) & (backend_->state() != uav_abstraction_layer::State::LANDED_ARMED) & (backend_->state() != uav_abstraction_layer::State::FLYING_AUTO)) {
         ROS_ERROR("Unable to setMission: not LANDED_DISARMED, LANDED_ARMED or FLYING_AUTO!");
         return false;

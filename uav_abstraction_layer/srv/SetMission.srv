@@ -1,4 +1,4 @@
-WaypointSet[] waypoint_sets
+MissionElement[] waypoint_sets
 bool blocking
 ---
 bool success
