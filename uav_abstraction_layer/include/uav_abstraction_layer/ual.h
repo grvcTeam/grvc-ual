@@ -102,7 +102,7 @@ public:
     /// Execute specified mission
     /// \param waypoint set indicates the waypoint groups with its parameters
     /// \param _blocking indicates if function call is blocking (default = true)
-    bool	setMission(const std::vector<uav_abstraction_layer::MissionElement>& _waypoint_set_list, bool _blocking = true);
+    bool	setMission(const std::vector<uav_abstraction_layer::MissionElement>& _waypoint_element_list, bool _blocking = true);
 
     /// Set velocities
     /// \param _vel target velocity in world coordinates

@@ -102,6 +102,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         <rosparam param="home_pose">[0, 0, 0]</rosparam><!-- [x,y,z] -->
         <!-- Define the global map frame geo position and let the UAL estimate the relative home pose -->
         <rosparam param="map_origin_geo">[37.558542, -5.931074, 7.89]</rosparam><!-- [lat,lon,alt] -->
+        <rosparam param="mission/aux_distance"> 100.0</rosparam>
+        <rosparam param="mission/aux_height"> 10.0</rosparam>
+        <rosparam param="mission/takeoff_minimum_pitch"> 5.0</rosparam>
+        <rosparam param="mission/loit_heading"> 0.0</rosparam>
+        <rosparam param="mission/loit_radius"> 50.0</rosparam>
+        <rosparam param="mission/loit_forward_moving"> 1.0</rosparam>
+        <rosparam param="mission/land_precision_mode"> 0.0</rosparam>
+        <rosparam param="mission/land_abort_alt"> 0.0</rosparam>
+        <rosparam param="mission/pass_orbit_distance"> 1.0</rosparam>
+        <rosparam param="mission/pass_acceptance_radius"> 30.0</rosparam>
+
     </node>
 
     <group if="$(arg multi)">
@@ -152,6 +163,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             <rosparam param="home_pose">[10, 10, 0]</rosparam><!-- [x,y,z] -->
             <!-- Define the global map frame geo position and let the UAL estimate the relative home pose -->
             <!-- <rosparam param="map_origin_geo">[37.558542, -5.931074, 7.89]</rosparam> --><!-- [lat,lon,alt] -->
+
         </node>
     </group>
     <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="0 -150 0 0 0 0 map aux 100" />

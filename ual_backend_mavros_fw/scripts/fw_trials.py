@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.5
+#!/usr/bin/env
 import rospy
 import time
 import numpy as np
@@ -35,10 +35,10 @@ class FwQgc(object):
         take_off_wps.type = MissionElement.TAKEOFF_POSE
 
         if reference == "empty" or reference == "custom":
-            take_off_wps.posestamped_list = [PoseStamped(header_empty,Pose(Point(100,0,10),Quaternion(0,0,0,1)))]
+            take_off_wps.waypoints = [PoseStamped(header_empty,Pose(Point(100,0,10),Quaternion(0,0,0,1)))]
 
         elif reference == "geo":
-            take_off_wps.posestamped_list = [PoseStamped(header_geo,GeoPose(Point(37.558570091,-5.92994325434,10.0),Quaternion(0,0,0,1)))]
+            take_off_wps.waypoints = [PoseStamped(header_geo,GeoPose(Point(37.558570091,-5.92994325434,10.0),Quaternion(0,0,0,1)))]
 
         take_off_wps.params = self.dictToListOfParamFloat({"minimum_pitch": 0.0})
         wps.append(take_off_wps)
@@ -57,19 +57,19 @@ class FwQgc(object):
         pass_wps = MissionElement()
         pass_wps.type = MissionElement.PASS
         if reference == "empty":
-            pass_wps.posestamped_list = [PoseStamped(header_empty,Pose(Point(150,-150,20),Quaternion(0,0,0,1)))]
-            pass_wps.posestamped_list.append(PoseStamped(header_empty,Pose(Point(-150,-150,20),Quaternion(0,0,0,1))))
-            pass_wps.posestamped_list.append(PoseStamped(header_empty,Pose(Point(-150,150,20),Quaternion(0,0,0,1))))
+            pass_wps.waypoints = [PoseStamped(header_empty,Pose(Point(150,-150,20),Quaternion(0,0,0,1)))]
+            pass_wps.waypoints.append(PoseStamped(header_empty,Pose(Point(-150,-150,20),Quaternion(0,0,0,1))))
+            pass_wps.waypoints.append(PoseStamped(header_empty,Pose(Point(-150,150,20),Quaternion(0,0,0,1))))
 
         elif reference == "custom":
-            pass_wps.posestamped_list = [PoseStamped(header_custom,Pose(Point(150,-150,20),Quaternion(0,0,0,1)))]
-            pass_wps.posestamped_list.append(PoseStamped(header_custom,Pose(Point(-150,-150,20),Quaternion(0,0,0,1))))
-            pass_wps.posestamped_list.append(PoseStamped(header_custom,Pose(Point(-150,150,20),Quaternion(0,0,0,1))))
+            pass_wps.waypoints = [PoseStamped(header_custom,Pose(Point(150,-150,20),Quaternion(0,0,0,1)))]
+            pass_wps.waypoints.append(PoseStamped(header_custom,Pose(Point(-150,-150,20),Quaternion(0,0,0,1))))
+            pass_wps.waypoints.append(PoseStamped(header_custom,Pose(Point(-150,150,20),Quaternion(0,0,0,1))))
 
         elif reference == "geo":
-            pass_wps.posestamped_list = [PoseStamped(header_geo,GeoPose(Point(37.5572521152,-5.92858999857,20.0),Quaternion(0,0,0,1)))]
-            pass_wps.posestamped_list.append(PoseStamped(header_geo,GeoPose(Point(37.5571495841,-5.93271715684,20.0),Quaternion(0,0,0,1))))
-            pass_wps.posestamped_list.append(PoseStamped(header_geo,GeoPose(Point(37.5598501062,-5.93282309407,20.0),Quaternion(0,0,0,1))))
+            pass_wps.waypoints = [PoseStamped(header_geo,GeoPose(Point(37.5572521152,-5.92858999857,20.0),Quaternion(0,0,0,1)))]
+            pass_wps.waypoints.append(PoseStamped(header_geo,GeoPose(Point(37.5571495841,-5.93271715684,20.0),Quaternion(0,0,0,1))))
+            pass_wps.waypoints.append(PoseStamped(header_geo,GeoPose(Point(37.5598501062,-5.93282309407,20.0),Quaternion(0,0,0,1))))
 
         pass_wps.params = self.dictToListOfParamFloat({"acceptance_radius": 10.0,"orbit_distance": 0.0, "speed" : 10.0})
         wps.append(pass_wps)
@@ -78,16 +78,16 @@ class FwQgc(object):
         loit_wps1 = MissionElement()
         loit_wps1.type = MissionElement.LOITER_HEIGHT
         if reference == "empty":
-            loit_wps1.posestamped_list = [PoseStamped(header_empty,Pose(Point(150,150,100),Quaternion(0,0,0,1)))]
-            loit_wps1.posestamped_list.append(PoseStamped(header_empty,Pose(Point(150,150,20),Quaternion(0,0,0,1))))
+            loit_wps1.waypoints = [PoseStamped(header_empty,Pose(Point(150,150,100),Quaternion(0,0,0,1)))]
+            loit_wps1.waypoints.append(PoseStamped(header_empty,Pose(Point(150,150,20),Quaternion(0,0,0,1))))
 
         elif reference == "custom":
-            loit_wps1.posestamped_list = [PoseStamped(header_custom,Pose(Point(150,150,100),Quaternion(0,0,0,1)))]
-            loit_wps1.posestamped_list.append(PoseStamped(header_custom,Pose(Point(150,150,20),Quaternion(0,0,0,1))))
+            loit_wps1.waypoints = [PoseStamped(header_custom,Pose(Point(150,150,100),Quaternion(0,0,0,1)))]
+            loit_wps1.waypoints.append(PoseStamped(header_custom,Pose(Point(150,150,20),Quaternion(0,0,0,1))))
 
         elif reference == "geo":
-            loit_wps1.posestamped_list = [PoseStamped(header_geo,GeoPose(Point(37.559934397,-5.92943078861,100.0),Quaternion(0,0,0,1)))]
-            loit_wps1.posestamped_list.append(PoseStamped(header_geo,GeoPose(Point(37.559934397,-5.92943078861,20.0),Quaternion(0,0,0,1))))
+            loit_wps1.waypoints = [PoseStamped(header_geo,GeoPose(Point(37.559934397,-5.92943078861,100.0),Quaternion(0,0,0,1)))]
+            loit_wps1.waypoints.append(PoseStamped(header_geo,GeoPose(Point(37.559934397,-5.92943078861,20.0),Quaternion(0,0,0,1))))
 
         loit_wps1.params = self.dictToListOfParamFloat({"heading": 0.0,"radius": 10.0, "forward_moving" : 1.0})
         wps.append(loit_wps1)
@@ -96,13 +96,13 @@ class FwQgc(object):
         # loit_wps2 = MissionElement()
         # loit_wps2.type = MissionElement.LOITER_TURNS
         # if reference == "empty":
-        #     loit_wps2.posestamped_list = [PoseStamped(header_empty,Pose(Point(200,0,20),Quaternion(0,0,0,1)))]
+        #     loit_wps2.waypoints = [PoseStamped(header_empty,Pose(Point(200,0,20),Quaternion(0,0,0,1)))]
 
         # if reference == "custom":
-        #     loit_wps2.posestamped_list = [PoseStamped(header_custom,Pose(Point(200,0,20),Quaternion(0,0,0,1)))]
+        #     loit_wps2.waypoints = [PoseStamped(header_custom,Pose(Point(200,0,20),Quaternion(0,0,0,1)))]
 
         # elif reference == "geo":
-        #     loit_wps2.posestamped_list = [PoseStamped(header_geo,GeoPose(Point(37.559934397,-5.92943078861,20.0),Quaternion(0,0,0,1)))]
+        #     loit_wps2.waypoints = [PoseStamped(header_geo,GeoPose(Point(37.559934397,-5.92943078861,20.0),Quaternion(0,0,0,1)))]
 
         # loit_wps2.params = self.dictToListOfParamFloat({"turns": 5.0,"radius": 50.0, "forward_moving" : 1.0})
         # wps.append(loit_wps2)
@@ -112,16 +112,16 @@ class FwQgc(object):
         land_wps.type = MissionElement.LAND_POSE
 
         if reference == "empty":
-            land_wps.posestamped_list = [PoseStamped(header_empty,Pose(Point(100,0,10),Quaternion(0,0,0,1)))]
-            land_wps.posestamped_list.append(PoseStamped(header_empty,Pose(Point(0,0,0),Quaternion(0,0,0,1))))
+            land_wps.waypoints = [PoseStamped(header_empty,Pose(Point(100,0,10),Quaternion(0,0,0,1)))]
+            land_wps.waypoints.append(PoseStamped(header_empty,Pose(Point(0,0,0),Quaternion(0,0,0,1))))
 
         elif reference == "custom":
-            land_wps.posestamped_list = [PoseStamped(header_custom,Pose(Point(100,0,10),Quaternion(0,0,0,1)))]
-            land_wps.posestamped_list.append(PoseStamped(header_custom,Pose(Point(0,0,0),Quaternion(0,0,0,1))))
+            land_wps.waypoints = [PoseStamped(header_custom,Pose(Point(100,0,10),Quaternion(0,0,0,1)))]
+            land_wps.waypoints.append(PoseStamped(header_custom,Pose(Point(0,0,0),Quaternion(0,0,0,1))))
 
         elif reference == "geo":
-            land_wps.posestamped_list = [PoseStamped(header_geo,GeoPose(Point(37.558570091,-5.92994325434,10.0),Quaternion(0,0,0,1)))]
-            land_wps.posestamped_list.append(PoseStamped(header_geo,GeoPose(Point(37.5585420009,-5.93107400325,0.0),Quaternion(0,0,0,1))))
+            land_wps.waypoints = [PoseStamped(header_geo,GeoPose(Point(37.558570091,-5.92994325434,10.0),Quaternion(0,0,0,1)))]
+            land_wps.waypoints.append(PoseStamped(header_geo,GeoPose(Point(37.5585420009,-5.93107400325,0.0),Quaternion(0,0,0,1))))
 
         land_wps.params = self.dictToListOfParamFloat({"loit_heading": 0.0, "loit_radius": 0.0,
                                                        "loit_forward_moving": 1.0,"abort_alt": 0.0, "precision_mode": 0.0})
@@ -130,7 +130,7 @@ class FwQgc(object):
         ### LAND AUX
         # land_wps = MissionElement()
         # land_wps.type = MissionElement.LAND_AUX
-        # land_wps.posestamped_list = [PoseStamped(header_empty,Pose(Point(0,0,0),Quaternion(0,0,0,1)))]
+        # land_wps.waypoints = [PoseStamped(header_empty,Pose(Point(0,0,0),Quaternion(0,0,0,1)))]
         # land_wps.params = self.dictToListOfParamFloat({"aux_distance": 100.0, "aux_angle": 0.0, "aux_height": 10.0,
         #                                                "loit_heading": 0.0, "loit_radius": 0.0,
         #                                                "loit_forward_moving": 1.0,"abort_alt": 0.0, "precision_mode": 0.0})
@@ -142,7 +142,7 @@ class FwQgc(object):
     def sendMission(self, wps):
 
         mission_srv_request = SetMissionRequest()
-        mission_srv_request.waypoint_sets = wps
+        mission_srv_request.mission_elements = wps
         mission_srv_request.blocking = True
 
         self.serverClient(mission_srv_request, "/ual/set_mission", SetMission)

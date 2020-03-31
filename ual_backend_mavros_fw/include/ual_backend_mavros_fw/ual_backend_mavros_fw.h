@@ -91,7 +91,7 @@ public:
     /// Land on the current position.
     void	land() override;
     /// Execute mission of a sequence of waypoints
-    void	setMission(const std::vector<uav_abstraction_layer::MissionElement>& _waypoint_set_list) override;
+    void	setMission(const std::vector<uav_abstraction_layer::MissionElement>& _waypoint_element_list) override;
     /// Set velocities
     /// \param _vel target velocity in world coordinates
     void    setVelocity(const Velocity& _vel) override;
@@ -120,12 +120,12 @@ private:
     void setParam(const std::string& _param_id,const int& _param_value);
     bool pushMission(const mavros_msgs::WaypointList& _wp_list);
     void clearMission();
-    void addTakeOffWp(mavros_msgs::WaypointList& _wp_list, const uav_abstraction_layer::MissionElement& _waypoint_set, const int& wp_set_index);
-    void addPassWpList(mavros_msgs::WaypointList& _wp_list, const uav_abstraction_layer::MissionElement& _waypoint_set, const int& wp_set_index);
-    void addLoiterWpList(mavros_msgs::WaypointList& _wp_list, const uav_abstraction_layer::MissionElement& _waypoint_set, const int& wp_set_index);
-    void addLandWpList(mavros_msgs::WaypointList& _wp_list, const uav_abstraction_layer::MissionElement& _waypoint_set, const int& wp_set_index);
-    void addSpeedWpList(mavros_msgs::WaypointList& _wp_list, const uav_abstraction_layer::MissionElement& _waypoint_set, const int& wp_set_index);
-    std::vector<geographic_msgs::GeoPoseStamped> uniformizeSpatialField( const uav_abstraction_layer::MissionElement& _waypoint_set);
+    void addTakeOffWp(mavros_msgs::WaypointList& _wp_list, const uav_abstraction_layer::MissionElement& _waypoint_element, const int& wp_set_index);
+    void addPassWpList(mavros_msgs::WaypointList& _wp_list, const uav_abstraction_layer::MissionElement& _waypoint_element, const int& wp_set_index);
+    void addLoiterWpList(mavros_msgs::WaypointList& _wp_list, const uav_abstraction_layer::MissionElement& _waypoint_element, const int& wp_set_index);
+    void addLandWpList(mavros_msgs::WaypointList& _wp_list, const uav_abstraction_layer::MissionElement& _waypoint_element, const int& wp_set_index);
+    void addSpeedWpList(mavros_msgs::WaypointList& _wp_list, const uav_abstraction_layer::MissionElement& _waypoint_element, const int& wp_set_index);
+    std::vector<geographic_msgs::GeoPoseStamped> uniformizeSpatialField( const uav_abstraction_layer::MissionElement& _waypoint_element);
     geographic_msgs::GeoPoseStamped poseStampedtoGeoPoseStamped(const geometry_msgs::PoseStamped& _posestamped );
     geometry_msgs::PoseStamped geoPoseStampedtoPoseStamped(const geographic_msgs::GeoPoseStamped _geoposestamped );
     mavros_msgs::Waypoint geoPoseStampedtoGlobalWaypoint(const geographic_msgs::GeoPoseStamped& _geoposestamped );
@@ -150,6 +150,17 @@ private:
     geographic_msgs::GeoPoint origin_geo_;
     std::vector<int> takeoff_wps_on_mission_;
     std::vector<int> land_wps_on_mission_;
+    float mission_aux_height_;
+    float mission_aux_distance_;
+    float mission_takeoff_minimum_pitch_;
+    float mission_loit_heading_;
+    float mission_loit_radius_;
+    float mission_loit_forward_moving_;
+    float mission_land_precision_mode_;
+    float mission_land_abort_alt_;
+    float mission_pass_orbit_distance_;
+    float mission_pass_acceptance_radius_;
+    
     /// Possible mission waypoint types
     enum MissionElementType {
         TAKEOFF_POSE,

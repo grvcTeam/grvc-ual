@@ -10,5 +10,5 @@ uint8 LAND_POSE = 7
 uint8 LAND_AUX = 8
 
 uint8 type
-geometry_msgs/PoseStamped[] posestamped_list
+geometry_msgs/PoseStamped[] waypoints
 ParamFloat[] params

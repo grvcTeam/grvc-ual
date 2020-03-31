@@ -101,8 +101,8 @@ public:
     virtual void	goToWaypointGeo(const WaypointGeo& _wp) = 0;
 
     /// Execute specified mission following provided waypoints
-    /// \param _waypoint_set_list is the list of groups of waypoints with same parameters
-    virtual void	setMission(const std::vector<MissionElement>& _waypoint_set_list) = 0;
+    /// \param _waypoint_element_list is the list of groups of waypoints with same parameters
+    virtual void	setMission(const std::vector<MissionElement>& _waypoint_element_list) = 0;
 
     /// Perform a take off maneuver
     /// \param _height target height that must be reached to consider the take off complete

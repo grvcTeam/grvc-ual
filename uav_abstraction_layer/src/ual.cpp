@@ -124,7 +124,7 @@ UAL::UAL(Backend* _backend) {
                 nh.advertiseService<SetMission::Request, SetMission::Response>(
                 set_mission_srv,
                 [this](SetMission::Request &req, SetMission::Response &res) {
-                return this->setMission(req.waypoint_sets, req.blocking);
+                return this->setMission(req.mission_elements, req.blocking);
             });
             ros::Subscriber set_pose_sub =
                 nh.subscribe<geometry_msgs::PoseStamped>(
