@@ -78,6 +78,12 @@ public:
         ROS_INFO("BackendDummy::goToWaypointGeo: latitude = %f, longitude = %f, altitude = %f", _wp.latitude, _wp.longitude, _wp.altitude);
     }
 
+    /// Execute specified mission following provided waypoints
+    /// \param _waypoint_set_list is the list of groups of waypoints with same parameters
+    void	setMission(const std::vector<MissionElement>& _waypoint_set_list) override {
+        ROS_ERROR("This backend does not implement setMission function!");
+    }
+
     /// Follow a list of waypoints, one after another
     // void trackPath(const Path& _path) override;
     /// Perform a take off maneuver

@@ -67,6 +67,12 @@ public:
     /// \param _wp goal waypoint in geographic coordinates
     void	goToWaypointGeo(const WaypointGeo& _wp) override;
     
+    /// Execute specified mission following provided waypoints
+    /// \param _waypoint_set_list is the list of groups of waypoints with same parameters
+    void	setMission(const std::vector<MissionElement>& _waypoint_set_list) override {
+        ROS_ERROR("This backend does not implement setMission function!");
+    }
+
     /// Perform a take off maneuver
     /// \param _height target height that must be reached to consider the take off complete
     void    takeOff(double _height) override;
