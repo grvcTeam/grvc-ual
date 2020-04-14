@@ -1,0 +1,171 @@
+<!-- 
+The MIT License (MIT)
+Copyright (c) 2016 GRVC University of Seville
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
+-->
+<launch>
+    
+    <arg name="multi" default="false"/>
+    <arg name="ns_prefix" default="uav_"/>
+
+    <arg name="ual_server" default="on"/>
+    <arg name="ual_pub_rate" default="30.0"/>
+
+    <arg name="mode" default="sitl"/>
+    <arg name="robot_model" default="plane"/>
+
+    <arg name="pose_frame_id" default=""/><!-- To publish ual/pose in other frame than local, e.g. map -->
+    <arg name="mavros_offboard_rate" default="30.0"/>
+    <arg name="position_th" default="0.33"/>
+    <arg name="orientation_th" default="0.65"/>
+    <arg name="hold_pose_time" default="3.0"/>
+
+    <group if="$(eval mode=='sitl')">
+        <!-- Launch Gazebo simulation -->
+        <rosparam param="/use_sim_time">true</rosparam>
+        <node pkg="px4_bringup" type="launch_gzworld.py" name="gazebo_world" output="screen"
+        args="-physics=ode -world=$(find px4_bringup)/config/empty_light.world">
+            <rosparam param="sim_origin">[37.558542, -5.931074, 7.89]</rosparam><!-- [lat,lon,alt] -->
+        </node>
+    </group>
+
+    <!-- Launch robots. Argument mode can be:
+        - sitl: for software in the loop simulation
+        - serial: for serial connection to px4
+        - custom: to fully customize fcu and gcs urls
+    -->
+    <!-- Launch robot id=1 -->
+    <include file="$(find px4_bringup)/launch/spawn_robot.launch" unless="$(arg multi)">
+        <arg name="id" value="1"/>
+        <arg name="material" value="Orange"/>
+        <arg name="mode" value="$(arg mode)"/>
+        <arg name="x" value="0"/>
+        <arg name="y" value="0"/>
+        <arg name="z" value="0"/>
+        <arg name="yaw" value="0"/>
+        <arg name="robot_model" value="$(arg robot_model)"/>
+    </include>
+
+    <group if="$(arg multi)">
+        <!-- Launch robot id=1 -->
+        <include file="$(find px4_bringup)/launch/spawn_robot.launch" ns="$(arg ns_prefix)1">
+            <arg name="id" value="1"/>
+            <arg name="material" value="Orange"/>
+            <arg name="mode" value="$(arg mode)"/>
+            <arg name="x" value="0"/>
+            <arg name="y" value="0"/>
+            <arg name="z" value="0"/>
+            <arg name="yaw" value="0"/>
+            <arg name="robot_model" value="$(arg robot_model)"/>
+        </include>
+        <!-- Launch robot id=2 -->
+        <include file="$(find px4_bringup)/launch/spawn_robot.launch" ns="$(arg ns_prefix)2">
+            <arg name="id" value="2"/>
+            <arg name="material" value="Indigo"/>
+            <arg name="mode" value="sitl"/>
+            <arg name="x" value="-10"/>
+            <arg name="y" value="10"/>
+            <arg name="z" value="0"/>
+            <arg name="yaw" value="0"/>
+            <arg name="robot_model" value="$(arg robot_model)"/>
+        </include>
+        <!-- Launch robot id=3 -->
+        <include file="$(find px4_bringup)/launch/spawn_robot.launch" ns="$(arg ns_prefix)3">
+            <arg name="id" value="3"/>
+            <arg name="material" value="ZincYellow"/>
+            <arg name="mode" value="sitl"/>
+            <arg name="x" value="10"/>
+            <arg name="y" value="10"/>
+            <arg name="z" value="0"/>
+            <arg name="yaw" value="0"/>
+            <arg name="robot_model" value="$(arg robot_model)"/>
+        </include>
+    </group>
+
+    <!-- Launch UAL server for uav id=1 -->
+    <node pkg="ual_backend_mavros_fw" type="ual_backend_mavros_fw_server" name="ual" output="screen" unless="$(arg multi)">
+        <param name="uav_id" value="1"/>
+        <param name="ual_server" value="$(arg ual_server)"/>
+        <param name="ual_pub_rate" value="$(arg ual_pub_rate)"/>
+        <param name="mavros_offboard_rate" value="$(arg mavros_offboard_rate)"/>
+        <param name="position_th" value="$(arg position_th)"/>
+        <param name="orientation_th" value="$(arg orientation_th)"/>
+        <param name="hold_pose_time" value="$(arg hold_pose_time)"/>
+        <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
+        <param name="home_pose_parent_frame" value="map"/><!-- default= map -->
+        <!-- Define home pose relative to global map frame -->
+        <rosparam param="home_pose">[0, 0, 0]</rosparam><!-- [x,y,z] -->
+        <!-- Define the global map frame geo position and let the UAL estimate the relative home pose -->
+        <rosparam param="map_origin_geo">[37.558542, -5.931074, 7.89]</rosparam><!-- [lat,lon,alt] -->
+        <rosparam param="mission/aux_distance"> 100.0</rosparam>
+        <rosparam param="mission/aux_height"> 10.0</rosparam>
+        <rosparam param="mission/takeoff_minimum_pitch"> 5.0</rosparam>
+        <rosparam param="mission/loit_heading"> 0.0</rosparam>
+        <rosparam param="mission/loit_radius"> 50.0</rosparam>
+        <rosparam param="mission/loit_forward_moving"> 1.0</rosparam>
+        <rosparam param="mission/land_precision_mode"> 0.0</rosparam>
+        <rosparam param="mission/land_abort_alt"> 0.0</rosparam>
+        <rosparam param="mission/pass_orbit_distance"> 1.0</rosparam>
+        <rosparam param="mission/pass_acceptance_radius"> 30.0</rosparam>
+
+    </node>
+
+    <group if="$(arg multi)">
+        <!-- Launch UAL server for uav id=1 -->
+        <node pkg="ual_backend_mavros" type="ual_backend_mavros_server" name="ual" ns="$(arg ns_prefix)1" output="screen">
+            <param name="uav_id" value="1"/>
+            <param name="ual_server" value="$(arg ual_server)"/>
+            <param name="ual_pub_rate" value="$(arg ual_pub_rate)"/>
+            <param name="mavros_offboard_rate" value="$(arg mavros_offboard_rate)"/>
+            <param name="position_th" value="$(arg position_th)"/>
+            <param name="orientation_th" value="$(arg orientation_th)"/>
+            <param name="hold_pose_time" value="$(arg hold_pose_time)"/>
+            <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
+            <param name="home_pose_parent_frame" value="map"/><!-- default= map -->
+            <!-- Define home pose relative to global map frame -->
+            <rosparam param="home_pose">[0, 0, 0]</rosparam><!-- [x,y,z] -->
+            <!-- Define the global map frame geo position and let the UAL estimate the relative home pose -->
+            <!-- <rosparam param="map_origin_geo">[37.558542, -5.931074, 7.89]</rosparam> --><!-- [lat,lon,alt] -->
+        </node>
+        <!-- Launch UAL server for uav id=2 -->
+        <node pkg="ual_backend_mavros" type="ual_backend_mavros_server" name="ual" ns="$(arg ns_prefix)2" output="screen">
+            <param name="uav_id" value="2"/>
+            <param name="ual_server" value="$(arg ual_server)"/>
+            <param name="ual_pub_rate" value="$(arg ual_pub_rate)"/>
+            <param name="mavros_offboard_rate" value="$(arg mavros_offboard_rate)"/>
+            <param name="position_th" value="$(arg position_th)"/>
+            <param name="orientation_th" value="$(arg orientation_th)"/>
+            <param name="hold_pose_time" value="$(arg hold_pose_time)"/>
+            <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
+            <param name="home_pose_parent_frame" value="map"/><!-- default= map -->
+            <!-- Define home pose relative to global map frame -->
+            <rosparam param="home_pose">[-10, 10, 0]</rosparam><!-- [x,y,z] -->
+            <!-- Define the global map frame geo position and let the UAL estimate the relative home pose -->
+            <!-- <rosparam param="map_origin_geo">[37.558542, -5.931074, 7.89]</rosparam> --><!-- [lat,lon,alt] -->
+        </node>
+        <!-- Launch UAL server for uav id=3 -->
+        <node pkg="ual_backend_mavros" type="ual_backend_mavros_server" name="ual" ns="$(arg ns_prefix)3" output="screen">
+            <param name="uav_id" value="3"/>
+            <param name="ual_server" value="$(arg ual_server)"/>
+            <param name="ual_pub_rate" value="$(arg ual_pub_rate)"/>
+            <param name="mavros_offboard_rate" value="$(arg mavros_offboard_rate)"/>
+            <param name="position_th" value="$(arg position_th)"/>
+            <param name="orientation_th" value="$(arg orientation_th)"/>
+            <param name="hold_pose_time" value="$(arg hold_pose_time)"/>
+            <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
+            <param name="home_pose_parent_frame" value="map"/><!-- default= map -->
+            <!-- Define home pose relative to global map frame -->
+            <rosparam param="home_pose">[10, 10, 0]</rosparam><!-- [x,y,z] -->
+            <!-- Define the global map frame geo position and let the UAL estimate the relative home pose -->
+            <!-- <rosparam param="map_origin_geo">[37.558542, -5.931074, 7.89]</rosparam> --><!-- [lat,lon,alt] -->
+
+        </node>
+    </group>
+    <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="0 -150 0 0 0 0 map aux 100" />
+
+</launch>

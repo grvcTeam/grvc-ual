@@ -25,6 +25,7 @@
 #include <atomic>
 #include <mutex>
 #include <std_msgs/Float32.h>
+#include <std_msgs/Int8.h>
 #include <geometry_msgs/Vector3Stamped.h>
 #include <geometry_msgs/TwistStamped.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -32,6 +33,7 @@
 #include <sensor_msgs/NavSatFix.h>
 #include <nav_msgs/Odometry.h>
 #include <uav_abstraction_layer/State.h>
+#include <uav_abstraction_layer/MissionElement.h>
 
 namespace grvc { namespace ual {
 
@@ -42,6 +44,7 @@ typedef geometry_msgs::TwistStamped     Velocity;
 typedef nav_msgs::Odometry              Odometry;
 typedef geometry_msgs::TransformStamped Transform;
 typedef uint8_t                         State;  
+typedef uav_abstraction_layer::MissionElement MissionElement;
 
 /// Common interface for back-end implementations of ual
 class Backend {
@@ -79,6 +82,9 @@ public:
     virtual Transform transform() const = 0;
     /// Current robot state
     inline State state() { return this->state_; }
+    /// Current waypoint of the list that define de mission
+    virtual int mission_state() { return this->mission_state_; }
+
     /// Current reference pose
     virtual Pose referencePose() = 0;
 
@@ -93,6 +99,10 @@ public:
     /// Go to the specified waypoint in geographic coordinates, following a straight line
     /// \param _wp goal waypoint in geographic coordinates
     virtual void	goToWaypointGeo(const WaypointGeo& _wp) = 0;
+
+    /// Execute specified mission following provided waypoints
+    /// \param _waypoint_element_list is the list of groups of waypoints with same parameters
+    virtual void	setMission(const std::vector<MissionElement>& _waypoint_element_list) = 0;
 
     /// Perform a take off maneuver
     /// \param _height target height that must be reached to consider the take off complete
@@ -131,6 +141,8 @@ protected:
     std::thread spin_thread_;
 
     std::atomic<State> state_ = {uav_abstraction_layer::State::UNINITIALIZED};
+
+    int mission_state_ = 0;
 };
 
 }}	// namespace grvc::ual

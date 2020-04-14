@@ -1,0 +1,61 @@
+<!-- 
+The MIT License (MIT)
+Copyright (c) 2016 GRVC University of Seville
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
+-->
+<launch>
+
+    <arg name="id" default="1"/>
+    <arg name="ual_server" default="on"/>
+    <arg name="ual_pub_rate" default="30.0"/>
+
+    <arg name="mode" default="serial"/>
+    <arg name="fcu_url" default="udp://:14550@localhost:14556"/>
+    <arg name="gcs_url" default=""/>
+    <arg name="rtcm_topic" default=""/>
+
+    <arg name="pose_frame_id" default=""/><!-- To publish ual/pose in other frame than local, e.g. map -->
+    <arg name="mavros_offboard_rate" default="30.0"/>
+    <arg name="position_th" default="0.33"/>
+    <arg name="orientation_th" default="0.65"/>
+    <arg name="hold_pose_time" default="3.0"/>
+
+    <!-- Launch robots. Argument mode can be:
+        - serial: for serial connection to px4 (fcu_url=serial:///dev/ttyUSB0:921600)
+        - sitl: for software in the loop simulation
+        - custom: to fully customize fcu and gcs urls
+    -->
+    <!-- Launch mavros -->
+    <include file="$(find px4_bringup)/launch/spawn_robot.launch">
+        <arg name="id" value="$(arg id)"/>
+        <arg name="mode" value="$(arg mode)"/>
+        <arg name="fcu_url" value="$(arg fcu_url)"/>
+        <arg name="gcs_url" value="$(arg gcs_url)"/>
+        <arg name="rtcm_topic" default="$(arg rtcm_topic)"/>
+    </include>
+
+    <!-- Launch UAL server -->
+    <node pkg="ual_backend_mavros" type="ual_backend_mavros_server" name="ual" output="screen">
+        <param name="uav_id" value="$(arg id)"/>
+        <param name="ual_server" value="$(arg ual_server)"/>
+        <param name="ual_pub_rate" value="$(arg ual_pub_rate)"/>
+        <param name="mavros_offboard_rate" value="$(arg mavros_offboard_rate)"/>
+        <param name="position_th" value="$(arg position_th)"/>
+        <param name="orientation_th" value="$(arg orientation_th)"/>
+        <param name="hold_pose_time" value="$(arg hold_pose_time)"/>
+        <param name="pose_frame_id" value="$(arg pose_frame_id)"/>
+        <param name="home_pose_parent_frame" value="map"/><!-- default= map -->
+        <!-- Define home pose relative to global map frame -->
+        <rosparam param="home_pose">[0, 0, 0]</rosparam><!-- [x,y,z] -->
+        <!-- Define the global map frame geo position and let the UAL estimate the relative home pose -->
+        <!-- <rosparam param="map_origin_geo">[37.558542, -5.931074, 7.89]</rosparam> --><!-- [lat,lon,alt] -->
+        <!-- PID params for Ardupilot setPose pose control -->
+        <rosparam file="$(find ual_backend_mavros)/config/pid.yaml" />
+    </node>
+
+</launch>
