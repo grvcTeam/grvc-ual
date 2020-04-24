@@ -21,6 +21,8 @@ def main():
                         help="Path to add to GAZEBO_MODEL_PATH")
     parser.add_argument('-description_package', type=str, default="robots_description",
                         help='robot description package, must follow robots_description file structure')
+    parser.add_argument('-debug', type=bool, default=False,
+                        help='run gzserver with gdb')
     args, unknown = parser.parse_known_args()
     utils.check_unknown_args(unknown)
 
@@ -75,8 +77,12 @@ def main():
     server_args = "rosrun gazebo_ros gzserver -e " + args.physics + ' ' + args.world + ' __name:=gazebo'
     server_out = open(temp_dir + '/gzserver.out', 'w')
     server_err = open(temp_dir + '/gzserver.err', 'w')
-    server = subprocess.Popen(server_args, stdout=server_out, stderr=server_err, cwd=temp_dir, \
+    if not args.debug:
+        server = subprocess.Popen(server_args, stdout=server_out, stderr=server_err, cwd=temp_dir, \
                                            env=gz_env, shell=True, preexec_fn=os.setsid)
+    else:
+        server = subprocess.Popen('gnome-terminal -- ' + server_args, cwd=temp_dir, \
+                                            env=gz_env, shell=True, preexec_fn=os.setsid)
 
     # Start gazebo client
     time.sleep(0.2)
