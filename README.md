@@ -21,13 +21,14 @@ You can find detailed instructions for installation and how to use the UAL in th
 ### [PX4](https://github.com/PX4/Firmware)
 
  * Via [ual_backend_mavros](https://github.com/grvcTeam/grvc-ual/wiki/Backend-MAVROS) and [ual_backend_mavlink](https://github.com/grvcTeam/grvc-ual/wiki/Backend-MAVLink)
- * In simulation (SITL): version [v1.7.3](https://github.com/PX4/Firmware/tree/v1.7.3)
- * Flying: versions from [v1.7.3](https://github.com/PX4/Firmware/tree/v1.7.3) to [v1.9.2](https://github.com/PX4/Firmware/tree/v1.9.2)
+ * In simulation (SITL): version [v1.10.*](https://github.com/PX4/Firmware/tree/v1.10.1)
+ * Flying: versions from [v1.7.3](https://github.com/PX4/Firmware/tree/v1.7.3) to [v1.10.1](https://github.com/PX4/Firmware/tree/v1.10.1)
+ * [Instructions to setup the SITL](https://github.com/grvcTeam/grvc-ual/wiki/Setup-instructions:-PX4-SITL)
 
 ### [Ardupilot](http://ardupilot.org/) (beta)
 
  * Via [ual_backend_mavros](https://github.com/grvcTeam/grvc-ual/wiki/Backend-MAVROS)
- * Last tested version [v3.6.9](http://firmware.ardupilot.org/Copter/stable-3.6.9)
+ * Last tested version [v4.0.0](https://firmware.ardupilot.org/Copter/stable-4.0.0)
 
 ### DJI A3/N3
 
