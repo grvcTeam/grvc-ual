@@ -38,12 +38,15 @@ def main():
 
     # Create symlink to the PX4 command file
     px4_src = rospack.get_path("px4")
-    px4_commands_dir = px4_src + "/ROMFS/px4fmu_common/init.d-posix/" + str(hash(args.model) % 10**8) + "_" + args.model
-    subprocess.call("ln -sf " + commands_file + " " + px4_commands_dir, shell=True)
+    custom_model_name = "custom_" + args.model
+    px4_commands_dst = px4_src + "/ROMFS/px4fmu_common/init.d-posix/" + str(hash(custom_model_name) % 10**8) + "_" + custom_model_name
+    subprocess.call("ln -sf " + commands_file + " " + px4_commands_dst, shell=True)
+    if os.path.exists(commands_file + '.post'):
+        subprocess.call("ln -sf " + commands_file + ".post " + px4_commands_dst + ".post", shell=True)
 
     # Set PX4 environment variables
     px4_env = os.environ.copy()
-    px4_env['PX4_SIM_MODEL'] = args.model
+    px4_env['PX4_SIM_MODEL'] = custom_model_name
     px4_env['PX4_ESTIMATOR'] = args.estimator
 
     # Spawn px4

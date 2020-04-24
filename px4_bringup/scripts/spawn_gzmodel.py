@@ -60,16 +60,27 @@ def main():
 
     # Check file type (xacro or sdf)
     model_file_type = ""
+    model_file = ""
     for listed_file in sorted(os.listdir(description_dir + "/models/" + args.model)):
         if listed_file == "model.sdf":
             model_file_type = "sdf"
+            model_file = "model.sdf"
             break
         if listed_file == "model.xacro":
             model_file_type = "xacro"
+            model_file = "model.xacro"
+            break
+        if listed_file == args.model + ".sdf":
+            model_file_type = "sdf"
+            model_file = args.model + ".sdf"
+            break
+        if listed_file == args.model + ".xacro":
+            model_file_type = "xacro"
+            model_file = args.model + ".xacro"
             break
 
     if model_file_type == "xacro":
-        xacro_description = description_dir + "/models/" + args.model + "/model.xacro"
+        xacro_description = description_dir + "/models/" + args.model + "/" + model_file
 
         # Create urdf from xacro description
         temp_urdf = temp_dir + "/" + args.model + ".urdf"
@@ -105,7 +116,7 @@ def main():
         subprocess.call("gz sdf -p " + temp_urdf + " > " + temp_sdf, shell=True)
 
     elif model_file_type == "sdf":
-        model_sdf = description_dir + "/models/" + args.model + "/model.sdf"
+        model_sdf = description_dir + "/models/" + args.model + "/" + model_file
         temp_sdf = temp_dir + "/" + args.model + ".sdf"
         subprocess.call("cp " + model_sdf + " " + temp_sdf, shell=True)
 
@@ -116,14 +127,34 @@ def main():
         for plugintag in model.findall('plugin'):
             if plugintag.get('name') == 'mavlink_interface':
                 porttag = plugintag.find('mavlink_udp_port')
-                porttag.text = str(udp_config["sim_port"])
+                porttag.text = str(udp_config["simulator_udp_port"])
+                porttag = plugintag.find('mavlink_tcp_port')
+                porttag.text = str(udp_config["simulator_tcp_port"])
 
         # Typhoon_h480 patch - TODO use xacro instead
         if args.model == 'typhoon_h480':
             for plugintag in model.findall('plugin'):
                 if plugintag.get('name') == 'gimbal_controller':
+                    yawtag = plugintag.find('joint_yaw')
+                    yawtag.text = 'typhoon_h480_' + str(args.id) + '::cgo3_vertical_arm_joint'
+                    rolltag = plugintag.find('joint_roll')
+                    rolltag.text = 'typhoon_h480_' + str(args.id) + '::cgo3_horizontal_arm_joint'
+                    pitchtag = plugintag.find('joint_pitch')
+                    pitchtag.text = 'typhoon_h480_' + str(args.id) + '::cgo3_camera_joint'
                     imutag = plugintag.find('gimbal_imu')
                     imutag.text = 'typhoon_h480_' + str(args.id) + '::camera_imu'
+                if plugintag.get('name') == 'mavlink_interface':
+                    controlchannelstag = plugintag.find('control_channels')
+                    for channeltag in controlchannelstag.findall('channel'):
+                        if channeltag.get('name') == 'gimbal_yaw':
+                            yawtag = channeltag.find('joint_name')
+                            yawtag.text = 'typhoon_h480_' + str(args.id) + '::cgo3_vertical_arm_joint'
+                        if channeltag.get('name') == 'gimbal_roll':
+                            rolltag = channeltag.find('joint_name')
+                            rolltag.text = 'typhoon_h480_' + str(args.id) + '::cgo3_horizontal_arm_joint'
+                        if channeltag.get('name') == 'gimbal_pitch':
+                            pitchtag = channeltag.find('joint_name')
+                            pitchtag.text = 'typhoon_h480_' + str(args.id) + '::cgo3_camera_joint'
             for linktag in model.findall('link'):
                 if linktag.get('name') == 'cgo3_camera_link':
                     for sensortag in linktag.findall('sensor'):
@@ -133,7 +164,7 @@ def main():
         tree.write(temp_sdf)
 
     else:
-        raise IOError("Couldn't find model.sdf/model.xacro description file")
+        raise IOError("Couldn't find model.sdf/model.xacro/" + args.model + ".sdf/" + args.model + ".xacro description file")
 
     # Set gravity=0 for light simulations
     if args.ual_backend == 'light':
@@ -153,7 +184,7 @@ def main():
     time.sleep(0.4)
 
     # Minimum z to avoid collision with ground
-    z_min = 0.3
+    z_min = 0.1
 
     spawn_x = args.x
     spawn_y = args.y

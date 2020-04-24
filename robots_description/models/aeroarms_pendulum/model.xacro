@@ -5,6 +5,7 @@
   Is there a reason not to make all properties arguments?
   -->
   <xacro:arg name='mavlink_addr' default='INADDR_ANY' />
+  <xacro:arg name='mavlink_tcp_port' default='4560' />
   <xacro:arg name='mavlink_udp_port' default='14560' />
   <xacro:arg name='visual_material' default='DarkGrey' />
   <xacro:arg name='enable_mavlink_interface' default='true' />
@@ -34,6 +35,7 @@
     namespace="${namespace}"
     imu_sub_topic="/imu"
     mavlink_addr="$(arg mavlink_addr)"
+    mavlink_tcp_port="$(arg mavlink_tcp_port)"
     mavlink_udp_port="$(arg mavlink_udp_port)"
     >
   </xacro:mavlink_interface_macro>
