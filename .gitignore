@@ -28,5 +28,8 @@
 *.out
 *.app
 
+# Ignore vscode files
+.vscode/*
+
 # Ignore CATKIN_IGNORE files
 CATKIN_IGNORE

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(uav_abstraction_layer)
 
-set(GRVC_UAL_VERSION 2.2)
+set(GRVC_UAL_VERSION 3.1)
 
 ## Add support for C++11, supported in ROS Kinetic and newer
 add_definitions(-std=c++11)

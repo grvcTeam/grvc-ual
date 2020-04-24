@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>robots_description</name>
-  <version>2.2.0</version>
+  <version>3.1</version>
   <description>This package contains robots descriptions, 
   mostly aimed for px4 sitl gazebo simulation.</description>
 
