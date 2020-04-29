@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>px4_bringup</name>
-  <version>3.1</version>
+  <version>3.1.0</version>
   <description>This package brings up the mavros interface of a px4 autopilot,
   that can be real or simulted in gazebo with software-in-the-loop (sitl).</description>
 
