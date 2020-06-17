@@ -48,10 +48,14 @@ You can find detailed instructions for installation and how to use the UAL in th
 If you find UAL useful in your research, please consider citing:
 
 ```
-@inproceedings{real2018ual,
-    Author = {Fran Real, Arturo Torres-González, Pablo Ramón Soria, Jesús Capitán and Aníbal Ollero},
-    Title = {UAL: an abstraction layer for unmanned vehicles},
-    Booktitle= {2nd International Symposium on Aerial Robotics (ISAR)},
-    Year = {2018}
+@article{real_ijars20, 
+    author = {Fran Real and Arturo Torres-Gonz\'{a}lez and Pablo Ram\'{o}n Soria and Jes\'{u}s Capit\'{a}n and Anibal Ollero}, 
+    title = {Unmanned aerial vehicle abstraction layer: An abstraction layer to operate unmanned aerial vehicles}, 
+    journal = {International Journal of Advanced Robotic Systems}, 
+    year = {2020}, 
+    volume = {}, 
+    number = {}, 
+    pages = {1-10}, 
+    doi = {}
 }
 ```
