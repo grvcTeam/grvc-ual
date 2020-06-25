@@ -9,4 +9,9 @@
 
 sh /etc/init.d/rc.mc_defaults
 
+if [ $AUTOCNF = yes ]
+then
+	param set COM_DISARM_PRFLT 0
+fi
+
 set MIXER quad_w

@@ -21,6 +21,8 @@ then
 
 	param set RTL_DESCEND_ALT 10
 	param set RTL_LAND_DELAY 0
+
+	param set COM_DISARM_PRFLT 0
 fi
 
 set MAV_TYPE 13

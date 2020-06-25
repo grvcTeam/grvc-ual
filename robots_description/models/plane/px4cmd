@@ -37,6 +37,8 @@ then
 
 	param set RWTO_TKOFF 1
 
+	param set COM_DISARM_PRFLT 0
+
 fi
 
 set MIXER_FILE etc/mixers-sitl/plane_sitl.main.mix

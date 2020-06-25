@@ -25,6 +25,8 @@ then
 	param set TRIG_MODE 4
 	param set MNT_MODE_IN 3
 	param set MAV_PROTO_VER 2
+
+	param set COM_DISARM_PRFLT 0
 fi
 
 set MAV_TYPE 13
