@@ -53,9 +53,10 @@ If you find UAL useful in your research, please consider citing:
     title = {Unmanned aerial vehicle abstraction layer: An abstraction layer to operate unmanned aerial vehicles}, 
     journal = {International Journal of Advanced Robotic Systems}, 
     year = {2020}, 
-    volume = {}, 
-    number = {}, 
-    pages = {1-10}, 
-    doi = {}
+    volume = {17}, 
+    number = {4}, 
+    pages = {1-13}, 
+    doi = {10.1177/1729881420925011},
+    url = {https://doi.org/10.1177%2F1729881420925011}
 }
 ```
