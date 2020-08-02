@@ -57,6 +57,6 @@ If you find UAL useful in your research, please consider citing:
     number = {4}, 
     pages = {1-13}, 
     doi = {10.1177/1729881420925011},
-    url = {https://doi.org/10.1177%2F1729881420925011}
+    url = {https://doi.org/10.1177/1729881420925011}
 }
 ```
