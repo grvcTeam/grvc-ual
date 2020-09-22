@@ -1,5 +1,5 @@
 # grvc-ual
-[![Releases](https://img.shields.io/github/release/grvcTeam/grvc-ual.svg)](https://github.com/grvcTeam/grvc-ual/releases)
+[![Releases](https://img.shields.io/github/release/grvcTeam/grvc-ual.svg)](https://github.com/grvcTeam/grvc-ual/releases) [![DOI](https://img.shields.io/badge/DOI-10.1177%2F1729881420925011-blue)](https://doi.org/10.1177/1729881420925011)
 
 A repository for the GRVC UAV abstraction layer.
 
