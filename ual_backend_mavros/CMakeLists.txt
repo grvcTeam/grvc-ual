@@ -33,6 +33,9 @@ endif()
 if ("${mavros_version}" VERSION_LESS "0.29.0")
   add_definitions("-DMAVROS_VERSION_BELOW_0_29_0=\"${mavros_version}\"")
 endif()
+if ("${mavros_version}" VERSION_LESS "1.4.0")
+  add_definitions("-DMAVROS_VERSION_BELOW_1_4_0=\"${mavros_version}\"")
+endif()
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
