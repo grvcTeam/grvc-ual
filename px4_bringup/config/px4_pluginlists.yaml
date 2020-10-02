@@ -4,6 +4,7 @@ plugin_blacklist:
 # extras
 - image_pub
 - vibration
+- wheel_odometry
 #- distance_sensor
 
 plugin_whitelist:
