@@ -847,7 +847,11 @@ void BackendMavrosFW::getAutopilotInformation() {
             autopilot_type_ = AutopilotType::PX4;
             break;
         default:
+#ifdef MAVROS_VERSION_BELOW_1_4_0
             ROS_ERROR("BackendMavrosFW [%d]: Wrong autopilot type: %s", robot_id_, mavros::utils::to_string((mavlink::common::MAV_AUTOPILOT) vehicle_info_srv.response.vehicles[0].autopilot).c_str());
+#else
+            ROS_ERROR("BackendMavrosFW [%d]: Wrong autopilot type: %s", robot_id_, mavros::utils::to_string((mavlink::minimal::MAV_AUTOPILOT) vehicle_info_srv.response.vehicles[0].autopilot).c_str());
+#endif
             exit(0);
     }
 
@@ -877,9 +881,15 @@ void BackendMavrosFW::getAutopilotInformation() {
     std::string autopilot_version = std::to_string(major_version) + "." + std::to_string(minor_version) + "." + std::to_string(patch_version) + version_type;
 
     // Autopilot string
+#ifdef MAVROS_VERSION_BELOW_1_4_0
     ROS_INFO("BackendMavrosFW [%d]: Connected to %s version %s. Type: %s.", robot_id_,
     mavros::utils::to_string((mavlink::common::MAV_AUTOPILOT) vehicle_info_srv.response.vehicles[0].autopilot).c_str(),
     autopilot_version.c_str(), mavros::utils::to_string((mavlink::common::MAV_TYPE) vehicle_info_srv.response.vehicles[0].type).c_str());
+#else
+    ROS_INFO("BackendMavrosFW [%d]: Connected to %s version %s. Type: %s.", robot_id_,
+    mavros::utils::to_string((mavlink::minimal::MAV_AUTOPILOT) vehicle_info_srv.response.vehicles[0].autopilot).c_str(),
+    autopilot_version.c_str(), mavros::utils::to_string((mavlink::minimal::MAV_TYPE) vehicle_info_srv.response.vehicles[0].type).c_str());
+#endif
 }
 
 bool BackendMavrosFW::pushMission(const mavros_msgs::WaypointList& _wp_list) {
