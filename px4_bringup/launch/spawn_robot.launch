@@ -22,11 +22,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     <arg name="yaw" default="0"/>
     <arg name="frame_id" default="map"/>
     <arg name="append_xacro_args" default=""/>
+    <arg name="simulate_safety_pilot" default="true"/>
 
     <arg name="fcu_url" default="udp://:14550@localhost:14556"/>
     <arg name="gcs_url" default="udp://@localhost"/>
     <arg name="rtcm_topic" default=""/>
     <arg name="use_mavros" default="true"/>
+    <arg name="remap_mavros_tf" default="true"/>
+    <arg name="mavros_config_pkg" default="px4_bringup"/>
 
     <group if="$(eval mode == 'sitl')">
         <!-- Spawn model in Gazebo -->
@@ -42,12 +45,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
         <!-- Run safety pilot simulator -->
         <!-- WARNING: Run only in simulation! -->
-        <node pkg="ual_teleop" type="simulate_safety_pilot.py" name="safety_pilot" output="screen"
+        <node pkg="ual_teleop" type="simulate_safety_pilot.py" name="safety_pilot" output="screen" if="$(arg simulate_safety_pilot)"
         args="-id=$(arg id) -joy_name=saitek_p3200 -use_mavros=$(arg use_mavros)"/>
     </group>
 
     <!-- Run mavros node -->
     <node pkg="px4_bringup" type="run_mavros.py" name="run_mavros_$(arg id)" output="screen" if="$(arg use_mavros)"
-    args="-id=$(arg id) -mode=$(arg mode) -fcu_url=$(arg fcu_url) -gcs_url=$(arg gcs_url) -rtcm_topic=$(arg rtcm_topic)" />
+    args="-id=$(arg id) -mode=$(arg mode) -fcu_url=$(arg fcu_url) -gcs_url=$(arg gcs_url) -rtcm_topic=$(arg rtcm_topic)
+            -remap_tfs=$(arg remap_mavros_tf) -mavros_config_pkg=$(arg mavros_config_pkg)" />
 
 </launch>

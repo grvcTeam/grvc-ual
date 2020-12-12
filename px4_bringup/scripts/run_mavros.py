@@ -5,6 +5,15 @@ import utils
 import rospkg
 import rospy
 
+def str2bool(v):
+    if isinstance(v, bool):
+       return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 def main():
 
@@ -20,8 +29,10 @@ def main():
                         help='set gcs_url manually in custom mode')
     parser.add_argument('-rtcm_topic', type=str, default="",
                         help='set topic for gps rtk corrections')
-    parser.add_argument('-remap_tfs', type=bool, default=True,
+    parser.add_argument('-remap_tfs', type=str2bool, default=True,
                         help='remap /tf and /tf_static to namespaced topics')
+    parser.add_argument('-mavros_config_pkg', type=str, default="px4_bringup",
+                        help='set the package in which a config folder contains the files px4_pluginlists.yaml and px4_config.yaml')
     #!TODO: Add yaml location as arguments
     args, unknown = parser.parse_known_args()
     utils.check_unknown_args(unknown)
@@ -64,7 +75,7 @@ def main():
             subprocess.call("rosparam set " + node_name + "/gcs_url " + args.gcs_url, shell=True)
 
     # ...and load blacklist, config (as seen in mavros node.launch)
-    yaml_path = rospack.get_path("px4_bringup") + "/config/"
+    yaml_path = rospack.get_path( args.mavros_config_pkg ) + "/config/"
     subprocess.call("rosparam load " + yaml_path + "px4_pluginlists.yaml " + \
     node_name, shell=True)
     subprocess.call("rosparam load " + yaml_path + "px4_config.yaml " + \
