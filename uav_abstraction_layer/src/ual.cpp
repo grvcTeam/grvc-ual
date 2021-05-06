@@ -24,6 +24,7 @@
 #include <ros/ros.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <std_srvs/Empty.h>
+#include <mavros_msgs/AttitudeTarget.h>
 
 using namespace uav_abstraction_layer;
 
@@ -84,6 +85,8 @@ UAL::UAL(Backend* _backend) {
             std::string go_to_waypoint_geo_srv = ual_ns + "/go_to_waypoint_geo";
             std::string set_pose_topic = ual_ns + "/set_pose";
             std::string set_velocity_topic = ual_ns + "/set_velocity";
+            std::string set_attitude_topic = ual_ns + "/set_attitude";
+            std::string set_attitude_rate_topic = ual_ns + "/set_attitude_rate";
             std::string recover_from_manual_srv = ual_ns + "/recover_from_manual";
             std::string set_home_srv = ual_ns + "/set_home";
             std::string pose_topic = ual_ns + "/pose";
@@ -122,6 +125,18 @@ UAL::UAL(Backend* _backend) {
                 set_pose_topic, 1,
                 [this](const geometry_msgs::PoseStamped::ConstPtr& _msg) {
                 this->setPose(*_msg);
+            });
+            ros::Subscriber set_orientation_sub =
+                nh.subscribe<uav_abstraction_layer::AttSetpoint>(
+                set_attitude_topic, 1,
+                [this](const uav_abstraction_layer::AttSetpoint::ConstPtr& _msg) {
+                this->setAttitude(*_msg);
+            });
+            ros::Subscriber set_body_rate_sub =
+                nh.subscribe<uav_abstraction_layer::AttRateSetpoint>(
+                set_attitude_rate_topic, 1,
+                [this](const uav_abstraction_layer::AttRateSetpoint::ConstPtr& _msg) {
+                this->setAttitudeRate(*_msg);
             });
             ros::Subscriber set_velocity_sub =
                 nh.subscribe<geometry_msgs::TwistStamped>(
@@ -183,6 +198,71 @@ UAL::~UAL() {
         ros::param::set("/ual_ids", new_ual_ids);
     }
     delete(backend_);
+}
+
+bool UAL::setAttitude(const uav_abstraction_layer::AttSetpoint& _msg) {
+    // Check required state
+    if (backend_->state() != uav_abstraction_layer::State::FLYING_AUTO) {
+        ROS_ERROR("Unable to setOrientation: not FLYING_AUTO!");
+        return false;
+    }
+    // Override any previous FLYING function
+    if (!backend_->isIdle()) { backend_->abort(false); }
+
+    // Check consistency of pose data (isnan?)
+    if ( std::isnan(_msg.orientation.x) || std::isnan(_msg.orientation.y) ||
+         std::isnan(_msg.orientation.z) || std::isnan(_msg.orientation.w) || std::isnan(_msg.thrust) ) {
+        ROS_ERROR("Unable to setOrientation: NaN received");
+        return false;
+    }
+
+    // Check thrust within 0 - 1
+    if ( _msg.thrust < 0 || _msg.thrust > 1) {
+        ROS_ERROR("Unable to setOrientation: _thrust not in range (0 - 1)");
+        return false;
+    }
+
+    mavros_msgs::AttitudeTarget ref_att;
+    ref_att.header      = _msg.header;
+    ref_att.type_mask   = 7;
+    ref_att.orientation = _msg.orientation;
+    ref_att.thrust      = _msg.thrust;
+
+    validateOrientation(ref_att.orientation);
+    backend_->threadSafeCall(&Backend::setAttitudeTarget, ref_att);
+    return true;
+}
+
+bool UAL::setAttitudeRate(const uav_abstraction_layer::AttRateSetpoint& _msg) {
+    // Check required state
+    if (backend_->state() != uav_abstraction_layer::State::FLYING_AUTO) {
+        ROS_ERROR("Unable to setBodyRate: not FLYING_AUTO!");
+        return false;
+    }
+    // Override any previous FLYING function
+    if (!backend_->isIdle()) { backend_->abort(false); }
+
+    // Check consistency of pose data (isnan?)
+    if ( std::isnan(_msg.body_rate.x) || std::isnan(_msg.body_rate.y) ||
+         std::isnan(_msg.body_rate.z) || std::isnan(_msg.thrust)) {
+        ROS_ERROR("Unable to setBodyRate: NaN received");
+        return false;
+    }
+
+    // Check thrust within 0 - 1
+    if ( _msg.thrust < 0 || _msg.thrust > 1) {
+        ROS_ERROR("Unable to setBodyRate: _thrust not in range (0 - 1)");
+        return false;
+    }
+
+    mavros_msgs::AttitudeTarget ref_rate;
+    ref_rate.header    = _msg.header;
+    ref_rate.type_mask = 128;
+    ref_rate.body_rate = _msg.body_rate;
+    ref_rate.thrust    = _msg.thrust;
+
+    backend_->threadSafeCall(&Backend::setAttitudeTarget, ref_rate);
+    return true;
 }
 
 bool UAL::setPose(const geometry_msgs::PoseStamped& _pose) {
