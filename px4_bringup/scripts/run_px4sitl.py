@@ -53,7 +53,7 @@ def main():
     px4_bin = px4_src + "/build/px4_sitl_default/bin/px4"
     px4_rootfs = px4_src + "/ROMFS/px4fmu_common"
     rcs_file = "etc/init.d-posix/rcS"
-    px4_args = px4_bin + " " + px4_rootfs + " -s " + rcs_file + " -i " + str(args.id-1) + " -w " + temp_dir + "/rootfs"
+    px4_args = px4_bin + " " + px4_rootfs + " -s " + rcs_file + " -i " + str(args.id-1) #+ " -w " + temp_dir + "/rootfs"
     px4_out = open(temp_dir+"/px4.out", 'w')
     px4_err = open(temp_dir+"/px4.err", 'w')
     px4 = subprocess.Popen(px4_args, env=px4_env, shell=True, stdout=px4_out, stderr=px4_err, cwd=temp_dir)
