@@ -148,7 +148,8 @@
   </xacro:macro>
 
   <!-- Macro to add the mavlink interface. -->
-  <xacro:macro name="mavlink_interface_macro" params="namespace imu_sub_topic mavlink_addr mavlink_tcp_port mavlink_udp_port">
+  <xacro:macro name="mavlink_interface_macro" params="namespace imu_sub_topic mavlink_addr mavlink_tcp_port mavlink_udp_port octo:=false">
+    <xacro:property name="is_octo" value="${octo}"/>
     <gazebo>
       <plugin name="mavlink_interface" filename="libgazebo_mavlink_interface.so">
         <robotNamespace>${namespace}</robotNamespace>
@@ -223,33 +224,55 @@
             <zero_position_armed>100</zero_position_armed>
             <joint_control_type>velocity</joint_control_type>
           </channel>
-          <channel name="rotor7">
-            <input_index>6</input_index>
-            <input_offset>0</input_offset>
-            <!-- joint limits [-0.524, 0.524] -->
-            <input_scaling>0.524</input_scaling>
-            <zero_position_disarmed>0</zero_position_disarmed>
-            <zero_position_armed>0</zero_position_armed>
-            <joint_control_type>position</joint_control_type>
-            <joint_name>zephyr_delta_wing::flap_right_joint</joint_name>
-            <joint_control_pid>
-              <p>10.0</p>
-              <i>0</i>
-              <d>0</d>
-              <iMax>0</iMax>
-              <iMin>0</iMin>
-              <cmdMax>20</cmdMax>
-              <cmdMin>-20</cmdMin>
-            </joint_control_pid>
-          </channel>
-          <channel name="rotor8">
-            <input_index>7</input_index>
-            <input_offset>0</input_offset>
-            <input_scaling>0.524</input_scaling>
-            <zero_position_disarmed>0</zero_position_disarmed>
-            <zero_position_armed>0</zero_position_armed>
-            <joint_control_type>position</joint_control_type>
-          </channel>
+          <!-- Add extra velocity outputs for rotors 7 and 8 -->
+          <xacro:if value="${is_octo}">
+            <channel name="rotor7">
+              <input_index>6</input_index>
+              <input_offset>0</input_offset>
+              <input_scaling>1000</input_scaling>
+              <zero_position_disarmed>0</zero_position_disarmed>
+              <zero_position_armed>100</zero_position_armed>
+              <joint_control_type>velocity</joint_control_type>
+            </channel>
+            <channel name="rotor8">
+              <input_index>7</input_index>
+              <input_offset>0</input_offset>
+              <input_scaling>1000</input_scaling>
+              <zero_position_disarmed>0</zero_position_disarmed>
+              <zero_position_armed>100</zero_position_armed>
+              <joint_control_type>velocity</joint_control_type>
+            </channel>
+          </xacro:if>
+          <!-- Else -->
+          <xacro:if value="${not is_octo}">
+            <channel name="rotor7">
+              <input_index>6</input_index>
+              <input_offset>0</input_offset>
+              <!-- joint limits [-0.524, 0.524] -->
+              <input_scaling>0.524</input_scaling>
+              <zero_position_disarmed>0</zero_position_disarmed>
+              <zero_position_armed>0</zero_position_armed>
+              <joint_control_type>position</joint_control_type>
+              <joint_name>zephyr_delta_wing::flap_right_joint</joint_name>
+              <joint_control_pid>
+                <p>10.0</p>
+                <i>0</i>
+                <d>0</d>
+                <iMax>0</iMax>
+                <iMin>0</iMin>
+                <cmdMax>20</cmdMax>
+                <cmdMin>-20</cmdMin>
+              </joint_control_pid>
+            </channel>
+            <channel name="rotor8">
+              <input_index>7</input_index>
+              <input_offset>0</input_offset>
+              <input_scaling>0.524</input_scaling>
+              <zero_position_disarmed>0</zero_position_disarmed>
+              <zero_position_armed>0</zero_position_armed>
+              <joint_control_type>position</joint_control_type>
+            </channel>
+          </xacro:if>
         </control_channels>
       </plugin>
     </gazebo>
@@ -574,7 +597,7 @@
   <!-- Macro to add a laser scanner -->
   <xacro:macro name="laser_scanner"
     params="namespace id pub_topic tf parent_link update_rate sample_count
-    angle_min angle_max range_min range_max range_res visualize:=false *origin">
+    angle_min angle_max range_min range_max range_res visualize:=false *origin length:=0.03 radius:=0.04">
     <joint name="${namespace}/laser_${id}_joint" type="fixed">
       <xacro:insert_block name="origin" />
       <parent link="${parent_link}"/>
@@ -584,13 +607,13 @@
       <collision>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <cylinder length="0.03" radius="0.04" />
+          <cylinder length="${length}" radius="${radius}" />
         </geometry>
       </collision>
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <cylinder length="0.03" radius="0.04" />
+          <cylinder length="${length}" radius="${radius}" />
         </geometry>
       </visual>
       <inertial>

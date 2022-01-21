@@ -22,12 +22,12 @@
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
   <!-- Main multirotor link -->
   <xacro:macro name="multirotor_base_macro"
-    params="model_name description_package:=robots_description robot_namespace mass body_width body_height height_offset:=0 mesh_file mesh_scale color *inertia">
-    <link name="base_link"></link>
+    params="model_name description_package:=robots_description robot_namespace robot_base_link:=base_link mass body_width body_height height_offset:=0 mesh_file mesh_scale color *inertia">
+    <link name="${robot_base_link}"></link>
 
     <joint name="base_joint" type="fixed">
       <origin xyz="0 0 0" rpy="0 0 0" />
-      <parent link="base_link" />
+      <parent link="${robot_base_link}" />
       <child link="base_link_inertia" />
     </joint>
 
