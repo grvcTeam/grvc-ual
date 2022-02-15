@@ -56,7 +56,7 @@ class SafetyPilot:
         self.joy_is_connected = False
         action_file = rospkg.RosPack().get_path('ual_teleop') + '/config/simulate_safety_pilot.yaml'
         with open(action_file, 'r') as action_config:
-            action_map = yaml.load(action_config)['joy_actions']
+            action_map = yaml.safe_load(action_config)['joy_actions']
         self.joy_handle = JoyHandle(joy_name, action_map)
         self.rc_simulation = RCSimulation(self.rc_url)
         self.sub_joy = rospy.Subscriber('/joy', Joy, self.joy_callback)

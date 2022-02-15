@@ -51,7 +51,7 @@ class JoyHandle:
     def __init__(self, joy_name, act_joy_map = {}):
         joy_file = rospkg.RosPack().get_path('ual_teleop') + '/config/joysticks/' + joy_name + '.yaml'
         with open(joy_file, 'r') as joy_config:
-            joy_msg_map = yaml.load(joy_config)['joy_layout']
+            joy_msg_map = yaml.safe_load(joy_config)['joy_layout']
 
         found_axis_indices = []
         found_button_indices = []
@@ -173,4 +173,4 @@ class JoyHandle:
         return output
 
 if __name__ == "__main__":
-    print "This is not a script!"
+    print("This is not a script!")
