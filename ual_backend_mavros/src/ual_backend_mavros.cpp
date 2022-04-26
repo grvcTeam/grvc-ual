@@ -303,6 +303,7 @@ void BackendMavros::recoverFromManual() {
         mavros_state_.mode != "STABILIZE" &&
         mavros_state_.mode != "POSITION" &&
         mavros_state_.mode != "LOITER" &&
+        mavros_state_.mode != "AUTO.LOITER" &&
         mavros_state_.mode != "ALT_HOLD") {
         ROS_WARN("Unable to recover from manual mode (not in manual!)");
         return;
