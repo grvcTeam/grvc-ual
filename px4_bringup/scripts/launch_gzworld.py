@@ -8,6 +8,13 @@ import utils
 import rospkg
 import rospy
 
+def str_to_bool(s):
+    if s == 'true':
+        return True
+    elif s == 'false':
+        return False
+    else:
+        raise ValueError
 
 def main():
 
@@ -23,6 +30,8 @@ def main():
                         help='robot description package, must follow robots_description file structure')
     parser.add_argument('-debug', type=bool, default=False,
                         help='run gzserver with gdb')
+    parser.add_argument('-gazebo_headless', type=str, default='false',
+                        help='gazebo headless rendering')
     args, unknown = parser.parse_known_args()
     utils.check_unknown_args(unknown)
 
@@ -84,26 +93,30 @@ def main():
         server = subprocess.Popen('gnome-terminal -- ' + server_args, cwd=temp_dir, \
                                             env=gz_env, shell=True, preexec_fn=os.setsid)
 
-    # Start gazebo client
-    time.sleep(0.2)
-    client_args = "rosrun gazebo_ros gzclient __name:=gazebo_gui"
-    client_out = open(temp_dir + '/gzclient.out', 'w')
-    client_err = open(temp_dir + '/gzclient.err', 'w')
-    client = subprocess.Popen(client_args, stdout=client_out, stderr=client_err, cwd=temp_dir, \
-                                           env=gz_env, shell=True, preexec_fn=os.setsid)
+    # Sta(rt gazebo client
+    if not str_to_bool(args.gazebo_headless):
+        time.sleep(0.2)
+        client_args = "rosrun gazebo_ros gzclient __name:=gazebo_gui"
+        # client_args = "rosrun gazebo_ros gzclient __name:=gazebo_gui headless:=true"
+        client_out = open(temp_dir + '/gzclient.out', 'w')
+        client_err = open(temp_dir + '/gzclient.err', 'w')
+        client = subprocess.Popen(client_args, stdout=client_out, stderr=client_err, cwd=temp_dir, \
+                                               env=gz_env, shell=True, preexec_fn=os.setsid)
 
     rospy.spin()  # Now I'm a ros node, just wait
 
     # Kill'em all
-    if client.poll() is None:
-        os.killpg(os.getpgid(client.pid), signal.SIGTERM)  # TODO: SIGKILL?
     if server.poll() is None:
         os.killpg(os.getpgid(server.pid), signal.SIGTERM)  # TODO: SIGKILL?
+    if not str_to_bool(args.gazebo_headless):
+        if client.poll() is None:
+            os.killpg(os.getpgid(client.pid), signal.SIGTERM)  # TODO: SIGKILL?
     # Close log files
-    client_out.close()
-    client_err.close()
     server_out.close()
     server_err.close()
+    if not str_to_bool(args.gazebo_headless):
+        client_out.close()
+        client_err.close()
 
 
 if __name__ == '__main__':

@@ -25,11 +25,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     <arg name="orientation_th" default="0.65"/>
     <arg name="hold_pose_time" default="3.0"/>
 
+    <arg name="gazebo_headless" default="false"/> <!--Gazebo headless rendering-->
+
     <group if="$(eval mode=='sitl')">
         <!-- Launch Gazebo simulation -->
         <rosparam param="/use_sim_time">true</rosparam>
         <node pkg="px4_bringup" type="launch_gzworld.py" name="gazebo_world" output="screen"
-        args="-physics=ode -world=$(find px4_bringup)/config/empty_light.world">
+        args="-physics=ode -world=$(find px4_bringup)/config/empty_light.world -gazebo_headless=$(arg gazebo_headless)">
             <rosparam param="sim_origin">[37.558542, -5.931074, 7.89]</rosparam><!-- [lat,lon,alt] -->
         </node>
     </group>
