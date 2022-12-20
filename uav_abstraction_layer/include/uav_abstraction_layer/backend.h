@@ -32,6 +32,7 @@
 #include <sensor_msgs/NavSatFix.h>
 #include <nav_msgs/Odometry.h>
 #include <uav_abstraction_layer/State.h>
+#include <mavros_msgs/AttitudeTarget.h>
 
 namespace grvc { namespace ual {
 
@@ -81,6 +82,10 @@ public:
     inline State state() { return this->state_; }
     /// Current reference pose
     virtual Pose referencePose() = 0;
+
+    /// Set attitude target
+    /// \param _msg target attitude setpoint
+    virtual void    setAttitudeTarget(const mavros_msgs::AttitudeTarget& _msg) = 0;
 
     /// Set pose
     /// \param _pose target pose

@@ -26,6 +26,9 @@
 #include <uav_abstraction_layer/TakeOff.h>
 #include <uav_abstraction_layer/Land.h>
 #include <uav_abstraction_layer/State.h>
+#include <uav_abstraction_layer/State.h>
+#include <uav_abstraction_layer/AttSetpoint.h>
+#include <uav_abstraction_layer/AttRateSetpoint.h>
 #include <thread>
 
 namespace grvc { namespace ual {
@@ -64,6 +67,14 @@ public:
         output.state = backend_->state();
         return output;
     }
+
+    /// Set attitude
+    /// \param _msg target attitude
+    bool    setAttitude(const uav_abstraction_layer::AttSetpoint& _msg);
+
+    /// Set attitude rate
+    /// \param _msg target attitude rate
+    bool    setAttitudeRate(const uav_abstraction_layer::AttRateSetpoint& _msg);
 
     /// Set pose
     /// \param _pose target pose

@@ -72,6 +72,7 @@ BackendMavros::BackendMavros()
     std::string arming_srv = mavros_ns + "/cmd/arming";
     std::string get_param_srv = mavros_ns + "/param/get";
     std::string set_pose_topic = mavros_ns + "/setpoint_position/local";
+    std::string set_attitude_target_topic = mavros_ns + "/setpoint_raw/attitude";
     std::string set_pose_global_topic = mavros_ns + "/setpoint_raw/global";
     std::string set_vel_topic = mavros_ns + "/setpoint_velocity/cmd_vel";
     std::string pose_topic = mavros_ns + "/local_position/pose";
@@ -89,6 +90,7 @@ BackendMavros::BackendMavros()
     arming_client_ = nh.serviceClient<mavros_msgs::CommandBool>(arming_srv.c_str());
 
     mavros_ref_pose_pub_ = nh.advertise<geometry_msgs::PoseStamped>(set_pose_topic.c_str(), 1);
+    mavros_ref_att_pub_ = nh.advertise<mavros_msgs::AttitudeTarget>(set_attitude_target_topic.c_str(), 1);
     mavros_ref_pose_global_pub_ = nh.advertise<mavros_msgs::GlobalPositionTarget>(set_pose_global_topic.c_str(), 1);
     mavros_ref_vel_pub_ = nh.advertise<geometry_msgs::TwistStamped>(set_vel_topic.c_str(), 1);
 
@@ -209,6 +211,10 @@ void BackendMavros::offboardThreadLoop(){
             ref_vel_.twist.linear.y = 0;
             ref_vel_.twist.linear.z = 0;
             ref_vel_.twist.angular.z = 0;
+            break;
+        case eControlMode::ATTITUDE:
+            ref_attitude_.header.stamp = ros::Time::now();
+            mavros_ref_att_pub_.publish(ref_attitude_);
             break;
         case eControlMode::GLOBAL_POSE:
             ref_vel_.twist.linear.x = 0;
@@ -509,6 +515,12 @@ void BackendMavros::setVelocity(const Velocity& _vel) {
     }
     last_command_time_ = ros::Time::now();
 }
+
+void BackendMavros::setAttitudeTarget(const mavros_msgs::AttitudeTarget& _msg) {
+    control_mode_ = eControlMode::ATTITUDE;  // Attitude control!
+    ref_attitude_ = _msg;
+}
+
 
 bool BackendMavros::isReady() const {
     if (ros::param::has("~map_origin_geo")) {

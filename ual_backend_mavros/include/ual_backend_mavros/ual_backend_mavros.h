@@ -37,6 +37,7 @@
 #include <mavros_msgs/State.h>
 #include <mavros_msgs/ExtendedState.h>
 #include <mavros_msgs/GlobalPositionTarget.h>
+#include <mavros_msgs/AttitudeTarget.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
 #include <geometry_msgs/TransformStamped.h>
@@ -134,6 +135,10 @@ public:
     /// Current reference pose
     virtual Pose referencePose() override;
 
+    /// Set attitude target
+    /// \param _msg target attitude setpoint
+    void    setAttitudeTarget(const mavros_msgs::AttitudeTarget& _msg) override;
+
     /// Set pose
     /// \param _pose target pose
     void    setPose(const geometry_msgs::PoseStamped& _pose) override;
@@ -184,11 +189,12 @@ private:
     geometry_msgs::TwistStamped ref_vel_;
     geometry_msgs::TwistStamped cur_vel_;
     geometry_msgs::TwistStamped cur_vel_body_;
+    mavros_msgs::AttitudeTarget ref_attitude_;
     mavros_msgs::State          mavros_state_;
     mavros_msgs::ExtendedState  mavros_extended_state_;
 
     //Control
-    enum class eControlMode {LOCAL_VEL, LOCAL_POSE, GLOBAL_POSE, NONE};
+    enum class eControlMode {LOCAL_VEL, LOCAL_POSE, GLOBAL_POSE, ATTITUDE, NONE};
     eControlMode control_mode_ = eControlMode::NONE;
     bool mavros_has_pose_ = false;
     bool mavros_has_geo_pose_ = false;
@@ -207,6 +213,7 @@ private:
     ros::Publisher mavros_ref_pose_pub_;
     ros::Publisher mavros_ref_pose_global_pub_;
     ros::Publisher mavros_ref_vel_pub_;
+    ros::Publisher mavros_ref_att_pub_;
     ros::Subscriber mavros_cur_pose_sub_;
     ros::Subscriber mavros_cur_geo_pose_sub_;
     ros::Subscriber mavros_cur_vel_sub_;
